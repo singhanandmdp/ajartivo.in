@@ -11,62 +11,125 @@ body {
     color: #222;
 }
 
-/* ================= HEADER ================= */
+/* ================= Upper Main HEADER ================= */
 .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 14px 40px;
-    background: #fff;
+    background: #ffffff;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     position: sticky;
     top: 0;
     z-index: 1000;
 }
 
-.logo {
-    font-size: 22px;
-    font-weight: 700;
-    color: #cf0101;
-}
-.logo span {
-    color: #111;
+.logo img {
+    height: 35px;
+    width: auto;
+    display: block;
 }
 
 
-.header-search input {
-    width: 420px;
-    padding: 10px 16px;
-    border-radius: 25px;
-    border: 1px solid #ddd;
-    font-size: 15px;
+.search-wrapper {
+    position: relative;
+    width: 500px;
+    border-radius: 30px;
+    padding: 8px 15px;
+    box-shadow: 0 5px 10px rgba(117, 117, 117, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+
+}
+
+.search-box input {
+    border: none;
     outline: none;
+    background: transparent;
+    flex: 15;
+    font-size: 16px;
+
 }
 
-.header-search input:focus {
-    border-color: #ff5722;
-}
-
-
-.menu-icon {
-    font-size: 26px;
+.search-icon {
+    display: flex;
+    align-items: right;
+    margin-left: 6;
+    color: #666;
     cursor: pointer;
 }
 
-.login-btn {
-    text-decoration: none;
-    background: #2563eb;
-    color: #fff;
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 14px;
+/* ================= SIDEBAR ================= */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: -360px;
+    width: 360px;
+    height: 100vh;
+    background: #ffffff;
+    box-shadow: -4px 0 25px rgba(0,0,0,0.15);
+    padding: 24px 20px;
+    transition: right 0.35s ease;
+    z-index: 2000;
+
+    /* 🔥 IMPORTANT */
+    overflow-y: auto;
 }
+
+/* OPEN STATE */
+.sidebar.active {
+    right: 0;
+}
+
+
+
+/* ================= CONTENT ================= */
+.sidebar-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+.sidebar-section {
+    margin-bottom: 22px;
+}
+
+.sidebar-section h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #111;
+}
+
+.sidebar-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-section li {
+    padding: 6px 0;
+    font-size: 14px;
+    color: #444;
+    cursor: pointer;
+}
+
+.sidebar-section li:hover {
+    color: #ff5722;
+}
+
+
 
 /* ================= HERO SECTION (FINAL FREEPIK STYLE) ================= */
 
 .hero-home {
     position: relative;
-    min-height: 420px;
+    min-height: 520px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -296,77 +359,18 @@ body {
 
 /* ================= OVERLAY ================= */
 .menu-overlay {
-    position: fixed;      /* 🔥 */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    z-index: 9998;
+    z-index: 998;
 }
+
 .menu-overlay.active {
     opacity: 1;
     pointer-events: all;
-}
-
-
-/* ================= SIDEBAR ================= */
-.sidebar {
-    position: fixed;      /* 🔥 MOST IMPORTANT */
-    top: 0;
-    right: -320px;
-    width: 300px;
-    height: 100vh;
-    background: #ffffff;
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.151);
-    transition: right 0.3s ease;
-    z-index: 9999;        /* header se upar */
-}
-.sidebar.active {
-    right: 0;
-}
-
-/* OPEN STATE */
-.sidebar.active {
-    right: 0;
-}
-
-/* ================= CONTENT ================= */
-.sidebar-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 18px;
-}
-
-.sidebar-section {
-    margin-bottom: 22px;
-}
-
-.sidebar-section h4 {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: #111;
-}
-
-.sidebar-section ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.sidebar-section li {
-    padding: 6px 0;
-    font-size: 14px;
-    color: #444;
-    cursor: pointer;
-}
-
-.sidebar-section li:hover {
-    color: #ff5722;
 }
 
 
@@ -664,47 +668,3 @@ body {
     object-fit: cover;
     transition: transform 0.15s ease;
 }
-.sidebar {
-    position: fixed;
-    top: 0;
-    right: -320px;
-    width: 300px;
-    height: 100vh;
-    background: #fff;
-    z-index: 9999;
-    transition: 0.3s;
-}
-.sidebar.active { right: 0; }
-
-.menu-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    opacity: 0;
-    pointer-events: none;
-    z-index: 9998;
-}
-.menu-overlay.active {
-    opacity: 1;
-    pointer-events: all;
-}
-.main-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:12px 20px;
-  background:#fff;
-}
-
-.header-nav a{
-  margin:0 10px;
-  text-decoration:none;
-  color:#333;
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
