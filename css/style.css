@@ -261,6 +261,7 @@ body {
 .category-card.psd { color: #ff5722; }
 .category-card.cdr { color: #4caf50; }
 .category-card.ai  { color: #3f51b5; }
+.category-card.Tools  { color: #3f41b5; }
 
 /* ================= FEATURED PRODUCTS ================= */
 .featured-products {
@@ -668,3 +669,4 @@ body {
     object-fit: cover;
     transition: transform 0.15s ease;
 }
+
