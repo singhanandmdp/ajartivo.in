@@ -1,113 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Birthday Banner – AJartivo</title>
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Banner - AJartivo</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
-<div id="site-header"></div>
+    <div id="site-header"></div>
 
-<div class="product-detail">
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
 
-    <!-- LEFT : IMAGE GALLERY -->
-    <div class="product-gallery">
+    <main class="product-detail">
+        <section class="product-gallery-panel">
+            <div class="product-gallery-glow product-gallery-glow-one"></div>
+            <div class="product-gallery-glow product-gallery-glow-two"></div>
 
-    <div class="preview-box">
-        <img 
-            id="mainImage"
-            src="images/preview1.jpg"
-            alt="Product Preview"
-        >
-    </div>
+            <div class="product-gallery-head">
+                <div>
+                    <p class="product-kicker">Preview studio</p>
+                    <h2>Live design showcase</h2>
+                </div>
+                <span class="product-zoom-pill">Tap or hover to zoom</span>
+            </div>
 
-    <div class="thumbnail-row">
-        <img src="images/preview1.jpg" onclick="changeImage(this)">
-        <img src="images/preview2.jpg" onclick="changeImage(this)">
-        <img src="images/preview3.jpg" onclick="changeImage(this)">
-    </div>
+            <div class="product-gallery">
+                <button class="preview-box" id="previewTrigger" type="button" aria-label="Open image preview">
+                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview">
+                    <span class="preview-badge">Professional zoom</span>
+                    <span class="preview-hint">Click to inspect details</span>
+                </button>
 
-
-    </div>
-
-    <!-- RIGHT : PRODUCT INFO -->
-    <div class="product-info">
-        <h1>Birthday Banner</h1>
-        <p>Editable PSD design with fonts & images</p>
-        <button class="download-btn">Download ZIP</button>
-    </div>
-
-</div>
-
-
-<!-- ================= RELATED DESIGNS ================= -->
-<section class="trending-section related-designs">
-
-    <div class="section-header">
-        <h2>Related Designs</h2>
-    </div>
-
-    <div class="trending-grid">
-
-        <!-- Birthday Banner -->
-        <a href="product.html?name=Birthday%20Banner&type=PSD" class="card-link">
-            <div class="design-card">
-                <img src="images/trending1.jpg">
-                <div class="card-info">
-                    <h3>Birthday Banner</h3>
-                    <span class="file-type psd">PSD</span>
+                <div class="thumbnail-row" id="thumbnailRow">
+                    <button class="thumbnail-btn active" type="button" data-preview="images/preview1.jpg" aria-label="Show preview 1">
+                        <img src="images/preview1.jpg" alt="Thumbnail 1">
+                    </button>
+                    <button class="thumbnail-btn" type="button" data-preview="images/preview2.jpg" aria-label="Show preview 2">
+                        <img src="images/preview2.jpg" alt="Thumbnail 2">
+                    </button>
+                    <button class="thumbnail-btn" type="button" data-preview="images/preview3.jpg" aria-label="Show preview 3">
+                        <img src="images/preview3.jpg" alt="Thumbnail 3">
+                    </button>
                 </div>
             </div>
-        </a>
+        </section>
 
-        <!-- Shop Banner -->
-        <a href="product.html?name=Shop%20Banner&type=PSD" class="card-link">
-            <div class="design-card">
-                <img src="images/trending5.jpg">
-                <div class="card-info">
-                    <h3>Shop Banner</h3>
-                    <span class="file-type psd">PSD</span>
+        <section class="product-info-panel">
+            <div class="product-info">
+                <p class="product-kicker">Premium asset</p>
+                <h1 id="productTitle">Birthday Banner</h1>
+                <p class="product-lead" id="productDescription">Editable PSD design with fonts, layered artwork, and production-ready assets.</p>
+
+                <div class="product-meta-row">
+                    <span class="product-meta-chip" id="productTypeChip">PSD</span>
+                    <span class="product-meta-chip">Instant download</span>
+                    <span class="product-meta-chip">Commercial-ready</span>
+                </div>
+
+                <div class="product-pricing-board">
+                    <div class="price-card">
+                        <span class="price-kicker">Design price</span>
+                        <strong id="productPrice">Rs. 499</strong>
+                        <p id="productPriceNote">One-time purchase with editable source files and preview assets.</p>
+                    </div>
+
+                    <div class="custom-design-card">
+                        <span class="custom-design-badge">Custom design</span>
+                        <h3>Need your own version?</h3>
+                        <p>Custom design feature is being prepared. We will add the exact workflow later, but the request area is now ready on this page.</p>
+                        <button class="custom-design-btn" id="customDesignBtn" type="button">Request Custom Design</button>
+                    </div>
+                </div>
+
+                <div class="product-feature-board">
+                    <div class="feature-board-head">
+                        <p class="product-kicker">Included</p>
+                        <h3>What comes with this design</h3>
+                    </div>
+
+                    <ul class="product-features" id="productFeatures">
+                        <li>Editable layered source file</li>
+                        <li>Print-friendly composition</li>
+                        <li>Easy asset replacement workflow</li>
+                        <li>Fast preview and direct download access</li>
+                    </ul>
+                </div>
+
+                <div class="product-action-row">
+                    <button class="download-btn" id="downloadBtn" type="button">Download ZIP</button>
+                    <button class="product-secondary-btn" id="shareBtn" type="button">Share Product</button>
                 </div>
             </div>
-        </a>
+        </section>
+    </main>
 
-        <!-- Business Card -->
-        <a href="product.html?name=Business%20Card&type=CDR" class="card-link">
-            <div class="design-card">
-                <img src="images/trending3.jpg">
-                <div class="card-info">
-                    <h3>Business Card</h3>
-                    <span class="file-type cdr">CDR</span>
-                </div>
-            </div>
-        </a>
-
-        <!-- Wedding Card -->
-        <a href="product.html?name=Wedding%20Card&type=CDR" class="card-link">
-            <div class="design-card">
-                <img src="images/trending4.jpg">
-                <div class="card-info">
-                    <h3>Wedding Card</h3>
-                    <span class="file-type cdr">CDR</span>
-                </div>
-            </div>
-        </a>
-
+    <div class="product-lightbox" id="productLightbox" hidden>
+        <button class="product-lightbox-close" id="lightboxClose" type="button" aria-label="Close preview">x</button>
+        <img id="lightboxImage" src="images/preview1.jpg" alt="Zoomed design preview">
     </div>
 
-</section>
+    <section class="trending-section">
+        <div class="section-header">
+            <h2>Related Designs</h2>
+        </div>
 
-<!-- JS -->
-<script src="js/script.js"></script>
-<script src="js/product.js"></script>
+        <div class="trending-grid">
+            <a href="product.html?name=Birthday%20Banner&type=PSD" class="card-link">
+                <div class="design-card">
+                    <img src="images/trending1.jpg" alt="Birthday Banner">
+                    <div class="card-info">
+                        <h3>Birthday Banner</h3>
+                        <span class="file-type psd">PSD</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="product.html?name=Shop%20Banner&type=PSD" class="card-link">
+                <div class="design-card">
+                    <img src="images/trending5.jpg" alt="Shop Banner">
+                    <div class="card-info">
+                        <h3>Shop Banner</h3>
+                        <span class="file-type psd">PSD</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="product.html?name=Business%20Card&type=CDR" class="card-link">
+                <div class="design-card">
+                    <img src="images/trending3.jpg" alt="Business Card">
+                    <div class="card-info">
+                        <h3>Business Card</h3>
+                        <span class="file-type cdr">CDR</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="product.html?name=Wedding%20Card&type=CDR" class="card-link">
+                <div class="design-card">
+                    <img src="images/trending4.jpg" alt="Wedding Card">
+                    <div class="card-info">
+                        <h3>Wedding Card</h3>
+                        <span class="file-type cdr">CDR</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <div id="site-footer"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/auth-state.js"></script>
+    <script src="js/download-system.js"></script>
 </body>
+
 </html>
-
-<!-- Footer -->
-<div id="site-footer"></div>
-
-
-
-

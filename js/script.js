@@ -1,190 +1,188 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    /* ================= HEADER PATH ================= */
-
-    const headerPath = window.location.pathname.includes("/about/")
-        ? "../header.html"
-        : "header.html";
-
-    fetch(headerPath)
-        .then(res => res.text())
-        .then(data => {
-
-            const container = document.getElementById("site-header");
-
-            if (container) {
-                container.innerHTML = data;
-
-                initMenu();
-                initSearch();
-            }
-
-        })
-        .catch(err => console.log("Header load error:", err));
-
-
-    /* ================= FOOTER PATH ================= */
-
-    const footerPath = window.location.pathname.includes("/about/")
-        ? "../footer.html"
-        : "footer.html";
-
-    fetch(footerPath)
-        .then(res => res.text())
-        .then(data => {
-
-            const container = document.getElementById("site-footer");
-
-            if (container) {
-                container.innerHTML = data;
-            }
-
-        })
-        .catch(err => console.log("Footer load error:", err));
-
-
-    /* ================= SEARCH RESULTS PAGE ================= */
-
+    loadHeader();
+    loadFooter();
+    loadSidebar();
+    initSearch();
     initSearchResults();
-
 });
 
+function ensureStylesheet(href) {
+    const absoluteHref = new URL(href, window.location.origin).href;
+    const existing = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .some((link) => link.href === absoluteHref);
 
-/* ================= MENU LOGIC ================= */
+    if (existing) return;
 
-function initMenu() {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.appendChild(link);
+}
 
-    const menuBtn = document.querySelector(".menu-icon");
+function loadHeader() {
+    const container = document.getElementById("site-header");
+    if (!container) return;
+
+    fetch("/pages/header.html")
+        .then((res) => res.text())
+        .then((data) => {
+            container.innerHTML = data;
+            initSearch();
+            initSidebarMenu();
+            initProfileDropdown();
+            initAuthUI();
+        })
+        .catch((err) => console.log("Header load error:", err));
+}
+
+function loadFooter() {
+    const container = document.getElementById("site-footer");
+    if (!container) return;
+
+    ensureStylesheet("/css/style.css");
+
+    fetch("/pages/footer.html")
+        .then((res) => res.text())
+        .then((data) => {
+            container.innerHTML = data;
+        })
+        .catch((err) => console.log("Footer load error:", err));
+}
+
+function loadSidebar() {
     const sidebar = document.getElementById("sidebarMenu");
-    const overlay = document.getElementById("menuOverlay");
+    if (!sidebar) return;
 
-    if (!menuBtn || !sidebar || !overlay) return;
+    ensureStylesheet("/css/sidebar.css");
 
-    menuBtn.addEventListener("click", () => {
-        sidebar.classList.add("active");
-        overlay.classList.add("active");
-    });
-
-    overlay.addEventListener("click", () => {
-        sidebar.classList.remove("active");
-        overlay.classList.remove("active");
-    });
-
+    fetch("/pages/sidebar.html")
+        .then((res) => res.text())
+        .then((data) => {
+            sidebar.innerHTML = data;
+            initSidebarMenu();
+        })
+        .catch((err) => console.log("Sidebar load error:", err));
 }
 
+function searchDesign(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
 
-/* ================= SEARCH FUNCTION ================= */
+    const query = input.value.trim();
+    if (!query) return;
 
-function searchDesign(inputId){
-
-    let input = document.getElementById(inputId);
-
-    if(!input) return;
-
-    let query = input.value;
-
-    if(query.trim() !== ""){
-
-        window.location.href =
-        "search.html?q=" + encodeURIComponent(query);
-
-    }
-
+    window.location.href = "/pages/search.html?q=" + encodeURIComponent(query);
 }
 
+function quickSearch(query) {
+    if (!query) return;
+    window.location.href = "/pages/search.html?q=" + encodeURIComponent(query);
+}
 
-/* ================= ENTER KEY SEARCH ================= */
+function initSearch() {
+    ["heroSearchInput", "headerSearchInput"].forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        if (!input || input.dataset.searchReady === "true") return;
 
-function initSearch(){
-
-    const heroInput = document.getElementById("heroSearchInput");
-    const headerInput = document.getElementById("headerSearchInput");
-
-    if(heroInput){
-        heroInput.addEventListener("keydown", function(e){
-
-            if(e.key === "Enter"){
-                searchDesign("heroSearchInput");
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                searchDesign(inputId);
             }
-
         });
-    }
 
-    if(headerInput){
-        headerInput.addEventListener("keydown", function(e){
-
-            if(e.key === "Enter"){
-                searchDesign("headerSearchInput");
-            }
-
-        });
-    }
-
+        input.dataset.searchReady = "true";
+    });
 }
 
-
-/* ================= QUICK SEARCH TAG ================= */
-
-function quickSearch(keyword){
-
-    const input = document.getElementById("heroSearchInput");
-
-    if(!input) return;
-
-    input.value = keyword;
-
-    searchDesign("heroSearchInput");
-
-}
-
-
-/* ================= SEARCH RESULTS PAGE ================= */
-
-function initSearchResults(){
-
+function initSearchResults() {
     const container = document.getElementById("results");
     const title = document.getElementById("searchTitle");
+    if (!container || !title) return;
 
-    if(!container || !title) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get("q");
-
-    if(!query) return;
+    const query = new URLSearchParams(window.location.search).get("q");
+    if (!query) return;
 
     title.innerText = "Search Results for: " + query;
+}
 
+function initSidebarMenu() {
+    const menuBtn = document.getElementById("menu-btn");
+    const sidebar = document.getElementById("sidebarMenu");
+    const overlay = document.getElementById("menuOverlay");
+    const closeBtn = document.getElementById("sidebarClose");
 
-    const designs = [
-        { title: "Birthday Banner", type: "PSD" },
-        { title: "Business Logo", type: "AI" },
-        { title: "Shop Banner", type: "PSD" },
-        { title: "Election Poster", type: "PSD" },
-        { title: "Business Card", type: "CDR" }
-    ];
+    if (menuBtn && sidebar && menuBtn.dataset.menuReady !== "true") {
+        menuBtn.addEventListener("click", () => {
+            sidebar.classList.add("active");
+            if (overlay) overlay.classList.add("active");
+            document.body.classList.add("sidebar-open");
+        });
+        menuBtn.dataset.menuReady = "true";
+    }
 
+    if (overlay && sidebar && overlay.dataset.menuReady !== "true") {
+        overlay.addEventListener("click", () => {
+            sidebar.classList.remove("active");
+            overlay.classList.remove("active");
+            document.body.classList.remove("sidebar-open");
+        });
+        overlay.dataset.menuReady = "true";
+    }
 
-    designs.forEach(design => {
+    if (closeBtn && sidebar && closeBtn.dataset.menuReady !== "true") {
+        closeBtn.addEventListener("click", () => {
+            sidebar.classList.remove("active");
+            if (overlay) overlay.classList.remove("active");
+            document.body.classList.remove("sidebar-open");
+        });
+        closeBtn.dataset.menuReady = "true";
+    }
+}
 
-        if (design.title.toLowerCase().includes(query.toLowerCase())) {
+function initAuthUI() {
+    if (typeof firebase === "undefined" || !firebase.auth) return;
 
-            let card = `
-            <div class="design-card">
+    firebase.auth().onAuthStateChanged((user) => {
+        const guestMenu = document.getElementById("guestMenu");
+        const userMenu = document.getElementById("userMenu");
+        const userName = document.getElementById("userName");
 
-                <div class="product-img">Preview</div>
+        if (!guestMenu || !userMenu) return;
 
-                <div class="card-info">
-                    <h3>${design.title}</h3>
-                    <span class="file-type">${design.type}</span>
-                </div>
+        if (user) {
+            guestMenu.style.display = "none";
+            userMenu.style.display = "block";
 
-            </div>
-            `;
-
-            container.innerHTML += card;
-
+            if (userName) {
+                const displayName = user.displayName || user.email || "User";
+                userName.textContent = displayName.trim().split(/\s+/)[0];
+            }
+        } else {
+            guestMenu.style.display = "block";
+            userMenu.style.display = "none";
         }
+    });
+}
 
+function initProfileDropdown() {
+    const trigger = document.getElementById("profileTrigger");
+    const dropdown = trigger ? trigger.closest(".dropdown") : null;
+
+    if (!trigger || !dropdown || trigger.dataset.dropdownReady === "true") {
+        return;
+    }
+
+    trigger.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropdown.classList.toggle("open");
     });
 
+    document.addEventListener("click", (event) => {
+        if (!dropdown.contains(event.target)) {
+            dropdown.classList.remove("open");
+        }
+    });
+
+    trigger.dataset.dropdownReady = "true";
 }

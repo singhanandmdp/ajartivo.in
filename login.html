@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | AJ Artivo</title>
+    <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body>
+    <div class="login-page">
+        <section class="login-hero">
+            <div class="login-hero-inner">
+                <span class="hero-kicker">Creative access portal</span>
+                <h1>Manage your designs, uploads, and profile from one place.</h1>
+                <p>Sign in to AJ Artivo to upload new resources, manage stored files, and keep your creative dashboard in sync.</p>
+
+                <div class="hero-points">
+                    <div class="hero-point">
+                        <strong>Cloud Uploads</strong>
+                        <span>Connect Firebase-based design uploads with a smoother admin workflow.</span>
+                    </div>
+                    <div class="hero-point">
+                        <strong>Profile Control</strong>
+                        <span>Keep your user data, downloads, and access tools organized in one professional account area.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="login-panel">
+            <div class="login-card">
+                <div class="logo-box">
+                    <img src="images/logo.png" alt="AJ Artivo Logo" class="logo">
+                </div>
+
+                <h2>Welcome back</h2>
+                <p class="subtitle">Login to your AJ Artivo account</p>
+
+                <div class="input-group">
+                    <input type="email" id="email" placeholder="Email address" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button id="loginBtn" class="primary-btn">Login</button>
+                </div>
+
+                <div class="social-section">
+                    <span class="social-title">Continue with</span>
+
+                    <div class="social-buttons">
+                        <button id="googleLogin" class="social-btn">
+                            <img src="icons/google.svg" alt="Google" class="social-icon">
+                            <span>Google</span>
+                        </button>
+
+                        <button id="facebookLogin" class="social-btn">
+                            <img src="icons/facebook.svg" alt="Facebook" class="social-icon">
+                            <span>Facebook</span>
+                        </button>
+                    </div>
+                </div>
+
+                <p class="signup">
+                    Don't have an account?
+                    <a href="signup.html">Create account</a>
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+
+</html>

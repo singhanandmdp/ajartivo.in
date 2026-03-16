@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Designs</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+
+<body data-admin-page="true">
+    <div class="admin-container">
+        <aside class="admin-sidebar">
+            <h2 class="logo">AJartivo Admin</h2>
+            <ul class="menu">
+                <li><a href="/admin/admin-dashboard.html">Dashboard</a></li>
+                <li><a href="/admin/upload-design.html">Upload Design</a></li>
+                <li class="active"><a href="/admin/manage-design.html">Manage Designs</a></li>
+            </ul>
+            <a href="/index.html" class="admin-home-link">Go to Homepage</a>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-header">
+                <div>
+                    <p class="admin-kicker">Storage browser</p>
+                    <h1>Manage Design Library</h1>
+                </div>
+                <div class="admin-hero-side">
+                    <div id="manageStatus" class="admin-status">Loading uploaded files</div>
+                    <a href="/index.html" class="admin-jump-link">Open Homepage</a>
+                </div>
+            </header>
+
+            <section class="design-table">
+                <div class="section-head">
+                    <div>
+                        <p class="admin-kicker">Preview grid</p>
+                        <h2>Uploaded Designs</h2>
+                    </div>
+                </div>
+
+                <div id="designList" class="storage-grid"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="/js/firebase-config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/manage-designs.js"></script>
+</body>
+
+</html>
