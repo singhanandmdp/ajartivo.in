@@ -9,6 +9,8 @@
     const designId = params.get("id");
     const designName = params.get("name");
     let currentDesign = null;
+    const SECURITY_API_BASE = "https://us-central1-ajartivo.cloudfunctions.net";
+    let downloadInFlight = false;
 
     initPage();
 
@@ -120,7 +122,7 @@
         const button = document.getElementById("downloadBtn");
         if (!button) return;
 
-        if (!design || !design.download) {
+        if (!design || !design.id) {
             button.disabled = true;
             button.textContent = "Download Coming Soon";
             return;
@@ -128,14 +130,61 @@
 
         button.disabled = false;
         button.textContent = "Download ZIP";
-        button.onclick = function () {
-            services.db.collection("designs").doc(design.id).update({
-                downloads: services.increment(1)
-            }).catch(function (error) {
-                console.error("Download counter update failed:", error);
-            }).finally(function () {
-                window.open(design.download, "_blank", "noopener");
-            });
+        button.onclick = async function () {
+            if (downloadInFlight) return;
+
+            const user = services.auth.currentUser;
+            if (!user) {
+                alert("Please login before downloading files.");
+                window.location.href = "/login.html?next=" + encodeURIComponent(window.location.pathname + window.location.search);
+                return;
+            }
+
+            await user.reload();
+            if (!user.emailVerified) {
+                alert("Please verify your email before downloading.");
+                return;
+            }
+
+            downloadInFlight = true;
+            button.disabled = true;
+            button.textContent = "Preparing secure download...";
+
+            try {
+                const idToken = await user.getIdToken(true);
+                const nonce = getDownloadNonce(design.id);
+                const response = await fetch(SECURITY_API_BASE + "/requestSecureDownload", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + idToken
+                    },
+                    body: JSON.stringify({
+                        designId: design.id,
+                        nonce: nonce
+                    })
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    const message = payload && payload.error ? payload.error : "Download blocked by security policy.";
+                    throw new Error(message);
+                }
+
+                if (!payload || !payload.downloadUrl) {
+                    throw new Error("Secure URL generation failed.");
+                }
+
+                window.open(payload.downloadUrl, "_blank", "noopener");
+                button.textContent = "Download ZIP";
+            } catch (error) {
+                console.error("Secure download failed:", error);
+                alert(error.message || "Unable to download right now.");
+                button.textContent = "Download ZIP";
+            } finally {
+                downloadInFlight = false;
+                button.disabled = false;
+            }
         };
     }
 
@@ -276,5 +325,15 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
+    }
+
+    function getDownloadNonce(designId) {
+        const key = `aj_download_nonce_${designId}`;
+        const existing = sessionStorage.getItem(key);
+        if (existing) return existing;
+
+        const nonce = `${designId}-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+        sessionStorage.setItem(key, nonce);
+        return nonce;
     }
 })();

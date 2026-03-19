@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        (request.auth.token.admin == true || request.auth.token.role == "admin");
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /designs/{designId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /downloadDaily/{docId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /downloadIpDaily/{docId} {
+      allow read, write: if false;
+    }
+
+    match /downloadEvents/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /downloadNonces/{docId} {
+      allow read, write: if false;
+    }
+
+    match /loginRateLimits/{docId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

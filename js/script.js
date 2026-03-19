@@ -35,6 +35,7 @@ function loadHeader() {
         .then((data) => {
             container.innerHTML = data;
             initSearch();
+            initMobileHeaderSearch();
             initHeaderVoiceSearch();
             initSidebarMenu();
             initProfileDropdown();
@@ -68,8 +69,49 @@ function loadSidebar() {
         .then((data) => {
             sidebar.innerHTML = data;
             initSidebarMenu();
+            updateSidebarDesignCounts();
         })
         .catch((err) => console.log("Sidebar load error:", err));
+}
+
+async function updateSidebarDesignCounts() {
+    const psdCount = document.getElementById("psdCount");
+    const cdrCount = document.getElementById("cdrCount");
+    const aiCount = document.getElementById("aiCount");
+    if (!psdCount || !cdrCount || !aiCount) return;
+
+    const services = window.AjArtivoFirebase;
+    if (!services || !services.db) return;
+
+    try {
+        const snapshot = await services.db.collection("designs").get();
+        const counts = { psd: 0, cdr: 0, ai: 0 };
+
+        snapshot.forEach((doc) => {
+            const data = doc.data() || {};
+            const rawType = String(data.category || data.type || "").trim().toUpperCase();
+
+            if (rawType === "PSD") {
+                counts.psd += 1;
+                return;
+            }
+
+            if (rawType === "CDR") {
+                counts.cdr += 1;
+                return;
+            }
+
+            if (rawType === "AI" || rawType === "ILLUSTRATOR") {
+                counts.ai += 1;
+            }
+        });
+
+        psdCount.textContent = String(counts.psd);
+        cdrCount.textContent = String(counts.cdr);
+        aiCount.textContent = String(counts.ai);
+    } catch (error) {
+        console.error("Sidebar counts load error:", error);
+    }
 }
 
 function searchDesign(inputId) {
@@ -88,7 +130,7 @@ function quickSearch(query) {
 }
 
 function initSearch() {
-    ["heroSearchInput", "headerSearchInput"].forEach((inputId) => {
+    ["heroSearchInput", "headerSearchInput", "mobileHeaderSearchInput"].forEach((inputId) => {
         const input = document.getElementById(inputId);
         if (!input || input.dataset.searchReady === "true") return;
 
@@ -100,6 +142,32 @@ function initSearch() {
 
         input.dataset.searchReady = "true";
     });
+}
+
+function initMobileHeaderSearch() {
+    const header = document.querySelector(".header");
+    const toggleBtn = document.getElementById("mobileSearchToggle");
+    const searchWrap = document.getElementById("mobileHeaderSearch");
+    const searchInput = document.getElementById("mobileHeaderSearchInput");
+    if (!header || !toggleBtn || !searchWrap || !searchInput) return;
+    if (toggleBtn.dataset.mobileSearchReady === "true") return;
+
+    toggleBtn.addEventListener("click", function () {
+        const isOpen = header.classList.toggle("mobile-search-open");
+        if (isOpen) {
+            searchInput.focus();
+        } else {
+            searchInput.blur();
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!header.contains(event.target)) {
+            header.classList.remove("mobile-search-open");
+        }
+    });
+
+    toggleBtn.dataset.mobileSearchReady = "true";
 }
 
 function initHeaderVoiceSearch() {
@@ -149,55 +217,144 @@ function initSearchResults() {
     const title = document.getElementById("searchTitle");
     if (!container || !title) return;
 
-    const query = new URLSearchParams(window.location.search).get("q");
-    if (!query) return;
+    const services = window.AjArtivoFirebase;
+    if (!services || !services.db) return;
 
-    title.innerText = "Search Results for: " + query;
+    const params = new URLSearchParams(window.location.search);
+    const rawQuery = (params.get("q") || "").trim();
+    const query = rawQuery.toLowerCase();
+    const category = (params.get("category") || "").trim().toUpperCase();
+    const priceFilter = (params.get("price") || "").trim().toLowerCase();
+    const sortFilter = (params.get("sort") || "").trim().toLowerCase();
+
+    const titleParts = [];
+    if (category) titleParts.push(`${category} Designs`);
+    if (priceFilter === "free") titleParts.push("Free Resources");
+    if (sortFilter === "trending") titleParts.push("Trending Designs");
+    if (rawQuery) titleParts.push(`Search: "${rawQuery}"`);
+
+    title.innerText = titleParts.length ? titleParts.join(" | ") : "All Designs";
+    container.innerHTML = '<div class="empty-state">Loading designs...</div>';
+
+    services.db.collection("designs")
+        .orderBy("createdAt", "desc")
+        .get()
+        .then((snapshot) => {
+            let designs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+            if (category) {
+                designs = designs.filter((design) => {
+                    const type = String(design.category || design.type || "").trim().toUpperCase();
+                    if (category === "AI") {
+                        return type === "AI" || type === "ILLUSTRATOR";
+                    }
+                    return type === category;
+                });
+            }
+
+            if (priceFilter === "free") {
+                designs = designs.filter((design) => {
+                    const value = Number(design.price || 0);
+                    return !Number.isFinite(value) || value <= 0;
+                });
+            }
+
+            if (query) {
+                designs = designs.filter((design) => {
+                    const textBlob = [
+                        design.title,
+                        design.name,
+                        design.description,
+                        Array.isArray(design.tags) ? design.tags.join(" ") : ""
+                    ].join(" ").toLowerCase();
+
+                    return textBlob.includes(query);
+                });
+            }
+
+            if (sortFilter === "trending") {
+                designs.sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0));
+            }
+
+            renderSearchDesignCards(container, designs);
+        })
+        .catch((error) => {
+            console.error("Search results load error:", error);
+            container.innerHTML = '<div class="empty-state">Could not load designs right now.</div>';
+        });
+}
+
+function renderSearchDesignCards(container, designs) {
+    if (!designs.length) {
+        container.innerHTML = '<div class="empty-state">No matching designs found.</div>';
+        return;
+    }
+
+    container.innerHTML = designs.map((design) => {
+        const title = escapeText(design.title || design.name || "Untitled Design");
+        const type = escapeText(design.category || design.type || "Other");
+        const image = escapeText(design.image || "/images/trending1.jpg");
+        const productUrl = `/product.html?id=${encodeURIComponent(design.id)}`;
+
+        return `
+            <article class="design-card homepage-design-card">
+                <a href="${productUrl}" class="card-link homepage-card-link">
+                    <img src="${image}" alt="${title}">
+                    <div class="card-info">
+                        <h3>${title}</h3>
+                        <div class="homepage-card-meta">
+                            <span class="file-type ${type.toLowerCase()}">${type}</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+        `;
+    }).join("");
+}
+
+function escapeText(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 function initHeroSearchEnhancements() {
     const heroInput = document.getElementById("heroSearchInput");
     const heroSearch = heroInput ? heroInput.closest(".hero-search") : null;
     const heroSearchWrap = heroInput ? heroInput.closest(".hero-search-wrap") : null;
+    const hero = document.getElementById("heroHome");
     const heroSearchPanel = document.getElementById("heroSearchPanel");
     const heroSearchPanelClose = document.getElementById("heroSearchPanelClose");
     if (!heroInput || !heroSearch) return;
 
     if (heroInput.dataset.heroEnhanced === "true") return;
 
-    const placeholderIdeas = [
-        "Search for banners, cards, logos...",
-        "Try wedding flex, election poster, festival ad...",
-        "Find PSD, CDR, AI files in seconds...",
-        "Search premium templates for your next project..."
-    ];
-
-    let placeholderIndex = 0;
-
-    window.setInterval(() => {
-        if (document.activeElement === heroInput || heroInput.value.trim()) return;
-
-        placeholderIndex = (placeholderIndex + 1) % placeholderIdeas.length;
-        heroInput.classList.add("is-switching");
-
-        window.setTimeout(() => {
-            heroInput.setAttribute("placeholder", placeholderIdeas[placeholderIndex]);
-            heroInput.classList.remove("is-switching");
-        }, 220);
-    }, 2600);
+    heroInput.setAttribute("placeholder", "Search for banners, cards, logos...");
 
     heroInput.addEventListener("focus", () => {
         heroSearch.classList.add("is-focused");
         if (heroSearchWrap) {
             heroSearchWrap.classList.add("panel-open");
         }
+        if (hero) {
+            hero.classList.add("has-search-panel");
+        }
     });
 
     heroInput.addEventListener("blur", () => {
         heroSearch.classList.remove("is-focused");
         window.setTimeout(() => {
-            if (document.activeElement !== heroInput && heroSearchWrap) {
+            const activeInsideWrap = heroSearchWrap && heroSearchWrap.contains(document.activeElement);
+            if (activeInsideWrap) return;
+
+            if (heroSearchWrap) {
                 heroSearchWrap.classList.remove("panel-open");
+            }
+            if (hero) {
+                hero.classList.remove("has-search-panel");
             }
         }, 120);
     });
@@ -210,9 +367,7 @@ function initHeroSearchEnhancements() {
         heroSearchPanel.querySelectorAll("button").forEach((button) => {
             button.addEventListener("click", () => {
                 if (button.classList.contains("hero-search-panel-close")) {
-                    if (heroSearchWrap) {
-                        heroSearchWrap.classList.remove("panel-open");
-                    }
+                    closeHeroSearchPanel();
                     heroInput.blur();
                     return;
                 }
@@ -224,6 +379,8 @@ function initHeroSearchEnhancements() {
 
                 if (button.classList.contains("hero-search-chip")) {
                     heroInput.focus();
+                } else {
+                    closeHeroSearchPanel();
                 }
             });
         });
@@ -231,10 +388,23 @@ function initHeroSearchEnhancements() {
 
     if (heroSearchPanelClose) {
         heroSearchPanelClose.addEventListener("click", () => {
-            if (heroSearchWrap) {
-                heroSearchWrap.classList.remove("panel-open");
-            }
+            closeHeroSearchPanel();
         });
+    }
+
+    document.addEventListener("click", (event) => {
+        if (!heroSearchWrap || !heroSearchWrap.contains(event.target)) {
+            closeHeroSearchPanel();
+        }
+    });
+
+    function closeHeroSearchPanel() {
+        if (heroSearchWrap) {
+            heroSearchWrap.classList.remove("panel-open");
+        }
+        if (hero) {
+            hero.classList.remove("has-search-panel");
+        }
     }
 
     heroInput.dataset.heroEnhanced = "true";
@@ -261,7 +431,7 @@ async function initHeroSlider() {
     const slides = Array.from(slider.querySelectorAll(".hero-slide"));
     if (!slides.length) return;
 
-    const autoplayDelay = 5200;
+    const autoplayDelay = 8000;
     let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
     let intervalId = null;
     const preloadedSlides = new Set([0]);
@@ -372,10 +542,9 @@ async function initHeroSlider() {
 
     setActiveSlide(activeIndex);
     startAutoplay();
-
-    window.setTimeout(preloadNextSlide, 900);
-    window.setTimeout(preloadNextSlide, 2200);
-    window.setTimeout(preloadNextSlide, 3600);
+    window.setTimeout(preloadNextSlide, autoplayDelay);
+    window.setTimeout(preloadNextSlide, autoplayDelay * 2);
+    window.setTimeout(preloadNextSlide, autoplayDelay * 3);
 }
 
 async function loadHeroImages() {
@@ -441,7 +610,8 @@ function initAuthUI() {
         const profileCardAvatar = document.getElementById("profileCardAvatar");
         const profileFullName = document.getElementById("profileFullName");
         const profileUserId = document.getElementById("profileUserId");
-        const profileBadge = document.querySelector(".profile-badge");
+        const profileInitial = document.getElementById("profileInitial");
+        const profileVerifiedText = document.getElementById("profileVerifiedText");
 
         if (user) {
             const displayName = user.displayName || user.email || "User";
@@ -468,15 +638,19 @@ function initAuthUI() {
             }
 
             if (profileFullName) {
-                profileFullName.textContent = displayName.toUpperCase();
+                profileFullName.textContent = displayName;
             }
 
             if (profileUserId) {
                 profileUserId.textContent = `ID: ${shortId}`;
             }
 
-            if (profileBadge) {
-                profileBadge.textContent = user.emailVerified ? "Verified user" : "Free user";
+            if (profileInitial) {
+                profileInitial.textContent = firstLetter;
+            }
+
+            if (profileVerifiedText) {
+                profileVerifiedText.textContent = user.emailVerified ? "Verified user" : "Free user";
             }
 
             if (memberBox) {

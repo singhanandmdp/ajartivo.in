@@ -8,7 +8,9 @@
     <link rel="stylesheet" href="css/login.css">
 </head>
 
-<body>
+<body class="login-theme">
+    <div id="site-header"></div>
+
     <div class="login-page">
         <section class="login-hero">
             <div class="login-hero-inner">
@@ -68,11 +70,17 @@
         </section>
     </div>
 
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <div id="site-footer"></div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <script src="js/firebase-config.js"></script>
+    <script src="js/script.js"></script>
     <script src="js/auth.js"></script>
 </body>
 

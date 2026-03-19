@@ -35,19 +35,19 @@
 
       <div class="nav-divider"></div>
 
-      <div class="dropdown">
+      <div class="dropdown explore-dropdown">
         <a href="#" class="dropdown-trigger">
           <img src="/icons/explore.svg" class="icon-svg" alt="">
           Explore
         </a>
 
-        <div class="dropdown-menu">
-          <a href="#">PSD Designs</a>
-          <a href="#">CDR Designs</a>
-          <a href="#">AI Designs</a>
-          <hr>
-          <a href="/index.html#trending">Trending Designs</a>
-          <a href="#">Free Resources</a>
+        <div class="dropdown-menu explore-menu">
+          <a href="/pages/search.html?category=PSD">PSD Designs</a>
+          <a href="/pages/search.html?category=CDR">CDR Designs</a>
+          <a href="/pages/search.html?category=AI">AI Designs</a>
+          <hr class="explore-divider">
+          <a href="/pages/search.html?sort=trending">Trending Designs</a>
+          <a href="/pages/search.html?price=free">Free Resources</a>
         </div>
       </div>
 
@@ -74,60 +74,43 @@
         </a>
 
         <div class="dropdown-menu profile-panel">
-          <div class="profile-panel-top">
-            <span class="profile-offer">Creator</span>
-            <a href="#" id="logoutBtn" class="profile-logout">Logout</a>
-          </div>
-
           <div class="profile-summary">
             <div class="profile-avatar-wrap">
               <img id="profileCardAvatar" src="/images/default-user.png" alt="Profile Avatar">
-              <span class="profile-crown">A</span>
             </div>
-
-            <h3 id="profileFullName">User Name</h3>
-            <p id="profileUserId">ID: AJ000001</p>
-            <span class="profile-badge">Free user</span>
-          </div>
-
-          <div class="profile-stats">
-            <div>
-              <strong id="dailyDownloads">2</strong>
-              <span>Daily downloads</span>
-            </div>
-            <div>
-              <strong id="remainingDownloads">2</strong>
-              <span>Remaining downloads</span>
+            <div class="profile-identity">
+              <h3 id="profileFullName">User Name</h3>
+              <p id="profileUserId">ID: AJ000001</p>
+              <div class="profile-meta">
+                <span id="profileInitial" class="profile-initial">U</span>
+                <span id="profileVerifiedText" class="profile-verified">Verified user</span>
+              </div>
             </div>
           </div>
 
-          <div class="profile-upgrade-card">
-            <span class="upgrade-chip">Pro</span>
-            <p>Unlock premium templates, faster downloads, and designer tools.</p>
-            <a href="/pages/profile.html" class="upgrade-btn">View Profile</a>
+          <div class="profile-actions">
+            <a href="/pages/profile.html" class="upgrade-btn">Get a plan</a>
           </div>
 
-          <div class="profile-shortcuts">
-            <a href="/pages/profile.html" class="profile-shortcut">
-              <span class="shortcut-icon mint">P</span>
-              <span>My Profile</span>
-            </a>
-            <a href="#" class="profile-shortcut">
-              <span class="shortcut-icon lavender">E</span>
-              <span>Enterprise</span>
-            </a>
-            <a href="#" class="profile-shortcut">
-              <span class="shortcut-icon peach">C</span>
-              <span>Creator Hub</span>
-            </a>
-            <a href="#" class="profile-shortcut">
-              <span class="shortcut-icon sky">H</span>
-              <span>Help Center</span>
-            </a>
+          <div class="profile-menu">
+            <a href="/pages/profile.html" class="profile-menu-item">Profile</a>
+            <a href="/pages/profile.html" class="profile-menu-item">Plan &amp; billing</a>
+            <a href="/pages/profile.html" class="profile-menu-item">Settings</a>
+            <a href="/pages/profile.html" class="profile-menu-item">My collections</a>
+            <a href="/pages/search.html?q=custom%20design" class="profile-menu-item">Custom Design</a>
+            <a href="#" class="profile-menu-item">Help center</a>
+          </div>
+
+          <div class="profile-panel-bottom">
+            <a href="#" id="logoutBtn" class="profile-logout">Log out</a>
           </div>
         </div>
       </div>
     </nav>
+
+    <button class="mobile-search-btn" id="mobileSearchToggle" aria-label="Open search">
+      <img src="/icons/search.svg" alt="">
+    </button>
 
     <button class="menu-icon" id="menu-btn" aria-label="Open menu">
       <svg width="30" height="30" viewBox="0 0 100 100">
@@ -135,6 +118,13 @@
         <path class="line middle" d="M20 50 H80"></path>
         <path class="line bottom" d="M20 70 H80"></path>
       </svg>
+    </button>
+  </div>
+
+  <div class="mobile-header-search" id="mobileHeaderSearch">
+    <input type="text" id="mobileHeaderSearchInput" placeholder="Search designs...">
+    <button type="button" onclick="searchDesign('mobileHeaderSearchInput')" aria-label="Search">
+      <img src="/icons/search.svg" alt="">
     </button>
   </div>
 </header>

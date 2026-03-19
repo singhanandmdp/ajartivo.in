@@ -14,10 +14,22 @@ body {
     color: #fff;
 }
 
+body.login-theme {
+    --site-bg: #09111f;
+    --site-text: #ffffff;
+    background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.28), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.2), transparent 22%),
+        #09111f !important;
+    color: #fff !important;
+}
+
 .login-page {
-    min-height: 100vh;
+    min-height: calc(100vh - 86px);
     display: grid;
     grid-template-columns: 1.08fr 0.92fr;
+    max-width: 1320px;
+    margin: 0 auto;
 }
 
 .login-hero,
@@ -223,6 +235,7 @@ body {
 @media (max-width: 980px) {
     .login-page {
         grid-template-columns: 1fr;
+        min-height: auto;
     }
 
     .login-hero {
@@ -250,5 +263,9 @@ body {
 
     .social-buttons {
         grid-template-columns: 1fr;
+    }
+
+    .login-page {
+        margin: 0;
     }
 }
