@@ -16,61 +16,79 @@
 
         <div class="filter-bar">
             <div class="filter-group">
-                <select class="filter-select">
-                    <option>File Type</option>
-                    <option>PSD</option>
-                    <option>CDR</option>
-                    <option>AI</option>
+                <select class="filter-select" id="fileTypeFilter">
+                    <option value="">All File Types</option>
+                    <option value="PSD">PSD</option>
+                    <option value="CDR">CDR</option>
+                    <option value="AI">AI</option>
+                    <option value="PMD">PMD</option>
+                    <option value="PNG">PNG</option>
+                    <option value="JPG">JPG</option>
+                    <option value="JPEG">JPEG</option>
+                    <option value="PDF">PDF</option>
+                    <option value="SVG">SVG</option>
+                    <option value="EPS">EPS</option>
                 </select>
 
-                <select class="filter-select">
-                    <option>License</option>
-                    <option>Free</option>
-                    <option>Premium</option>
+                <select class="filter-select" id="licenseFilter">
+                    <option value="">All License Types</option>
+                    <option value="free">Free</option>
+                    <option value="premium">Premium</option>
                 </select>
 
-                <select class="filter-select">
-                    <option>AI Generated</option>
-                    <option>No</option>
-                    <option>Yes</option>
+                <select class="filter-select" id="aiFilter">
+                    <option value="">AI Generated</option>
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
                 </select>
 
-                <select class="filter-select">
-                    <option>Orientation</option>
-                    <option>Landscape</option>
-                    <option>Portrait</option>
-                    <option>Square</option>
+                <select class="filter-select" id="orientationFilter">
+                    <option value="">Orientation</option>
+                    <option value="horizontal">Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                    <option value="landscape">Landscape</option>
+                    <option value="portrait">Portrait</option>
+                    <option value="square">Square</option>
+                    <option value="panoramic">Panoramic</option>
                 </select>
 
-                <select class="filter-select">
-                    <option>Color</option>
-                    <option>Red</option>
-                    <option>Blue</option>
-                    <option>Green</option>
-                    <option>Black</option>
+                <select class="filter-select" id="colorFilter">
+                    <option value="">Color</option>
+                    <option value="red">Red</option>
+                    <option value="blue">Blue</option>
+                    <option value="green">Green</option>
+                    <option value="black">Black</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="orange">Orange</option>
+                    <option value="purple">Purple</option>
+                    <option value="white">White</option>
                 </select>
             </div>
 
             <div class="sort-group">
                 <label>Sort By</label>
 
-                <select class="filter-select">
-                    <option selected>Latest</option>
-                    <option>Trending</option>
-                    <option>Most Downloaded</option>
+                <select class="filter-select" id="sortFilter">
+                    <option value="latest" selected>Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="trending">Trending</option>
+                    <option value="downloads">Most Downloaded</option>
+                    <option value="views">Most Viewed</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                    <option value="az">Title: A to Z</option>
+                    <option value="za">Title: Z to A</option>
                 </select>
+                <button type="button" class="clear-filter-btn" id="clearFiltersBtn">Clear</button>
             </div>
         </div>
 
+        <div class="active-filter-row" id="activeFilterRow"></div>
+        <p id="searchResultMeta" class="search-meta"></p>
         <div id="results" class="trending-grid"></div>
 
-        <div class="pagination">
-            <button>Prev</button>
-            <button class="active">1</button>
-            <button>2</button>
-            <button>3</button>
-            <button>Next</button>
-        </div>
+        <div class="pagination" id="searchPagination"></div>
+        <div class="pagination" id="searchPaginationBottom"></div>
     </section>
 
     <aside class="sidebar" id="sidebarMenu"></aside>

@@ -9,8 +9,6 @@
     const designId = params.get("id");
     const designName = params.get("name");
     let currentDesign = null;
-    const SECURITY_API_BASE = "https://us-central1-ajartivo.cloudfunctions.net";
-    let downloadInFlight = false;
 
     initPage();
 
@@ -27,6 +25,7 @@
             }
 
             renderProduct(currentDesign);
+            await loadRelatedDesigns(currentDesign.id);
             incrementViews(currentDesign.id);
         } catch (error) {
             console.error("Product load failed:", error);
@@ -60,20 +59,72 @@
 
     function renderProduct(design) {
         const title = design.title || "Untitled Design";
-        const type = design.category || "Other";
+        const type = normalizeDesignFormat(design) || "OTHER";
         const price = Number(design.price);
         const amount = Number.isFinite(price) && price > 0 ? `Rs. ${price}` : "Free";
+        const premium = isPremiumDesign(design);
 
         document.title = `${title} - AJartivo`;
         setText("productTitle", title);
         setText("productDescription", design.description || "Premium design package.");
-        setText("productTypeChip", type.toUpperCase());
+        setText("productTypeChip", type);
         setText("productPrice", amount);
         setText("productPriceNote", "One-time purchase with editable source files and external download delivery.");
+        setText("galleryFormat", type);
+        setText("galleryAccess", premium ? "Premium" : "Free");
+        setText("galleryViews", String(Number(design.views || 0)));
+        setText("galleryDownloads", String(Number(design.downloads || 0)));
 
         renderFeatures(design, type);
-        renderThumbnails(design.image, title);
+        renderThumbnails(collectPreviewImages(design), title);
         bindDownload(design);
+    }
+
+    async function loadRelatedDesigns(currentId) {
+        const relatedGrid = document.getElementById("relatedDesignGrid");
+        if (!relatedGrid) return;
+
+        relatedGrid.innerHTML = '<div class="empty-state">Loading related designs...</div>';
+
+        try {
+            const snapshot = await services.db.collection("designs")
+                .orderBy("createdAt", "desc")
+                .get();
+
+            const designs = snapshot.docs
+                .map(function (doc) {
+                    return { id: doc.id, ...doc.data() };
+                })
+                .filter(function (design) {
+                    return design.id !== currentId;
+                });
+
+            if (!designs.length) {
+                relatedGrid.innerHTML = '<div class="empty-state">No uploaded related designs found.</div>';
+                return;
+            }
+
+            relatedGrid.innerHTML = designs.map(function (design) {
+                const title = escapeHtml(design.title || "Untitled Design");
+                const badge = getDesignBadge(design);
+                const image = escapeHtml(design.image || "/images/trending1.jpg");
+                const productUrl = `/product.html?id=${encodeURIComponent(design.id)}`;
+
+                return `
+                    <article class="design-card homepage-design-card">
+                        <a href="${productUrl}" class="card-link homepage-card-link">
+                            <div class="homepage-card-media">
+                                <img src="${image}" alt="${title}" class="homepage-card-image">
+                                <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
+                            </div>
+                        </a>
+                    </article>
+                `;
+            }).join("");
+        } catch (error) {
+            console.error("Related designs load failed:", error);
+            relatedGrid.innerHTML = '<div class="empty-state">Could not load related designs right now.</div>';
+        }
     }
 
     function renderFeatures(design, type) {
@@ -93,29 +144,98 @@
         }).join("");
     }
 
-    function renderThumbnails(imageUrl, title) {
+    function renderThumbnails(images, title) {
         const row = document.getElementById("thumbnailRow");
-        const mainImage = document.getElementById("mainImage");
-        const lightboxImage = document.getElementById("lightboxImage");
-        const image = imageUrl || "/images/trending1.jpg";
-
-        if (mainImage) {
-            mainImage.src = image;
-            mainImage.alt = title;
-        }
-
-        if (lightboxImage) {
-            lightboxImage.src = image;
-            lightboxImage.alt = `${title} zoomed preview`;
-        }
+        const previewImages = Array.isArray(images) && images.length ? images : ["/images/trending1.jpg"];
+        const primaryImage = previewImages[0];
+        setMainPreviewImage(primaryImage, title);
 
         if (!row) return;
 
-        row.innerHTML = `
-            <button class="thumbnail-btn active" type="button" data-preview="${escapeHtml(image)}" aria-label="Show preview">
-                <img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">
+        if (previewImages.length <= 1) {
+            row.hidden = true;
+            row.innerHTML = "";
+            return;
+        }
+
+        row.hidden = false;
+        row.innerHTML = previewImages.map((image, index) => `
+            <button class="thumbnail-btn${index === 0 ? " active" : ""}" type="button" data-preview="${escapeHtml(image)}" aria-label="Show preview ${index + 1}">
+                <img src="${escapeHtml(image)}" alt="${escapeHtml(title)} thumbnail ${index + 1}" loading="lazy" decoding="async">
             </button>
-        `;
+        `).join("");
+
+        row.querySelectorAll(".thumbnail-btn").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const previewUrl = button.dataset.preview || "";
+                if (!previewUrl) return;
+
+                setMainPreviewImage(previewUrl, title);
+                row.querySelectorAll(".thumbnail-btn").forEach((item) => item.classList.remove("active"));
+                button.classList.add("active");
+            });
+        });
+    }
+
+    function collectPreviewImages(design) {
+        const candidates = [];
+
+        if (Array.isArray(design.previewImages)) {
+            candidates.push(...design.previewImages);
+        }
+
+        if (Array.isArray(design.images)) {
+            candidates.push(...design.images);
+        }
+
+        candidates.push(
+            design.preview1,
+            design.preview2,
+            design.preview3,
+            design.preview4,
+            design.preview5,
+            design.image
+        );
+
+        const clean = candidates
+            .map((item) => String(item || "").trim())
+            .filter(Boolean);
+
+        return [...new Set(clean)];
+    }
+
+    function setMainPreviewImage(src, title) {
+        const previewBox = document.getElementById("previewTrigger");
+        const mainImage = document.getElementById("mainImage");
+        const lightboxImage = document.getElementById("lightboxImage");
+        if (!previewBox || !mainImage || !src) return;
+
+        previewBox.classList.add("is-loading");
+        mainImage.alt = title || "Product Preview";
+        mainImage.loading = "lazy";
+        mainImage.decoding = "async";
+
+        const preloader = new Image();
+        preloader.decoding = "async";
+        preloader.onload = function () {
+            mainImage.src = src;
+            if (lightboxImage) {
+                lightboxImage.src = src;
+                lightboxImage.alt = `${title || "Product Preview"} zoomed preview`;
+            }
+
+            requestAnimationFrame(() => {
+                previewBox.classList.remove("is-loading");
+            });
+        };
+        preloader.onerror = function () {
+            mainImage.src = src;
+            if (lightboxImage) {
+                lightboxImage.src = src;
+            }
+            previewBox.classList.remove("is-loading");
+        };
+        preloader.src = src;
     }
 
     function bindDownload(design) {
@@ -128,64 +248,101 @@
             return;
         }
 
+        const premium = window.AjArtivoPayment && window.AjArtivoPayment.isPremiumDesign
+            ? window.AjArtivoPayment.isPremiumDesign(design)
+            : Number(design.price || 0) > 0;
+
         button.disabled = false;
-        button.textContent = "Download ZIP";
+        button.textContent = premium ? "Buy & Download" : "Download Free";
         button.onclick = async function () {
-            if (downloadInFlight) return;
-
-            const user = services.auth.currentUser;
-            if (!user) {
-                alert("Please login before downloading files.");
-                window.location.href = "/login.html?next=" + encodeURIComponent(window.location.pathname + window.location.search);
-                return;
-            }
-
-            await user.reload();
-            if (!user.emailVerified) {
-                alert("Please verify your email before downloading.");
-                return;
-            }
-
-            downloadInFlight = true;
             button.disabled = true;
-            button.textContent = "Preparing secure download...";
+            button.textContent = "Processing...";
 
             try {
-                const idToken = await user.getIdToken(true);
-                const nonce = getDownloadNonce(design.id);
-                const response = await fetch(SECURITY_API_BASE + "/requestSecureDownload", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer " + idToken
-                    },
-                    body: JSON.stringify({
-                        designId: design.id,
-                        nonce: nonce
-                    })
-                });
-
-                const payload = await response.json();
-                if (!response.ok) {
-                    const message = payload && payload.error ? payload.error : "Download blocked by security policy.";
-                    throw new Error(message);
+                if (!window.AjArtivoPayment || !window.AjArtivoPayment.startDownloadFlow) {
+                    throw new Error("Payment system is not ready.");
                 }
 
-                if (!payload || !payload.downloadUrl) {
-                    throw new Error("Secure URL generation failed.");
-                }
-
-                window.open(payload.downloadUrl, "_blank", "noopener");
-                button.textContent = "Download ZIP";
+                await window.AjArtivoPayment.startDownloadFlow(design);
             } catch (error) {
                 console.error("Secure download failed:", error);
                 alert(error.message || "Unable to download right now.");
-                button.textContent = "Download ZIP";
             } finally {
-                downloadInFlight = false;
                 button.disabled = false;
+                button.textContent = premium ? "Buy & Download" : "Download Free";
             }
         };
+    }
+
+    function isPremiumDesign(design) {
+        if (window.AjArtivoPayment && typeof window.AjArtivoPayment.isPremiumDesign === "function") {
+            return window.AjArtivoPayment.isPremiumDesign(design);
+        }
+
+        const amount = Number(design && design.price ? design.price : 0);
+        return Number.isFinite(amount) && amount > 0;
+    }
+
+    function normalizeDesignFormat(design) {
+        const raw = String(
+            (design && (
+                design.extension ||
+                design.fileType ||
+                design.format ||
+                design.category ||
+                design.type
+            )) || ""
+        )
+            .trim()
+            .replace(/^\./, "")
+            .toUpperCase();
+
+        const aliasMap = {
+            ILLUSTRATOR: "AI",
+            PHOTOSHOP: "PSD",
+            CORELDRAW: "CDR",
+            JPEG: "JPG"
+        };
+
+        return aliasMap[raw] || raw;
+    }
+
+    function getDesignBadge(design) {
+        const format = normalizeDesignFormat(design);
+        const knownClass = format.toLowerCase();
+        const knownFormats = new Set(["psd", "cdr", "ai", "pmd", "png", "jpg", "jpeg", "pdf", "svg", "eps", "ttf"]);
+
+        if (format && knownFormats.has(knownClass)) {
+            return { label: escapeHtml(format), className: knownClass, styleAttr: "" };
+        }
+
+        if (format) {
+            const color = colorFromText(format);
+            return {
+                label: escapeHtml(format),
+                className: "other",
+                styleAttr: ` style="background:${color};"`
+            };
+        }
+
+        const premium = isPremiumDesign(design);
+        return {
+            label: premium ? "PREMIUM" : "FREE",
+            className: premium ? "premium" : "free",
+            styleAttr: ""
+        };
+    }
+
+    function colorFromText(value) {
+        let hash = 0;
+        const text = String(value || "");
+        for (let index = 0; index < text.length; index += 1) {
+            hash = ((hash << 5) - hash) + text.charCodeAt(index);
+            hash |= 0;
+        }
+
+        const hue = Math.abs(hash) % 360;
+        return `hsl(${hue}, 66%, 42%)`;
     }
 
     function incrementViews(id) {
@@ -327,13 +484,4 @@
             .replace(/'/g, "&#39;");
     }
 
-    function getDownloadNonce(designId) {
-        const key = `aj_download_nonce_${designId}`;
-        const existing = sessionStorage.getItem(key);
-        if (existing) return existing;
-
-        const nonce = `${designId}-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-        sessionStorage.setItem(key, nonce);
-        return nonce;
-    }
 })();

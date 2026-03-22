@@ -7,17 +7,11 @@
 
     const PROTECTED_ROUTE_PATTERNS = [
         /\/pages\/profile\.html$/i,
-        /\/pages\/manage.*\.html$/i,
-        /\/pages\/upload.*\.html$/i,
-        /\/admin/i,
-        /\/tools\//i
+        /\/admin/i
     ];
 
     const ADMIN_ROUTE_PATTERNS = [
-        /\/admin/i,
-        /\/pages\/manage.*\.html$/i,
-        /\/pages\/upload.*\.html$/i,
-        /\/tools\//i
+        /\/admin/i
     ];
 
     const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
@@ -141,12 +135,31 @@
         const googleBtn = document.getElementById("googleLogin") || document.querySelector(".google-btn");
         const facebookBtn = document.getElementById("facebookLogin");
 
-        [googleBtn, facebookBtn].forEach(function (button) {
-            if (!button) return;
-            button.addEventListener("click", function () {
-                alert("Social login is disabled for secure email/password-only authentication.");
+        if (googleBtn) {
+            googleBtn.addEventListener("click", async function () {
+                try {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    const credential = await auth.signInWithPopup(provider);
+                    window.AjArtivoAuth.redirectAfterLogin(credential.user);
+                } catch (error) {
+                    console.error("Google login error:", error);
+                    alert(readableAuthError(error));
+                }
             });
-        });
+        }
+
+        if (facebookBtn) {
+            facebookBtn.addEventListener("click", async function () {
+                try {
+                    const provider = new firebase.auth.FacebookAuthProvider();
+                    const credential = await auth.signInWithPopup(provider);
+                    window.AjArtivoAuth.redirectAfterLogin(credential.user);
+                } catch (error) {
+                    console.error("Facebook login error:", error);
+                    alert(readableAuthError(error));
+                }
+            });
+        }
     }
 
     function bindLogout() {
@@ -183,7 +196,7 @@
             }
 
             await user.reload();
-            if (!user.emailVerified) {
+            if (requiresEmailVerification(user) && !user.emailVerified) {
                 await auth.signOut();
                 if (onProtectedRoute) {
                     alert("Please verify your email first.");
@@ -211,8 +224,15 @@
         auth.onAuthStateChanged(async function (user) {
             if (!user) return;
             await user.reload();
-            if (!user.emailVerified) return;
+            if (requiresEmailVerification(user) && !user.emailVerified) return;
             window.AjArtivoAuth.redirectAfterLogin(user);
+        });
+    }
+
+    function requiresEmailVerification(user) {
+        if (!user || !Array.isArray(user.providerData)) return false;
+        return user.providerData.some(function (provider) {
+            return provider && provider.providerId === "password";
         });
     }
 

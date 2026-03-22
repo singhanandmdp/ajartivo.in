@@ -1099,6 +1099,12 @@ textarea {
         border-radius: 18px;
     }
 
+    .homepage-design-card .homepage-card-image {
+        height: 100%;
+        aspect-ratio: auto;
+        border-radius: 12px;
+    }
+
 }
 
 /* Hero-Section*/
@@ -1909,15 +1915,26 @@ textarea {
 
 .homepage-card-link {
     display: block;
+    position: relative;
+}
+
+.homepage-card-media {
+    position: relative;
+    height: 220px;
+    background: #f3f4f6;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 .homepage-card-image {
     width: 100%;
-    height: 170px;
-    object-fit: cover;
-    border-radius: 10px;
-    margin-bottom: 12px;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 12px;
     display: block;
+    padding: 8px;
+    transition: transform 0.35s ease;
 }
 
 .homepage-card-meta {
@@ -1938,12 +1955,30 @@ textarea {
     padding: 0 16px 16px;
 }
 
+.homepage-card-title {
+    margin: 0 0 8px;
+    font-size: 17px;
+    color: #0f172a;
+}
+
 .homepage-download-btn {
     min-height: 44px;
     width: 100%;
     padding: 0 18px;
     border-radius: 14px;
     font-size: 14px;
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.homepage-download-btn.free {
+    background: #16a34a;
+}
+
+.homepage-download-btn.premium {
+    background: #2563eb;
 }
 
 .empty-state {
@@ -1959,6 +1994,45 @@ textarea {
 .design-card:hover,
 .skill-card:hover {
     transform: translateY(-6px);
+}
+
+.homepage-type-chip {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 2;
+}
+
+.homepage-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.84) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+
+.homepage-card-overlay h3 {
+    color: #f8fafc;
+    margin: 0;
+    font-size: 16px;
+}
+
+.homepage-design-card:hover .homepage-card-overlay {
+    opacity: 1;
+}
+
+.homepage-design-card:hover .homepage-card-image {
+    transform: scale(1.02);
+}
+
+.homepage-design-card:hover .homepage-type-chip {
+    opacity: 0;
 }
 
 .product-img {
@@ -2003,6 +2077,78 @@ textarea {
 
 .tag.ai,
 .file-type.ai {
+    background: #2563eb;
+}
+
+.tag.pmd,
+.file-type.pmd {
+    background: #7c3aed;
+}
+
+.tag.png,
+.file-type.png {
+    background: #0284c7;
+}
+
+.tag.jpg,
+.file-type.jpg,
+.tag.jpeg,
+.file-type.jpeg {
+    background: #ca8a04;
+}
+
+.tag.ttf,
+.file-type.ttf {
+    background: #7c3aed;
+}
+
+.tag.pdf,
+.file-type.pdf {
+    background: #dc2626;
+}
+
+.tag.svg,
+.file-type.svg {
+    background: #0f766e;
+}
+
+.tag.eps,
+.file-type.eps {
+    background: #9333ea;
+}
+
+.tag.gif,
+.file-type.gif {
+    background: #db2777;
+}
+
+.tag.webp,
+.file-type.webp {
+    background: #0f766e;
+}
+
+.tag.psb,
+.file-type.psb {
+    background: #1d4ed8;
+}
+
+.tag.indd,
+.file-type.indd {
+    background: #be185d;
+}
+
+.tag.other,
+.file-type.other {
+    background: #475569;
+}
+
+.tag.free,
+.file-type.free {
+    background: #16a34a;
+}
+
+.tag.premium,
+.file-type.premium {
     background: #2563eb;
 }
 
@@ -2165,6 +2311,12 @@ textarea {
     object-fit: cover;
 }
 
+.homepage-design-card .homepage-card-image {
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+}
+
 .design-card:hover {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
 }
@@ -2306,13 +2458,34 @@ textarea {
     appearance: none;
 }
 
+.preview-skeleton {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.25) 38%, rgba(255, 255, 255, 0.08) 58%);
+    background-size: 220% 100%;
+    animation: previewShimmer 1.2s linear infinite;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.24s ease;
+}
+
+.preview-box.is-loading .preview-skeleton {
+    opacity: 1;
+}
+
+.preview-box.is-loading img {
+    opacity: 0;
+}
+
 .preview-box img {
     width: 100%;
     height: auto;
     max-height: 78vh;
     object-fit: contain;
     display: block;
-    transition: transform 0.24s ease;
+    opacity: 1;
+    transition: transform 0.24s ease, opacity 0.24s ease;
     transform-origin: center center;
 }
 
@@ -2339,6 +2512,38 @@ textarea {
     gap: 10px;
     margin-top: 12px;
     flex-wrap: wrap;
+}
+
+.product-gallery-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.gallery-meta-card {
+    min-height: 82px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    display: grid;
+    align-content: center;
+    gap: 6px;
+}
+
+.gallery-meta-card span {
+    color: rgba(226, 232, 240, 0.82);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gallery-meta-card strong {
+    color: #f8fafc;
+    font-size: 20px;
+    line-height: 1.1;
 }
 
 .thumbnail-btn img {
@@ -2403,6 +2608,8 @@ textarea {
 }
 
 .price-card {
+    display: flex;
+    flex-direction: column;
     padding: 24px;
     background:
         radial-gradient(circle at top right, rgba(219, 234, 254, 0.72), transparent 26%),
@@ -2438,6 +2645,8 @@ textarea {
 }
 
 .custom-design-card {
+    display: flex;
+    flex-direction: column;
     padding: 24px;
     background:
         radial-gradient(circle at top right, rgba(254, 215, 170, 0.62), transparent 24%),
@@ -2483,10 +2692,16 @@ textarea {
 }
 
 .custom-design-btn {
-    margin-top: 18px;
+    margin-top: auto;
+    width: 100%;
     background: linear-gradient(135deg, #f97316, #fb923c);
     color: #fff;
     box-shadow: 0 18px 28px rgba(249, 115, 22, 0.22);
+}
+
+.price-card .download-btn {
+    width: 100%;
+    margin-top: auto;
 }
 
 .custom-design-btn:hover,
@@ -2906,6 +3121,10 @@ textarea {
         height: 72px;
     }
 
+    .product-gallery-meta {
+        grid-template-columns: 1fr;
+    }
+
     .product-lightbox {
         padding: 16px;
     }
@@ -2929,6 +3148,7 @@ textarea {
     .hero-progress-bar,
     .product-gallery-glow-one,
     .product-gallery-glow-two,
+    .preview-skeleton,
     .preview-box img,
     .thumbnail-btn,
     .download-btn,
@@ -2948,6 +3168,16 @@ textarea {
 
     50% {
         transform: translate3d(0, -16px, 0);
+    }
+}
+
+@keyframes previewShimmer {
+    from {
+        background-position: 100% 0;
+    }
+
+    to {
+        background-position: -100% 0;
     }
 }
 

@@ -28,22 +28,32 @@
             </div>
 
             <div class="product-gallery">
-                <button class="preview-box" id="previewTrigger" type="button" aria-label="Open image preview">
-                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview">
+                <button class="preview-box is-loading" id="previewTrigger" type="button" aria-label="Open image preview">
+                    <span class="preview-skeleton" aria-hidden="true"></span>
+                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview" loading="lazy" decoding="async">
                     <span class="preview-badge">Professional zoom</span>
                     <span class="preview-hint">Click to inspect details</span>
                 </button>
 
-                <div class="thumbnail-row" id="thumbnailRow">
-                    <button class="thumbnail-btn active" type="button" data-preview="images/preview1.jpg" aria-label="Show preview 1">
-                        <img src="images/preview1.jpg" alt="Thumbnail 1">
-                    </button>
-                    <button class="thumbnail-btn" type="button" data-preview="images/preview2.jpg" aria-label="Show preview 2">
-                        <img src="images/preview2.jpg" alt="Thumbnail 2">
-                    </button>
-                    <button class="thumbnail-btn" type="button" data-preview="images/preview3.jpg" aria-label="Show preview 3">
-                        <img src="images/preview3.jpg" alt="Thumbnail 3">
-                    </button>
+                <div class="thumbnail-row" id="thumbnailRow" hidden></div>
+
+                <div class="product-gallery-meta" id="productGalleryMeta">
+                    <article class="gallery-meta-card">
+                        <span>Format</span>
+                        <strong id="galleryFormat">PSD</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Access</span>
+                        <strong id="galleryAccess">Premium</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Views</span>
+                        <strong id="galleryViews">0</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Downloads</span>
+                        <strong id="galleryDownloads">0</strong>
+                    </article>
                 </div>
             </div>
         </section>
@@ -65,6 +75,7 @@
                         <span class="price-kicker">Design price</span>
                         <strong id="productPrice">Rs. 499</strong>
                         <p id="productPriceNote">One-time purchase with editable source files and preview assets.</p>
+                        <button class="download-btn" id="downloadBtn" type="button">Download</button>
                     </div>
 
                     <div class="custom-design-card">
@@ -90,7 +101,6 @@
                 </div>
 
                 <div class="product-action-row">
-                    <button class="download-btn" id="downloadBtn" type="button">Download ZIP</button>
                     <button class="product-secondary-btn" id="shareBtn" type="button">Share Product</button>
                 </div>
             </div>
@@ -107,47 +117,7 @@
             <h2>Related Designs</h2>
         </div>
 
-        <div class="trending-grid">
-            <a href="product.html?name=Birthday%20Banner&type=PSD" class="card-link">
-                <div class="design-card">
-                    <img src="images/trending1.jpg" alt="Birthday Banner">
-                    <div class="card-info">
-                        <h3>Birthday Banner</h3>
-                        <span class="file-type psd">PSD</span>
-                    </div>
-                </div>
-            </a>
-
-            <a href="product.html?name=Shop%20Banner&type=PSD" class="card-link">
-                <div class="design-card">
-                    <img src="images/trending5.jpg" alt="Shop Banner">
-                    <div class="card-info">
-                        <h3>Shop Banner</h3>
-                        <span class="file-type psd">PSD</span>
-                    </div>
-                </div>
-            </a>
-
-            <a href="product.html?name=Business%20Card&type=CDR" class="card-link">
-                <div class="design-card">
-                    <img src="images/trending3.jpg" alt="Business Card">
-                    <div class="card-info">
-                        <h3>Business Card</h3>
-                        <span class="file-type cdr">CDR</span>
-                    </div>
-                </div>
-            </a>
-
-            <a href="product.html?name=Wedding%20Card&type=CDR" class="card-link">
-                <div class="design-card">
-                    <img src="images/trending4.jpg" alt="Wedding Card">
-                    <div class="card-info">
-                        <h3>Wedding Card</h3>
-                        <span class="file-type cdr">CDR</span>
-                    </div>
-                </div>
-            </a>
-        </div>
+        <div class="trending-grid" id="relatedDesignGrid"></div>
     </section>
 
     <div id="site-footer"></div>
@@ -156,8 +126,10 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-    <script src="js/firebase-config.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="firebase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="payment.js"></script>
     <script src="js/script.js"></script>
     <script src="js/download-system.js"></script>
 </body>

@@ -9,12 +9,15 @@ This project now uses backend-enforced controls for authentication hardening, au
 - Backend-assisted login throttling (`preLoginCheck`, `reportLoginAttempt`).
 - Route protection for protected/admin pages in `js/auth.js`.
 - Admin double-check (custom claim + UID/email whitelist) through `adminGuardCheck`.
-- Download flow moved to backend `requestSecureDownload`:
+- Download flow moved to backend `requestDownloadAccess` (alias: `requestSecureDownload`):
   - requires authenticated + verified user
-  - daily user limit (default 5/day)
-  - IP-based daily limit
+  - FREE: daily user limit (default 5/day) + IP-based daily limit
+  - PREMIUM: only allowed after verified Razorpay purchase
   - nonce lock to reduce refresh/multi-click abuse
   - signed, temporary URL generation
+- Razorpay payment flow (server-verified):
+  - `createOrder` creates backend order using Razorpay secret
+  - `verifyPayment` verifies signature and records purchase in Firestore
 - Firestore/Storage rules deny public writes and block protected collections.
 
 ## 2) Files Added
@@ -42,6 +45,7 @@ Run from project root:
 cd functions
 npm install
 cd ..
+firebase functions:secrets:set RAZORPAY_KEY_SECRET
 firebase deploy --only functions,firestore:rules,storage
 ```
 
@@ -57,6 +61,8 @@ Set these before deploying:
 - `LOGIN_LOCK_MINUTES` (default `15`)
 - `DOWNLOAD_URL_TTL_MS` (default `120000`)
 - `FUNCTION_REGION` (default `us-central1`)
+- `RAZORPAY_KEY_ID` (e.g. `rzp_test_SOJ9wQ1HstsZ4d`)
+- `RAZORPAY_KEY_SECRET` is loaded via Firebase Secret Manager (`defineSecret`).
 
 Example:
 
@@ -93,11 +99,16 @@ Direct public HTTP links are intentionally blocked in secure flow.
 - Event logs: `downloadEvents/{autoId}`
 - Nonce locks: `downloadNonces/{uid_date_design_nonceHash}`
 
-## 9) Security Notes
+## 9) Premium Purchase Data
+
+- Orders: `paymentOrders/{razorpayOrderId}`
+- Verified purchases: `userPurchases/{uid_designId}`
+- Audit logs: `paymentEvents/{autoId}`
+
+## 10) Security Notes
 
 - Frontend source code is always visible in browser.
 - Real protection is enforced by backend verification + Firebase Rules + signed URLs.
 - Do not put secrets in client-side JS.
 - Keep Firebase API keys non-secret but lock project via rules, auth, and backend checks.
 - Enable HTTPS only, App Check, and monitoring/alerts in production.
-

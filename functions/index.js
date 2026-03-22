@@ -1,20 +1,27 @@
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+const Razorpay = require("razorpay");
+const functions = require("firebase-functions");
 const { onRequest } = require("firebase-functions/v2/https");
 
 admin.initializeApp();
 const db = admin.firestore();
 
-const REGION = process.env.FUNCTION_REGION || "us-central1";
-const DAILY_FREE_LIMIT_PER_USER = Number(process.env.DAILY_FREE_LIMIT_PER_USER || 5);
-const DAILY_IP_LIMIT = Number(process.env.DAILY_IP_LIMIT || 25);
-const DOWNLOAD_URL_TTL_MS = Number(process.env.DOWNLOAD_URL_TTL_MS || 2 * 60 * 1000);
+const runtimeConfig = functions.config() || {};
+const REGION = cleanString(runtimeConfig.app && runtimeConfig.app.region) || "us-central1";
+const DAILY_FREE_LIMIT_PER_USER = Number(readConfig(runtimeConfig, ["downloads", "free_limit_per_user"], 5));
+const DAILY_IP_LIMIT = Number(readConfig(runtimeConfig, ["downloads", "free_ip_limit_per_day"], 5));
+const DOWNLOAD_URL_TTL_MS = Number(readConfig(runtimeConfig, ["downloads", "url_ttl_ms"], 2 * 60 * 1000));
 
-const MAX_FAILED_ATTEMPTS = Number(process.env.MAX_FAILED_ATTEMPTS || 5);
-const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 15);
+const MAX_FAILED_ATTEMPTS = Number(readConfig(runtimeConfig, ["security", "max_failed_attempts"], 5));
+const LOGIN_LOCK_MINUTES = Number(readConfig(runtimeConfig, ["security", "login_lock_minutes"], 15));
 
-const ADMIN_UID_WHITELIST = toSet(process.env.ADMIN_UID_WHITELIST || "", false);
-const ADMIN_EMAIL_WHITELIST = toSet(process.env.ADMIN_EMAIL_WHITELIST || "", true);
+const RAZORPAY_KEY_ID = cleanString(readConfig(runtimeConfig, ["razorpay", "key_id"], ""));
+const RAZORPAY_KEY_SECRET = cleanString(readConfig(runtimeConfig, ["razorpay", "key_secret"], ""));
+const RAZORPAY_CURRENCY = "INR";
+
+const ADMIN_UID_WHITELIST = toSet(readConfig(runtimeConfig, ["admin", "uid_whitelist"], ""), false);
+const ADMIN_EMAIL_WHITELIST = toSet(readConfig(runtimeConfig, ["admin", "email_whitelist"], ""), true);
 
 exports.preLoginCheck = onRequest({ region: REGION, cors: true }, async (req, res) => {
   if (req.method !== "POST") {
@@ -97,7 +104,11 @@ exports.reportLoginAttempt = onRequest({ region: REGION, cors: true }, async (re
   return json(res, 200, { ok: true });
 });
 
-exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async (req, res) => {
+// Production endpoint:
+// Returns a short-lived signed URL after eligibility checks.
+// - FREE: enforces daily limit.
+// - PREMIUM: requires verified purchase.
+exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async (req, res) => {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
@@ -117,14 +128,13 @@ exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async 
   const email = normalizeEmail(decodedToken.email);
   const designId = cleanString(req.body && req.body.designId);
   const nonce = cleanString(req.body && req.body.nonce);
+  const ip = readClientIp(req);
+  const dateKey = dayKeyUTC();
+  const now = Date.now();
 
   if (!designId || !nonce) {
     return json(res, 400, { error: "Invalid request payload." });
   }
-
-  const ip = readClientIp(req);
-  const dateKey = dayKeyUTC();
-  const now = Date.now();
 
   const designRef = db.collection("designs").doc(designId);
   const designSnap = await designRef.get();
@@ -138,10 +148,65 @@ exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async 
     return json(res, 400, { error: "File is not configured for secure download." });
   }
 
+  const premium = isPremiumDesign(design);
+  const nonceRef = db.collection("downloadNonces").doc(`${uid}_${dateKey}_${designId}_${hashKey(nonce)}`);
+  const userPurchaseRef = db.collection("userPurchases").doc(`${uid}_${designId}`);
+
+  if (premium) {
+    const purchaseSnap = await userPurchaseRef.get();
+    if (!purchaseSnap.exists) {
+      return json(res, 402, { error: "Payment required.", requiresPayment: true });
+    }
+
+    try {
+      await db.runTransaction(async (tx) => {
+        const nonceSnap = await tx.get(nonceRef);
+        if (nonceSnap.exists) {
+          throw new Error("Duplicate request detected.");
+        }
+
+        tx.set(nonceRef, {
+          uid,
+          designId,
+          ip,
+          dateKey,
+          type: "premium",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAtMs: now + DOWNLOAD_URL_TTL_MS
+        });
+
+        tx.update(designRef, { downloads: admin.firestore.FieldValue.increment(1) });
+
+        tx.set(db.collection("downloadEvents").doc(), {
+          uid,
+          email,
+          ip,
+          dateKey,
+          designId,
+          flow: "premium",
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      });
+    } catch (error) {
+      return json(res, 429, { error: error.message || "Download blocked." });
+    }
+
+    try {
+      const downloadUrl = await getSignedDownloadUrl(filePath);
+      return json(res, 200, {
+        downloadUrl,
+        expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
+        premium: true
+      });
+    } catch (error) {
+      console.error("Premium signed URL generation failed:", error);
+      return json(res, 500, { error: "Failed to generate secure download URL." });
+    }
+  }
+
+  // FREE download with daily limit.
   const userDailyRef = db.collection("downloadDaily").doc(`${uid}_${dateKey}`);
   const ipDailyRef = db.collection("downloadIpDaily").doc(`${ip}_${dateKey}`);
-  const nonceRef = db.collection("downloadNonces").doc(`${uid}_${dateKey}_${designId}_${hashKey(nonce)}`);
-
   let shouldIncrementDesignDownloads = false;
   let userDailyCount = 0;
 
@@ -165,7 +230,7 @@ exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async 
       const currentIpCount = Number(ipData.count || 0);
 
       if (!alreadyDownloadedToday && currentUserCount >= DAILY_FREE_LIMIT_PER_USER) {
-        throw new Error(`Daily free limit reached (${DAILY_FREE_LIMIT_PER_USER}).`);
+        throw new Error("Daily limit reached");
       }
 
       if (!alreadyDownloadedToday && currentIpCount >= DAILY_IP_LIMIT) {
@@ -209,6 +274,7 @@ exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async 
         designId,
         ip,
         dateKey,
+        type: "free",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         expiresAtMs: now + DOWNLOAD_URL_TTL_MS
       });
@@ -219,40 +285,229 @@ exports.requestSecureDownload = onRequest({ region: REGION, cors: true }, async 
         ip,
         dateKey,
         designId,
-        nonceHash: hashKey(nonce),
+        flow: "free",
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       if (shouldIncrementDesignDownloads) {
-        tx.update(designRef, {
-          downloads: admin.firestore.FieldValue.increment(1)
-        });
+        tx.update(designRef, { downloads: admin.firestore.FieldValue.increment(1) });
       }
     });
   } catch (error) {
-    return json(res, 429, { error: error.message || "Download limit reached." });
+    const message = String(error && error.message ? error.message : "Download limit reached.");
+    const status = message.toLowerCase().includes("daily limit reached") ? 429 : 429;
+    return json(res, status, { error: message });
   }
 
   try {
-    const [downloadUrl] = await admin
-      .storage()
-      .bucket()
-      .file(filePath)
-      .getSignedUrl({
-        version: "v4",
-        action: "read",
-        expires: Date.now() + DOWNLOAD_URL_TTL_MS,
-        responseDisposition: "attachment"
-      });
-
+    const downloadUrl = await getSignedDownloadUrl(filePath);
     return json(res, 200, {
       downloadUrl,
       expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
-      remainingDailyDownloads: Math.max(0, DAILY_FREE_LIMIT_PER_USER - userDailyCount)
+      remainingDailyDownloads: Math.max(0, DAILY_FREE_LIMIT_PER_USER - userDailyCount),
+      premium: false
     });
   } catch (error) {
-    console.error("Signed URL generation failed:", error);
+    console.error("Free signed URL generation failed:", error);
     return json(res, 500, { error: "Failed to generate secure download URL." });
+  }
+});
+
+// Backward compatibility endpoint name used by older frontend code.
+exports.requestSecureDownload = exports.requestDownloadAccess;
+
+// Creates Razorpay order from backend using secure secret.
+exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    return json(res, 405, { error: "Method not allowed." });
+  }
+
+  const razorpay = getRazorpayClient();
+  if (!razorpay) {
+    return json(res, 500, { error: "Razorpay is not configured on server." });
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await verifyBearerToken(req);
+  } catch (error) {
+    return json(res, 401, { error: "Unauthorized request." });
+  }
+
+  const uid = decodedToken.uid;
+  const email = normalizeEmail(decodedToken.email);
+  const designId = cleanString(req.body && req.body.designId);
+  const requestedAmount = Number(req.body && req.body.amount);
+  if (!designId) {
+    return json(res, 400, { error: "designId is required." });
+  }
+
+  const designSnap = await db.collection("designs").doc(designId).get();
+  if (!designSnap.exists) {
+    return json(res, 404, { error: "Design not found." });
+  }
+
+  const design = designSnap.data() || {};
+  if (!isPremiumDesign(design)) {
+    return json(res, 400, { error: "Order is only required for premium designs." });
+  }
+
+  const amountPaise = resolvePremiumAmountPaise(design);
+  if (!amountPaise) {
+    return json(res, 400, { error: "Invalid premium amount configured." });
+  }
+
+  // Optional client amount cross-check (client sends INR, backend stores paise).
+  if (Number.isFinite(requestedAmount) && requestedAmount > 0) {
+    const requestedPaise = Math.round(requestedAmount * 100);
+    if (requestedPaise !== amountPaise) {
+      return json(res, 400, { error: "Amount mismatch." });
+    }
+  }
+
+  const receipt = `aj_${uid.slice(0, 8)}_${Date.now()}`;
+  try {
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: RAZORPAY_CURRENCY,
+      receipt,
+      notes: {
+        uid,
+        designId
+      }
+    });
+
+    await db.collection("paymentOrders").doc(order.id).set({
+      uid,
+      email,
+      designId,
+      amount: Number(order.amount),
+      currency: String(order.currency || RAZORPAY_CURRENCY),
+      status: "created",
+      receipt,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      ip: readClientIp(req)
+    });
+
+    return json(res, 200, {
+      orderId: order.id,
+      amount: Number(order.amount),
+      currency: String(order.currency || RAZORPAY_CURRENCY),
+      keyId: RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    console.error("createOrder failed:", error);
+    return json(res, 500, { error: "Unable to create order right now." });
+  }
+});
+
+// Verifies Razorpay signature and records ownership of purchased design.
+exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    return json(res, 405, { error: "Method not allowed." });
+  }
+
+  const razorpaySecret = getRazorpaySecret();
+  if (!razorpaySecret) {
+    return json(res, 500, { error: "Razorpay secret is missing on server." });
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await verifyBearerToken(req);
+  } catch (error) {
+    return json(res, 401, { error: "Unauthorized request." });
+  }
+
+  const uid = decodedToken.uid;
+  const email = normalizeEmail(decodedToken.email);
+  const orderId = cleanString(req.body && req.body.orderId);
+  const paymentId = cleanString(req.body && req.body.paymentId);
+  const signature = cleanString(req.body && req.body.signature);
+  const requestedDesignId = cleanString(req.body && req.body.designId);
+
+  if (!orderId || !paymentId || !signature) {
+    return json(res, 400, { error: "Invalid payment payload." });
+  }
+
+  const orderRef = db.collection("paymentOrders").doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists) {
+    return json(res, 404, { error: "Order not found." });
+  }
+
+  const orderData = orderSnap.data() || {};
+  if (String(orderData.uid || "") !== uid) {
+    return json(res, 403, { error: "Order does not belong to this user." });
+  }
+
+  const designId = String(orderData.designId || "");
+  if (!designId || (requestedDesignId && requestedDesignId !== designId)) {
+    return json(res, 400, { error: "Order/design mismatch." });
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha256", razorpaySecret)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+
+  if (expectedSignature !== signature) {
+    return json(res, 400, { error: "Payment signature verification failed." });
+  }
+
+  const designSnap = await db.collection("designs").doc(designId).get();
+  if (!designSnap.exists) {
+    return json(res, 404, { error: "Design not found." });
+  }
+
+  const design = designSnap.data() || {};
+  const filePath = resolveStoragePath(design);
+  if (!filePath) {
+    return json(res, 400, { error: "File is not configured for secure download." });
+  }
+
+  const purchaseRef = db.collection("userPurchases").doc(`${uid}_${designId}`);
+
+  await db.runTransaction(async (tx) => {
+    tx.set(orderRef, {
+      status: "paid",
+      paymentId,
+      signature,
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    tx.set(purchaseRef, {
+      uid,
+      email,
+      designId,
+      orderId,
+      paymentId,
+      amount: Number(orderData.amount || 0),
+      currency: String(orderData.currency || RAZORPAY_CURRENCY),
+      purchasedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    tx.set(db.collection("paymentEvents").doc(), {
+      uid,
+      email,
+      designId,
+      orderId,
+      paymentId,
+      action: "verified",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  try {
+    const downloadUrl = await getSignedDownloadUrl(filePath);
+    return json(res, 200, {
+      success: true,
+      downloadUrl,
+      expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000)
+    });
+  } catch (error) {
+    console.error("verifyPayment URL generation failed:", error);
+    return json(res, 500, { error: "Payment verified but download link failed." });
   }
 });
 
@@ -287,6 +542,35 @@ async function verifyBearerToken(req) {
   return admin.auth().verifyIdToken(idToken, true);
 }
 
+function isPremiumDesign(design) {
+  const declared = cleanString(design.accessType || design.tier || design.plan).toUpperCase();
+  if (declared === "PREMIUM") return true;
+  if (declared === "FREE") return false;
+
+  const price = Number(design.price || 0);
+  return Number.isFinite(price) && price > 0;
+}
+
+function resolvePremiumAmountPaise(design) {
+  const amount = Number(design.price || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * 100);
+}
+
+function getRazorpaySecret() {
+  return cleanString(RAZORPAY_KEY_SECRET);
+}
+
+function getRazorpayClient() {
+  const secret = getRazorpaySecret();
+  if (!secret || !RAZORPAY_KEY_ID) return null;
+
+  return new Razorpay({
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: secret
+  });
+}
+
 function resolveStoragePath(design) {
   const directPath = cleanString(design.storagePath || design.downloadPath || "");
   if (directPath) {
@@ -304,6 +588,21 @@ function resolveStoragePath(design) {
   }
 
   return "";
+}
+
+async function getSignedDownloadUrl(filePath) {
+  const [downloadUrl] = await admin
+    .storage()
+    .bucket()
+    .file(filePath)
+    .getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: Date.now() + DOWNLOAD_URL_TTL_MS,
+      responseDisposition: "attachment"
+    });
+
+  return downloadUrl;
 }
 
 function readClientIp(req) {
@@ -341,6 +640,17 @@ function toSet(csv, lowerCase) {
       .map((item) => (lowerCase ? item.trim().toLowerCase() : item.trim()))
       .filter(Boolean)
   );
+}
+
+function readConfig(configRoot, pathParts, fallbackValue) {
+  let current = configRoot;
+  for (const part of pathParts) {
+    if (!current || typeof current !== "object" || !(part in current)) {
+      return fallbackValue;
+    }
+    current = current[part];
+  }
+  return current == null ? fallbackValue : current;
 }
 
 function json(res, statusCode, payload) {
