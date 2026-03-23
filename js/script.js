@@ -99,7 +99,11 @@ function loadSidebar() {
         .then((data) => {
             sidebar.innerHTML = data;
             initSidebarMenu();
-            updateSidebarDesignCounts();
+            if ("requestIdleCallback" in window) {
+                window.requestIdleCallback(() => updateSidebarDesignCounts(), { timeout: 1500 });
+            } else {
+                window.setTimeout(updateSidebarDesignCounts, 900);
+            }
         })
         .catch((err) => console.log("Sidebar load error:", err));
 }
@@ -875,11 +879,12 @@ async function initHeroSlider() {
     const slides = Array.from(slider.querySelectorAll(".hero-slide"));
     if (!slides.length) return;
 
-    const autoplayDelay = 8000;
+    const autoplayDelay = 9000;
     let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
     let intervalId = null;
     const preloadedSlides = new Set([0]);
     let preloadCursor = 1;
+    let preloadTimerId = null;
 
     if (activeIndex < 0) {
         activeIndex = 0;
@@ -945,6 +950,19 @@ async function initHeroSlider() {
         };
     }
 
+    function queueNextPreload(delay) {
+        if (preloadTimerId) {
+            window.clearTimeout(preloadTimerId);
+        }
+
+        preloadTimerId = window.setTimeout(() => {
+            preloadNextSlide();
+            if (preloadCursor < slides.length) {
+                queueNextPreload(autoplayDelay);
+            }
+        }, delay);
+    }
+
     function setActiveSlide(nextIndex) {
         ensureSlideImage(nextIndex);
 
@@ -986,22 +1004,20 @@ async function initHeroSlider() {
 
     setActiveSlide(activeIndex);
     startAutoplay();
-    window.setTimeout(preloadNextSlide, autoplayDelay);
-    window.setTimeout(preloadNextSlide, autoplayDelay * 2);
-    window.setTimeout(preloadNextSlide, autoplayDelay * 3);
+    queueNextPreload(1800);
 }
 
 async function loadHeroImages() {
-    const fallbackImages = ["/images/Hero/hero-bg.jpg"];
+    const fallbackImages = ["images/Hero/hero-bg.jpg"];
 
     try {
-        const response = await fetch("/images/Hero/manifest.json", { cache: "no-store" });
+        const response = await fetch("images/Hero/manifest.json", { cache: "no-store" });
         if (!response.ok) return fallbackImages;
 
         const manifest = await response.json();
         if (!Array.isArray(manifest) || !manifest.length) return fallbackImages;
 
-        return manifest;
+        return manifest.map((imagePath) => String(imagePath || "").replace(/^\/+/, "")).filter(Boolean);
     } catch (error) {
         console.log("Hero manifest load error:", error);
         return fallbackImages;
