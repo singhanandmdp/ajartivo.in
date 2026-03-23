@@ -123,6 +123,10 @@ body {
     gap: 16px;
 }
 
+.profile-data-section {
+    margin-top: 28px;
+}
+
 .profile-section-head {
     display: flex;
     align-items: center;
@@ -134,6 +138,19 @@ body {
 .profile-section-head h3 {
     margin: 0;
     font-size: 24px;
+}
+
+.profile-section-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .profile-info-box {
@@ -153,6 +170,81 @@ body {
 .profile-info-box strong {
     color: #172033;
     word-break: break-word;
+}
+
+.profile-list-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.profile-media-card,
+.profile-empty-card {
+    padding: 18px;
+    border-radius: 22px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.profile-media-card {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+}
+
+.profile-media-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 18px;
+    background: #e2e8f0;
+}
+
+.profile-media-body {
+    display: grid;
+    gap: 8px;
+}
+
+.profile-media-body strong {
+    font-size: 18px;
+    color: #111827;
+}
+
+.profile-media-body span,
+.profile-media-body small {
+    color: #64748b;
+}
+
+.profile-media-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.profile-inline-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: none;
+    background: #e0e7ff;
+    color: #3730a3;
+    text-decoration: none;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-inline-btn.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.profile-empty-card {
+    color: #64748b;
+    text-align: center;
 }
 
 .profile-page {
@@ -715,6 +807,15 @@ body {
     .profile-section-head {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .profile-media-card {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-media-thumb {
+        width: 100%;
+        height: 180px;
     }
 }
 

@@ -11,10 +11,14 @@
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
-        isPremiumDesign: isPremiumDesign
+        isPremiumDesign: isPremiumDesign,
+        requireVerifiedUser: requireVerifiedUser,
+        toggleWishlist: toggleWishlist,
+        isInWishlist: isInWishlist
     };
 
     let loginModalState = null;
+    let downloadPopupState = null;
 
     // Main download entry point for both FREE and PREMIUM designs.
     async function startDownloadFlow(design) {
@@ -22,6 +26,9 @@
             alert("Design not found.");
             return;
         }
+
+        const user = await requireVerifiedUser();
+        if (!user) return;
 
         const premium = isPremiumDesign(design);
 
@@ -32,12 +39,9 @@
                 return;
             }
 
-            downloadFile(directDownloadUrl, buildDownloadFileName(design, directDownloadUrl));
+            await downloadFile(directDownloadUrl, buildDownloadFileName(design, directDownloadUrl), design, user);
             return;
         }
-
-        const user = await requireVerifiedUser();
-        if (!user) return;
 
         const directDownloadUrl = resolveDirectDownloadUrl(design);
         if (!directDownloadUrl) {
@@ -90,9 +94,9 @@
             currency: "INR",
             name: "AJartivo",
             description: "Design Purchase",
-            handler: function () {
+            handler: async function () {
                 alert("Payment Successful");
-                downloadFile(downloadUrl, buildDownloadFileName(design, downloadUrl));
+                await downloadFile(downloadUrl, buildDownloadFileName(design, downloadUrl), design, user);
             },
             prefill: {
                 name: user && user.displayName ? user.displayName : "",
@@ -375,7 +379,12 @@
                     }
 
                     alert("Payment Successful");
-                    downloadFile(verification.downloadUrl, buildDownloadFileName(design, verification.downloadUrl));
+                    await downloadFile(
+                        verification.downloadUrl,
+                        buildDownloadFileName(design, verification.downloadUrl),
+                        design,
+                        services.auth.currentUser || null
+                    );
                 } catch (error) {
                     alert(readableError(error));
                 }
@@ -446,7 +455,7 @@
         }
     }
 
-    async function downloadFile(url, fileName) {
+    async function downloadFile(url, fileName, design, user) {
         const cleanUrl = cleanString(url);
         if (!cleanUrl) {
             alert("Download URL is missing.");
@@ -454,24 +463,56 @@
         }
 
         const safeFileName = fileName || "aj-file";
+        let historySaved = false;
 
-        try {
-            const response = await fetch(cleanUrl, { mode: "cors" });
-            if (!response.ok) {
-                throw new Error("Download request failed.");
+        const popupControls = showDownloadPopup({
+            title: cleanString(design && (design.title || design.name)) || "Your file is getting ready",
+            fileName: safeFileName,
+            onRetry: async function () {
+                await attemptDownload();
+            }
+        });
+
+        async function maybeSaveHistory() {
+            if (historySaved || !user || !design || !design.id) return;
+            historySaved = true;
+            await recordDownloadHistory(user, design, cleanUrl, safeFileName);
+        }
+
+        async function attemptDownload() {
+            if (popupControls) {
+                popupControls.setStatus("Trying to start your download...");
             }
 
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            triggerBrowserDownload(objectUrl, safeFileName);
+            try {
+                const response = await fetch(cleanUrl, { mode: "cors" });
+                if (!response.ok) {
+                    throw new Error("Download request failed.");
+                }
 
-            window.setTimeout(() => {
-                URL.revokeObjectURL(objectUrl);
-            }, 30000);
-            return;
-        } catch (error) {
-            triggerBrowserDownload(cleanUrl, safeFileName);
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                triggerBrowserDownload(objectUrl, safeFileName);
+
+                window.setTimeout(() => {
+                    URL.revokeObjectURL(objectUrl);
+                }, 30000);
+
+                await maybeSaveHistory();
+                if (popupControls) {
+                    popupControls.setStatus("Download should begin shortly. If not, use click here.");
+                }
+                return;
+            } catch (error) {
+                triggerBrowserDownload(cleanUrl, safeFileName);
+                await maybeSaveHistory();
+                if (popupControls) {
+                    popupControls.setStatus("If download did not start, use click here to retry.");
+                }
+            }
         }
+
+        await attemptDownload();
     }
 
     function triggerBrowserDownload(url, fileName) {
@@ -519,6 +560,235 @@
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
+    }
+
+    async function toggleWishlist(design, user) {
+        if (!design || !design.id) {
+            throw new Error("Design not found.");
+        }
+
+        const currentUser = user || await requireVerifiedUser();
+        if (!currentUser) {
+            throw new Error("Login required.");
+        }
+
+        const docId = `${currentUser.uid}_${design.id}`;
+        const ref = services.db.collection("userWishlists").doc(docId);
+        const snap = await ref.get();
+
+        if (snap.exists) {
+            await ref.delete();
+            return { saved: false };
+        }
+
+        await ref.set(buildWishlistPayload(currentUser, design), { merge: true });
+        return { saved: true };
+    }
+
+    async function isInWishlist(designId, user) {
+        const currentUser = user || services.auth.currentUser;
+        if (!currentUser || !designId) return false;
+
+        const docId = `${currentUser.uid}_${designId}`;
+        const snap = await services.db.collection("userWishlists").doc(docId).get();
+        return snap.exists;
+    }
+
+    function buildWishlistPayload(user, design) {
+        return {
+            uid: user.uid,
+            designId: design.id,
+            title: cleanString(design.title || design.name) || "Untitled Design",
+            image: resolvePrimaryImage(design),
+            price: Number(design.price || 0) || 0,
+            fileUrl: resolveDirectDownloadUrl(design),
+            fileName: buildDownloadFileName(design, resolveDirectDownloadUrl(design)),
+            type: cleanString(design.extension || design.fileType || design.format || design.category || design.type),
+            savedAt: services.timestamp()
+        };
+    }
+
+    async function recordDownloadHistory(user, design, url, fileName) {
+        try {
+            await services.db.collection("userDownloadHistory").add({
+                uid: user.uid,
+                designId: design.id,
+                title: cleanString(design.title || design.name) || "Untitled Design",
+                image: resolvePrimaryImage(design),
+                price: Number(design.price || 0) || 0,
+                fileUrl: cleanString(url),
+                fileName: cleanString(fileName),
+                type: cleanString(design.extension || design.fileType || design.format || design.category || design.type),
+                downloadedAt: services.timestamp()
+            });
+        } catch (error) {
+            console.error("Download history save failed:", error);
+        }
+    }
+
+    function resolvePrimaryImage(design) {
+        const candidates = [
+            design && design.image,
+            design && design.preview1,
+            design && design.preview2,
+            Array.isArray(design && design.previewImages) ? design.previewImages[0] : "",
+            Array.isArray(design && design.images) ? design.images[0] : ""
+        ];
+
+        for (const candidate of candidates) {
+            const value = cleanString(candidate);
+            if (value) return value;
+        }
+
+        return "/images/preview1.jpg";
+    }
+
+    function showDownloadPopup(options) {
+        ensureDownloadPopup();
+        if (!downloadPopupState) return null;
+
+        const title = cleanString(options && options.title) || "Preparing download";
+        const fileName = cleanString(options && options.fileName) || "aj-file";
+        const onRetry = options && typeof options.onRetry === "function" ? options.onRetry : function () {};
+
+        downloadPopupState.title.textContent = title;
+        downloadPopupState.file.textContent = fileName;
+        downloadPopupState.status.textContent = "We are preparing your file.";
+        downloadPopupState.countdown.textContent = "12";
+        downloadPopupState.root.hidden = false;
+        downloadPopupState.root.style.display = "grid";
+        downloadPopupState.root.style.pointerEvents = "auto";
+        document.body.classList.add("aj-download-open");
+
+        if (downloadPopupState.timerId) {
+            window.clearInterval(downloadPopupState.timerId);
+        }
+
+        let remaining = 12;
+        downloadPopupState.timerId = window.setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+                remaining = 0;
+                window.clearInterval(downloadPopupState.timerId);
+                downloadPopupState.timerId = null;
+                downloadPopupState.status.textContent = "If your file has not started yet, use download again.";
+            }
+            downloadPopupState.countdown.textContent = String(remaining);
+        }, 1000);
+
+        downloadPopupState.retry.onclick = async function () {
+            downloadPopupState.status.textContent = "Trying the download again...";
+            await onRetry();
+        };
+
+        return {
+            setStatus: function (message) {
+                downloadPopupState.status.textContent = cleanString(message) || "We are preparing your file.";
+            }
+        };
+    }
+
+    function ensureDownloadPopup() {
+        if (downloadPopupState && downloadPopupState.root) return;
+
+        ensureDownloadPopupStyles();
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "aj-download-modal";
+        wrapper.hidden = true;
+        wrapper.style.display = "none";
+        wrapper.style.pointerEvents = "none";
+        wrapper.innerHTML = `
+            <div class="aj-download-backdrop"></div>
+            <div class="aj-download-dialog" role="dialog" aria-modal="true" aria-label="Download status">
+                <button type="button" class="aj-download-close" aria-label="Close">×</button>
+                <p class="aj-download-kicker">Premium download</p>
+                <h3 class="aj-download-title"></h3>
+                <p class="aj-download-file"></p>
+                <div class="aj-download-countdown-wrap">
+                    <span class="aj-download-countdown-label">Retry timer</span>
+                    <strong class="aj-download-countdown">12</strong>
+                </div>
+                <p class="aj-download-status">We are preparing your file.</p>
+                <button type="button" class="aj-download-retry">Download again</button>
+            </div>
+        `;
+
+        document.body.appendChild(wrapper);
+        const dialog = wrapper.querySelector(".aj-download-dialog");
+        const backdrop = wrapper.querySelector(".aj-download-backdrop");
+        const closeButton = wrapper.querySelector(".aj-download-close");
+
+        const close = () => {
+            wrapper.hidden = true;
+            wrapper.style.display = "none";
+            wrapper.style.pointerEvents = "none";
+            document.body.classList.remove("aj-download-open");
+            if (downloadPopupState && downloadPopupState.timerId) {
+                window.clearInterval(downloadPopupState.timerId);
+                downloadPopupState.timerId = null;
+            }
+        };
+
+        if (backdrop) {
+            backdrop.addEventListener("click", close);
+        }
+
+        if (closeButton) {
+            closeButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                close();
+            });
+        }
+
+        wrapper.addEventListener("click", (event) => {
+            if (dialog && !dialog.contains(event.target)) {
+                close();
+            }
+        }, true);
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && downloadPopupState && !downloadPopupState.root.hidden) {
+                close();
+            }
+        });
+
+        downloadPopupState = {
+            root: wrapper,
+            title: wrapper.querySelector(".aj-download-title"),
+            file: wrapper.querySelector(".aj-download-file"),
+            countdown: wrapper.querySelector(".aj-download-countdown"),
+            status: wrapper.querySelector(".aj-download-status"),
+            retry: wrapper.querySelector(".aj-download-retry"),
+            timerId: null,
+            close: close
+        };
+    }
+
+    function ensureDownloadPopupStyles() {
+        if (document.getElementById("ajDownloadPopupStyles")) return;
+
+        const style = document.createElement("style");
+        style.id = "ajDownloadPopupStyles";
+        style.textContent = `
+            body.aj-download-open { overflow: hidden; }
+            .aj-download-modal { position: fixed; inset: 0; z-index: 7000; place-items: center; padding: 20px; }
+            .aj-download-backdrop { position: absolute; inset: 0; z-index: 0; background: rgba(8, 15, 31, 0.66); backdrop-filter: blur(6px); }
+            .aj-download-dialog { position: relative; z-index: 1; width: min(92vw, 430px); padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #fffdf8 0%, #fff8ee 100%); border: 1px solid rgba(251, 191, 36, 0.22); box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28); display: grid; gap: 14px; text-align: center; overflow: hidden; }
+            .aj-download-dialog::before { content: ""; position: absolute; inset: 0 0 auto; height: 110px; background: radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 48%), radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 42%); pointer-events: none; }
+            .aj-download-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 38px; height: 38px; border: none; border-radius: 50%; background: rgba(226, 232, 240, 0.92); color: #0f172a; cursor: pointer; font-size: 20px; font-weight: 700; line-height: 1; }
+            .aj-download-kicker { position: relative; z-index: 1; margin: 0; color: #b45309; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+            .aj-download-title { position: relative; z-index: 1; margin: 0; color: #0f172a; font-size: 30px; line-height: 1.12; }
+            .aj-download-file { position: relative; z-index: 1; margin: 0; color: #64748b; word-break: break-word; font-size: 15px; }
+            .aj-download-countdown-wrap { position: relative; z-index: 1; display: grid; gap: 6px; justify-items: center; padding: 16px; border-radius: 22px; background: linear-gradient(180deg, #fff4d9, #fef3c7); color: #0f172a; border: 1px solid rgba(245, 158, 11, 0.18); }
+            .aj-download-countdown-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; }
+            .aj-download-countdown { font-size: 46px; line-height: 1; color: #111827; }
+            .aj-download-status { position: relative; z-index: 1; margin: 0; color: #334155; line-height: 1.65; font-size: 16px; }
+            .aj-download-retry { position: relative; z-index: 1; min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; cursor: pointer; font-weight: 800; box-shadow: 0 18px 28px rgba(217, 119, 6, 0.22); }
+            .aj-download-retry:hover { filter: brightness(1.02); }
+        `;
+        document.head.appendChild(style);
     }
 
     function generateNonce(designId) {

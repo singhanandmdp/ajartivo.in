@@ -26,6 +26,7 @@
 
             renderProduct(currentDesign);
             await loadRelatedDesigns(currentDesign.id);
+            await bindWishlistButton(currentDesign);
             incrementViews(currentDesign.id);
         } catch (error) {
             console.error("Product load failed:", error);
@@ -466,6 +467,53 @@
         if (zoomPill) {
             zoomPill.textContent = hasDesktopHover ? "Hover zoom on desktop" : "Tap zoom on mobile";
         }
+    }
+
+    async function bindWishlistButton(design) {
+        const button = document.getElementById("wishlistBtn");
+        if (!button) return;
+
+        if (!design || !design.id) {
+            button.disabled = true;
+            button.textContent = "Wishlist unavailable";
+            return;
+        }
+
+        const updateButtonState = function (saved) {
+            button.dataset.saved = saved ? "true" : "false";
+            button.textContent = saved ? "Saved in Wishlist" : "Save to Wishlist";
+        };
+
+        updateButtonState(false);
+
+        try {
+            const currentUser = services.auth.currentUser;
+            if (currentUser && window.AjArtivoPayment && typeof window.AjArtivoPayment.isInWishlist === "function") {
+                const saved = await window.AjArtivoPayment.isInWishlist(design.id, currentUser);
+                updateButtonState(saved);
+            }
+        } catch (error) {
+            console.error("Wishlist state check failed:", error);
+        }
+
+        button.onclick = async function () {
+            button.disabled = true;
+
+            try {
+                if (!window.AjArtivoPayment || typeof window.AjArtivoPayment.toggleWishlist !== "function") {
+                    throw new Error("Wishlist system is not ready.");
+                }
+
+                const result = await window.AjArtivoPayment.toggleWishlist(design);
+                updateButtonState(Boolean(result && result.saved));
+                alert(result && result.saved ? "Added to wishlist." : "Removed from wishlist.");
+            } catch (error) {
+                console.error("Wishlist update failed:", error);
+                alert(error.message || "Unable to update wishlist right now.");
+            } finally {
+                button.disabled = false;
+            }
+        };
     }
 
     function setText(id, value) {
