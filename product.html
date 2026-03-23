@@ -1,258 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AJartivo | Product</title>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <style>
-        :root {
-            --bg: #f5efe6;
-            --card: #fffaf4;
-            --text: #1f2937;
-            --muted: #6b7280;
-            --accent: #c2410c;
-            --accent-dark: #9a3412;
-            --line: #ead8c5;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: Georgia, "Times New Roman", serif;
-            color: var(--text);
-            background:
-                radial-gradient(circle at top left, rgba(194, 65, 12, 0.10), transparent 28%),
-                linear-gradient(180deg, #fffaf4 0%, #f5efe6 100%);
-            display: grid;
-            place-items: center;
-            padding: 24px;
-        }
-
-        .card {
-            width: min(100%, 720px);
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 24px;
-            padding: 32px;
-            box-shadow: 0 24px 60px rgba(31, 41, 55, 0.10);
-        }
-
-        .eyebrow {
-            margin: 0 0 8px;
-            color: var(--accent);
-            font-size: 13px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0 0 10px;
-            font-size: clamp(32px, 5vw, 48px);
-            line-height: 1.05;
-        }
-
-        .description {
-            margin: 0 0 24px;
-            color: var(--muted);
-            font-size: 17px;
-            line-height: 1.7;
-        }
-
-        .product-box {
-            display: grid;
-            gap: 18px;
-            padding: 22px;
-            background: #ffffff;
-            border: 1px solid var(--line);
-            border-radius: 20px;
-        }
-
-        .meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .pill {
-            padding: 10px 14px;
-            border-radius: 999px;
-            background: #fdf1e5;
-            border: 1px solid #f3cfaf;
-            font-size: 14px;
-        }
-
-        .price {
-            font-size: 36px;
-            font-weight: 700;
-        }
-
-        .button {
-            appearance: none;
-            border: 0;
-            border-radius: 16px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-            color: #fff;
-            padding: 16px 20px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 18px 30px rgba(194, 65, 12, 0.22);
-        }
-
-        .button:hover {
-            transform: translateY(-1px);
-        }
-
-        .button:disabled {
-            opacity: 0.65;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .note {
-            margin: 12px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        .error {
-            margin-top: 18px;
-            color: #b91c1c;
-            font-size: 14px;
-            min-height: 20px;
-        }
-    </style>
+    <title>Birthday Banner - AJartivo</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
-    <main class="card">
-        <p class="eyebrow">AJartivo Premium Download</p>
-        <h1 id="productTitle">Loading product...</h1>
-        <p class="description" id="productDescription">Please wait while we prepare the product details.</p>
 
-        <section class="product-box">
-            <div class="meta">
-                <span class="pill" id="productCode">Product</span>
-                <span class="pill" id="productFile">File</span>
+<body>
+    <div id="site-header"></div>
+
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="product-detail">
+        <section class="product-gallery-panel">
+            <div class="product-gallery-glow product-gallery-glow-one"></div>
+            <div class="product-gallery-glow product-gallery-glow-two"></div>
+
+            <div class="product-gallery-head">
+                <div>
+                    <p class="product-kicker">Preview studio</p>
+                    <h2>Live design showcase</h2>
+                </div>
+                <span class="product-zoom-pill">Tap or hover to zoom</span>
             </div>
 
-            <div class="price" id="productPrice">&#8377;0</div>
+            <div class="product-gallery">
+                <button class="preview-box is-loading" id="previewTrigger" type="button" aria-label="Open image preview">
+                    <span class="preview-skeleton" aria-hidden="true"></span>
+                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview" loading="lazy" decoding="async">
+                    <span class="preview-badge">Professional zoom</span>
+                    <span class="preview-hint">Click to inspect details</span>
+                </button>
 
-            <button class="button" id="buyNowBtn" type="button">Buy Now</button>
-            <p class="note">After successful payment, you will be redirected to a confirmation page with a secure download button.</p>
-            <div class="error" id="statusMessage"></div>
+                <div class="thumbnail-row" id="thumbnailRow" hidden></div>
+
+                <div class="product-gallery-meta" id="productGalleryMeta">
+                    <article class="gallery-meta-card">
+                        <span>Format</span>
+                        <strong id="galleryFormat">PSD</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Access</span>
+                        <strong id="galleryAccess">Premium</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Views</span>
+                        <strong id="galleryViews">0</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Downloads</span>
+                        <strong id="galleryDownloads">0</strong>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="product-info-panel">
+            <div class="product-info">
+                <p class="product-kicker">Premium asset</p>
+                <h1 id="productTitle">Birthday Banner</h1>
+                <p class="product-lead" id="productDescription">Editable PSD design with fonts, layered artwork, and production-ready assets.</p>
+
+                <div class="product-meta-row">
+                    <span class="product-meta-chip" id="productTypeChip">PSD</span>
+                    <span class="product-meta-chip">Instant download</span>
+                    <span class="product-meta-chip">Commercial-ready</span>
+                </div>
+
+                <div class="product-pricing-board">
+                    <div class="price-card">
+                        <span class="price-kicker">Design price</span>
+                        <strong id="productPrice">Rs. 499</strong>
+                        <p id="productPriceNote">One-time purchase with editable source files and preview assets.</p>
+                        <button class="download-btn" id="downloadBtn" type="button">Download</button>
+                    </div>
+
+                    <div class="custom-design-card">
+                        <span class="custom-design-badge">Custom design</span>
+                        <h3>Need your own version?</h3>
+                        <p>Custom design feature is being prepared. We will add the exact workflow later, but the request area is now ready on this page.</p>
+                        <button class="custom-design-btn" id="customDesignBtn" type="button">Request Custom Design</button>
+                    </div>
+                </div>
+
+                <div class="product-feature-board">
+                    <div class="feature-board-head">
+                        <p class="product-kicker">Included</p>
+                        <h3>What comes with this design</h3>
+                    </div>
+
+                    <ul class="product-features" id="productFeatures">
+                        <li>Editable layered source file</li>
+                        <li>Print-friendly composition</li>
+                        <li>Easy asset replacement workflow</li>
+                        <li>Fast preview and direct download access</li>
+                    </ul>
+                </div>
+
+                <div class="product-action-row">
+                    <button class="product-secondary-btn" id="shareBtn" type="button">Share Product</button>
+                </div>
+            </div>
         </section>
     </main>
 
-    <script>
-        const RAZORPAY_KEY = "rzp_live_SUjeQN7Wu5zSJz";
+    <div class="product-lightbox" id="productLightbox" hidden>
+        <button class="product-lightbox-close" id="lightboxClose" type="button" aria-label="Close preview">x</button>
+        <img id="lightboxImage" src="images/preview1.jpg" alt="Zoomed design preview">
+    </div>
 
-        const PRODUCTS = {
-            product1: {
-                id: "product1",
-                name: "Product 1",
-                description: "Premium downloadable design package for AJartivo.",
-                amount: 20,
-                file: "downloads/file1.zip"
-            },
-            product2: {
-                id: "product2",
-                name: "Product 2",
-                description: "Advanced premium downloadable design package for AJartivo.",
-                amount: 50,
-                file: "downloads/file2.zip"
-            }
-        };
+    <section class="trending-section">
+        <div class="section-header">
+            <h2>Related Designs</h2>
+        </div>
 
-        const params = new URLSearchParams(window.location.search);
-        const productId = params.get("id") || "product1";
-        const product = PRODUCTS[productId];
+        <div class="trending-grid" id="relatedDesignGrid"></div>
+    </section>
 
-        const titleEl = document.getElementById("productTitle");
-        const descriptionEl = document.getElementById("productDescription");
-        const codeEl = document.getElementById("productCode");
-        const fileEl = document.getElementById("productFile");
-        const priceEl = document.getElementById("productPrice");
-        const buttonEl = document.getElementById("buyNowBtn");
-        const statusEl = document.getElementById("statusMessage");
+    <div id="site-footer"></div>
 
-        if (!product) {
-            titleEl.textContent = "Product not found";
-            descriptionEl.textContent = "The selected product is not available.";
-            codeEl.textContent = "Invalid";
-            fileEl.textContent = "Unavailable";
-            priceEl.innerHTML = "&#8377;0";
-            buttonEl.disabled = true;
-            statusEl.textContent = "Please check the product link and try again.";
-        } else {
-            titleEl.textContent = product.name;
-            descriptionEl.textContent = product.description;
-            codeEl.textContent = product.id;
-            fileEl.textContent = product.file;
-            priceEl.innerHTML = "&#8377;" + product.amount;
-        }
-
-        buttonEl.addEventListener("click", function () {
-            if (!product) return;
-            if (typeof Razorpay === "undefined") {
-                alert("Razorpay checkout failed to load.");
-                return;
-            }
-
-            buttonEl.disabled = true;
-            statusEl.textContent = "";
-
-            const options = {
-                key: RAZORPAY_KEY,
-                amount: product.amount * 100,
-                currency: "INR",
-                name: "AJartivo",
-                description: product.name,
-                handler: function (response) {
-                    const nextUrl = new URL("success.html", window.location.href);
-                    nextUrl.searchParams.set("id", product.id);
-                    nextUrl.searchParams.set("name", product.name);
-                    nextUrl.searchParams.set("amount", String(product.amount));
-                    nextUrl.searchParams.set("file", product.file);
-                    nextUrl.searchParams.set("payment_id", response.razorpay_payment_id || "");
-
-                    setTimeout(function () {
-                        window.location.href = nextUrl.toString();
-                    }, 900);
-                },
-                modal: {
-                    ondismiss: function () {
-                        buttonEl.disabled = false;
-                    }
-                },
-                theme: {
-                    color: "#c2410c"
-                }
-            };
-
-            const razorpay = new Razorpay(options);
-
-            razorpay.on("payment.failed", function (response) {
-                buttonEl.disabled = false;
-                const reason = response && response.error && response.error.description
-                    ? response.error.description
-                    : "Payment failed. Please try again.";
-                alert(reason);
-            });
-
-            try {
-                razorpay.open();
-            } catch (error) {
-                buttonEl.disabled = false;
-                alert("Unable to open payment window. Please try again.");
-            }
-        });
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="payment.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/download-system.js"></script>
 </body>
+
 </html>
