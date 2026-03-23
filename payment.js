@@ -23,19 +23,21 @@
             return;
         }
 
-        const user = await requireVerifiedUser();
-        if (!user) return;
-
         const premium = isPremiumDesign(design);
 
         if (!premium) {
-            const token = await user.getIdToken(true);
-            // FREE flow: enforce daily limit on backend and return signed URL.
-            const freeAccess = await requestDownloadAccess(design.id, token);
-            if (!freeAccess || !freeAccess.downloadUrl) return;
-            openDownloadUrl(freeAccess.downloadUrl);
+            const directDownloadUrl = resolveDirectDownloadUrl(design);
+            if (!directDownloadUrl) {
+                alert("Download file not found for this design.");
+                return;
+            }
+
+            downloadFile(directDownloadUrl, buildDownloadFileName(design, directDownloadUrl));
             return;
         }
+
+        const user = await requireVerifiedUser();
+        if (!user) return;
 
         const directDownloadUrl = resolveDirectDownloadUrl(design);
         if (!directDownloadUrl) {
@@ -90,7 +92,7 @@
             description: "Design Purchase",
             handler: function () {
                 alert("Payment Successful");
-                openDownloadUrl(downloadUrl);
+                downloadFile(downloadUrl, buildDownloadFileName(design, downloadUrl));
             },
             prefill: {
                 name: user && user.displayName ? user.displayName : "",
@@ -373,7 +375,7 @@
                     }
 
                     alert("Payment Successful");
-                    openDownloadUrl(verification.downloadUrl);
+                    downloadFile(verification.downloadUrl, buildDownloadFileName(design, verification.downloadUrl));
                 } catch (error) {
                     alert(readableError(error));
                 }
@@ -444,8 +446,79 @@
         }
     }
 
-    function openDownloadUrl(url) {
-        window.open(url, "_blank", "noopener");
+    async function downloadFile(url, fileName) {
+        const cleanUrl = cleanString(url);
+        if (!cleanUrl) {
+            alert("Download URL is missing.");
+            return;
+        }
+
+        const safeFileName = fileName || "aj-file";
+
+        try {
+            const response = await fetch(cleanUrl, { mode: "cors" });
+            if (!response.ok) {
+                throw new Error("Download request failed.");
+            }
+
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            triggerBrowserDownload(objectUrl, safeFileName);
+
+            window.setTimeout(() => {
+                URL.revokeObjectURL(objectUrl);
+            }, 30000);
+            return;
+        } catch (error) {
+            triggerBrowserDownload(cleanUrl, safeFileName);
+        }
+    }
+
+    function triggerBrowserDownload(url, fileName) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName || "aj-file";
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
+    function buildDownloadFileName(design, url) {
+        const title = cleanString((design && (design.title || design.name)) || "file");
+        const baseName = slugify(title) || "file";
+        const extension = resolveFileExtension(design, url);
+        return `aj-${baseName}${extension}`;
+    }
+
+    function resolveFileExtension(design, url) {
+        const urlPath = cleanString(url).split("?")[0].split("#")[0];
+        const lastSegment = urlPath.split("/").pop() || "";
+        const directMatch = lastSegment.match(/(\.[a-z0-9]{2,8})$/i);
+        if (directMatch) {
+            return directMatch[1].toLowerCase();
+        }
+
+        const rawExtension = cleanString(
+            (design && (
+                design.extension ||
+                design.fileExtension ||
+                design.fileType ||
+                design.format ||
+                design.category ||
+                design.type
+            )) || ""
+        ).replace(/^\./, "");
+
+        return rawExtension ? `.${rawExtension.toLowerCase()}` : "";
+    }
+
+    function slugify(value) {
+        return String(value || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
     }
 
     function generateNonce(designId) {
