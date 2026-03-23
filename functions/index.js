@@ -8,22 +8,57 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const runtimeConfig = functions.config() || {};
-const REGION = cleanString(runtimeConfig.app && runtimeConfig.app.region) || "us-central1";
-const DAILY_FREE_LIMIT_PER_USER = Number(readConfig(runtimeConfig, ["downloads", "free_limit_per_user"], 5));
-const DAILY_IP_LIMIT = Number(readConfig(runtimeConfig, ["downloads", "free_ip_limit_per_day"], 5));
-const DOWNLOAD_URL_TTL_MS = Number(readConfig(runtimeConfig, ["downloads", "url_ttl_ms"], 2 * 60 * 1000));
+const REGION = cleanString(process.env.FUNCTION_REGION || readConfig(runtimeConfig, ["app", "region"], "")) || "us-central1";
+const ALLOWED_ORIGIN = "https://ajartivo.in";
+const ALLOWED_CORS_METHODS = "POST, OPTIONS";
+const ALLOWED_CORS_HEADERS = "Content-Type, Authorization";
+const DAILY_FREE_LIMIT_PER_USER = readNumberSetting(
+  process.env.DAILY_FREE_LIMIT_PER_USER,
+  readConfig(runtimeConfig, ["downloads", "free_limit_per_user"], 5),
+  5
+);
+const DAILY_IP_LIMIT = readNumberSetting(
+  process.env.DAILY_IP_LIMIT,
+  readConfig(runtimeConfig, ["downloads", "free_ip_limit_per_day"], 5),
+  5
+);
+const DOWNLOAD_URL_TTL_MS = readNumberSetting(
+  process.env.DOWNLOAD_URL_TTL_MS,
+  readConfig(runtimeConfig, ["downloads", "url_ttl_ms"], 2 * 60 * 1000),
+  2 * 60 * 1000
+);
 
-const MAX_FAILED_ATTEMPTS = Number(readConfig(runtimeConfig, ["security", "max_failed_attempts"], 5));
-const LOGIN_LOCK_MINUTES = Number(readConfig(runtimeConfig, ["security", "login_lock_minutes"], 15));
+const MAX_FAILED_ATTEMPTS = readNumberSetting(
+  process.env.MAX_FAILED_ATTEMPTS,
+  readConfig(runtimeConfig, ["security", "max_failed_attempts"], 5),
+  5
+);
+const LOGIN_LOCK_MINUTES = readNumberSetting(
+  process.env.LOGIN_LOCK_MINUTES,
+  readConfig(runtimeConfig, ["security", "login_lock_minutes"], 15),
+  15
+);
 
-const RAZORPAY_KEY_ID = cleanString(readConfig(runtimeConfig, ["razorpay", "key_id"], ""));
-const RAZORPAY_KEY_SECRET = cleanString(readConfig(runtimeConfig, ["razorpay", "key_secret"], ""));
+const RAZORPAY_KEY_ID = cleanString(
+  process.env.RAZORPAY_KEY_ID || readConfig(runtimeConfig, ["razorpay", "key_id"], "")
+);
+const RAZORPAY_KEY_SECRET = cleanString(
+  process.env.RAZORPAY_KEY_SECRET || readConfig(runtimeConfig, ["razorpay", "key_secret"], "")
+);
 const RAZORPAY_CURRENCY = "INR";
 
-const ADMIN_UID_WHITELIST = toSet(readConfig(runtimeConfig, ["admin", "uid_whitelist"], ""), false);
-const ADMIN_EMAIL_WHITELIST = toSet(readConfig(runtimeConfig, ["admin", "email_whitelist"], ""), true);
+const ADMIN_UID_WHITELIST = toSet(
+  process.env.ADMIN_UID_WHITELIST || readConfig(runtimeConfig, ["admin", "uid_whitelist"], ""),
+  false
+);
+const ADMIN_EMAIL_WHITELIST = toSet(
+  process.env.ADMIN_EMAIL_WHITELIST || readConfig(runtimeConfig, ["admin", "email_whitelist"], ""),
+  true
+);
 
-exports.preLoginCheck = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.preLoginCheck = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
@@ -54,7 +89,9 @@ exports.preLoginCheck = onRequest({ region: REGION, cors: true }, async (req, re
   return json(res, 200, { allowed: true });
 });
 
-exports.reportLoginAttempt = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.reportLoginAttempt = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
@@ -108,17 +145,20 @@ exports.reportLoginAttempt = onRequest({ region: REGION, cors: true }, async (re
 // Returns a short-lived signed URL after eligibility checks.
 // - FREE: enforces daily limit.
 // - PREMIUM: requires verified purchase.
-exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.requestDownloadAccess = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
 
-  let decodedToken;
   try {
-    decodedToken = await verifyBearerToken(req);
-  } catch (error) {
-    return json(res, 401, { error: "Unauthorized request." });
-  }
+    let decodedToken;
+    try {
+      decodedToken = await verifyBearerToken(req);
+    } catch (error) {
+      return json(res, 401, { error: "Unauthorized request." });
+    }
 
   if (!decodedToken.email_verified) {
     return json(res, 403, { error: "Email verification required." });
@@ -299,17 +339,21 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
     return json(res, status, { error: message });
   }
 
-  try {
-    const downloadUrl = await getSignedDownloadUrl(filePath);
-    return json(res, 200, {
-      downloadUrl,
-      expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
-      remainingDailyDownloads: Math.max(0, DAILY_FREE_LIMIT_PER_USER - userDailyCount),
-      premium: false
-    });
+    try {
+      const downloadUrl = await getSignedDownloadUrl(filePath);
+      return json(res, 200, {
+        downloadUrl,
+        expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
+        remainingDailyDownloads: Math.max(0, DAILY_FREE_LIMIT_PER_USER - userDailyCount),
+        premium: false
+      });
+    } catch (error) {
+      console.error("Free signed URL generation failed:", error);
+      return json(res, 500, { error: "Failed to generate secure download URL." });
+    }
   } catch (error) {
-    console.error("Free signed URL generation failed:", error);
-    return json(res, 500, { error: "Failed to generate secure download URL." });
+    console.error("requestDownloadAccess failed:", error);
+    return json(res, 500, { error: "Internal server error." });
   }
 });
 
@@ -317,15 +361,18 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
 exports.requestSecureDownload = exports.requestDownloadAccess;
 
 // Creates Razorpay order from backend using secure secret.
-exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.createOrder = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
 
-  const razorpay = getRazorpayClient();
-  if (!razorpay) {
-    return json(res, 500, { error: "Razorpay is not configured on server." });
-  }
+  try {
+    const razorpay = getRazorpayClient();
+    if (!razorpay) {
+      return json(res, 500, { error: "Razorpay is not configured on server." });
+    }
 
   let decodedToken;
   try {
@@ -365,52 +412,59 @@ exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res)
     }
   }
 
-  const receipt = `aj_${uid.slice(0, 8)}_${Date.now()}`;
-  try {
-    const order = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: RAZORPAY_CURRENCY,
-      receipt,
-      notes: {
+    const receipt = `aj_${uid.slice(0, 8)}_${Date.now()}`;
+    try {
+      const order = await razorpay.orders.create({
+        amount: amountPaise,
+        currency: RAZORPAY_CURRENCY,
+        receipt,
+        notes: {
+          uid,
+          designId
+        }
+      });
+
+      await db.collection("paymentOrders").doc(order.id).set({
         uid,
-        designId
-      }
-    });
+        email,
+        designId,
+        amount: Number(order.amount),
+        currency: String(order.currency || RAZORPAY_CURRENCY),
+        status: "created",
+        receipt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        ip: readClientIp(req)
+      });
 
-    await db.collection("paymentOrders").doc(order.id).set({
-      uid,
-      email,
-      designId,
-      amount: Number(order.amount),
-      currency: String(order.currency || RAZORPAY_CURRENCY),
-      status: "created",
-      receipt,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      ip: readClientIp(req)
-    });
-
-    return json(res, 200, {
-      orderId: order.id,
-      amount: Number(order.amount),
-      currency: String(order.currency || RAZORPAY_CURRENCY),
-      keyId: RAZORPAY_KEY_ID
-    });
+      return json(res, 200, {
+        orderId: order.id,
+        amount: Number(order.amount),
+        currency: String(order.currency || RAZORPAY_CURRENCY),
+        keyId: RAZORPAY_KEY_ID
+      });
+    } catch (error) {
+      console.error("createOrder failed:", error);
+      return json(res, 500, { error: "Unable to create order right now." });
+    }
   } catch (error) {
     console.error("createOrder failed:", error);
-    return json(res, 500, { error: "Unable to create order right now." });
+    return json(res, 500, { error: "Internal server error." });
   }
 });
 
 // Verifies Razorpay signature and records ownership of purchased design.
-exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.verifyPayment = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
 
-  const razorpaySecret = getRazorpaySecret();
-  if (!razorpaySecret) {
-    return json(res, 500, { error: "Razorpay secret is missing on server." });
-  }
+  try {
+    const razorpaySecret = getRazorpaySecret();
+    if (!razorpaySecret) {
+      return json(res, 500, { error: "Razorpay secret is missing on server." });
+    }
 
   let decodedToken;
   try {
@@ -498,20 +552,26 @@ exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, re
     });
   });
 
-  try {
-    const downloadUrl = await getSignedDownloadUrl(filePath);
-    return json(res, 200, {
-      success: true,
-      downloadUrl,
-      expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000)
-    });
+    try {
+      const downloadUrl = await getSignedDownloadUrl(filePath);
+      return json(res, 200, {
+        success: true,
+        downloadUrl,
+        expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000)
+      });
+    } catch (error) {
+      console.error("verifyPayment URL generation failed:", error);
+      return json(res, 500, { error: "Payment verified but download link failed." });
+    }
   } catch (error) {
-    console.error("verifyPayment URL generation failed:", error);
-    return json(res, 500, { error: "Payment verified but download link failed." });
+    console.error("verifyPayment failed:", error);
+    return json(res, 500, { error: "Internal server error." });
   }
 });
 
-exports.adminGuardCheck = onRequest({ region: REGION, cors: true }, async (req, res) => {
+exports.adminGuardCheck = onRequest({ region: REGION }, async (req, res) => {
+  if (handleCors(req, res)) return;
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
   }
@@ -651,6 +711,46 @@ function readConfig(configRoot, pathParts, fallbackValue) {
     current = current[part];
   }
   return current == null ? fallbackValue : current;
+}
+
+function readNumberSetting(primaryValue, secondaryValue, fallbackValue) {
+  const primary = Number(primaryValue);
+  if (Number.isFinite(primary) && primary > 0) return primary;
+
+  const secondary = Number(secondaryValue);
+  if (Number.isFinite(secondary) && secondary > 0) return secondary;
+
+  return Number(fallbackValue);
+}
+
+function handleCors(req, res) {
+  const origin = cleanString(req.get("origin"));
+  const allowOrigin = origin === ALLOWED_ORIGIN;
+
+  res.set("Vary", "Origin");
+  res.set("Access-Control-Allow-Methods", ALLOWED_CORS_METHODS);
+  res.set("Access-Control-Allow-Headers", ALLOWED_CORS_HEADERS);
+  res.set("Access-Control-Max-Age", "3600");
+
+  if (allowOrigin) {
+    res.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  }
+
+  if (req.method === "OPTIONS") {
+    if (!allowOrigin) {
+      json(res, 403, { error: "Origin not allowed." });
+      return true;
+    }
+    res.status(204).send("");
+    return true;
+  }
+
+  if (!allowOrigin) {
+    json(res, 403, { error: "Origin not allowed." });
+    return true;
+  }
+
+  return false;
 }
 
 function json(res, statusCode, payload) {

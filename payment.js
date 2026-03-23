@@ -2,7 +2,12 @@
     const services = window.AjArtivoFirebase;
     if (!services) return;
 
-    const FUNCTION_BASE = "https://us-central1-ajartivo.cloudfunctions.net";
+    const FRONTEND_RAZORPAY_KEY = "rzp_live_SUjeQN7Wu5zSJz";
+    const projectId = cleanString(services.config && services.config.projectId);
+    const functionRegion = cleanString(window.AJARTIVO_FUNCTION_REGION) || "us-central1";
+    const FUNCTION_BASE = projectId
+        ? `https://${functionRegion}-${projectId}.cloudfunctions.net`
+        : "https://us-central1-ajartivo.cloudfunctions.net";
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
@@ -21,10 +26,10 @@
         const user = await requireVerifiedUser();
         if (!user) return;
 
-        const token = await user.getIdToken(true);
         const premium = isPremiumDesign(design);
 
         if (!premium) {
+            const token = await user.getIdToken(true);
             // FREE flow: enforce daily limit on backend and return signed URL.
             const freeAccess = await requestDownloadAccess(design.id, token);
             if (!freeAccess || !freeAccess.downloadUrl) return;
@@ -32,38 +37,83 @@
             return;
         }
 
-        // PREMIUM flow step 1:
-        // Try secure access first. If already purchased, backend returns signed URL directly.
-        const existingAccess = await requestDownloadAccess(design.id, token, true);
-        if (!existingAccess) return;
-
-        if (existingAccess.downloadUrl) {
-            openDownloadUrl(existingAccess.downloadUrl);
+        const directDownloadUrl = resolveDirectDownloadUrl(design);
+        if (!directDownloadUrl) {
+            alert("Download URL not found for this premium design.");
             return;
         }
 
-        if (!existingAccess.requiresPayment) {
+        await openDirectCheckout(design, directDownloadUrl, user);
+    }
+
+    function resolveDirectDownloadUrl(design) {
+        const candidates = [
+            design && design.downloadUrl,
+            design && design.fileUrl,
+            design && design.zipUrl,
+            design && design.downloadLink,
+            design && design.fileLink,
+            design && design.url,
+            design && design.sourceFile,
+            design && design.sourceUrl
+        ];
+
+        for (const candidate of candidates) {
+            const value = cleanString(candidate);
+            if (value) {
+                return value;
+            }
+        }
+
+        return "";
+    }
+
+    async function openDirectCheckout(design, downloadUrl, user) {
+        if (typeof Razorpay === "undefined") {
+            alert("Razorpay checkout failed to load.");
             return;
         }
 
-        // PREMIUM flow step 2:
-        // Purchase required -> create Razorpay order from backend.
-        const orderPayload = await postSecure(
-            "createOrder",
-            {
-                designId: design.id,
-                amount: Number(design.price || 0)
+        const amount = Number(design && design.price ? design.price : 0);
+        const amountInPaise = Math.round(amount * 100);
+
+        if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
+            alert("Invalid premium amount.");
+            return;
+        }
+
+        const checkout = new Razorpay({
+            key: FRONTEND_RAZORPAY_KEY,
+            amount: amountInPaise,
+            currency: "INR",
+            name: "AJartivo",
+            description: "Design Purchase",
+            handler: function () {
+                alert("Payment Successful");
+                openDownloadUrl(downloadUrl);
             },
-            token
-        );
-        if (!orderPayload || !orderPayload.orderId) {
-            alert("Unable to create order right now.");
-            return;
-        }
+            prefill: {
+                name: user && user.displayName ? user.displayName : "",
+                email: user && user.email ? user.email : ""
+            },
+            theme: {
+                color: "#2563eb"
+            },
+            modal: {
+                ondismiss: function () {
+                    alert("Payment cancelled.");
+                }
+            }
+        });
 
-        // PREMIUM flow step 3:
-        // Open checkout and verify signature on backend after success.
-        await openCheckoutAndVerify(orderPayload, design, token);
+        checkout.on("payment.failed", function (response) {
+            const reason = response && response.error && response.error.description
+                ? response.error.description
+                : "Payment failed. Please try again.";
+            alert(reason);
+        });
+
+        checkout.open();
     }
 
     function isPremiumDesign(design) {
@@ -354,30 +404,44 @@
     }
 
     async function postSecure(endpoint, payload, idToken) {
-        const response = await fetch(FUNCTION_BASE + "/" + endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + idToken
-            },
-            body: JSON.stringify(payload || {})
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
 
-        let body = {};
         try {
-            body = await response.json();
+            const response = await fetch(FUNCTION_BASE + "/" + endpoint, {
+                method: "POST",
+                mode: "cors",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + idToken
+                },
+                body: JSON.stringify(payload || {}),
+                signal: controller.signal
+            });
+
+            let body = {};
+            try {
+                body = await response.json();
+            } catch (error) {
+                body = {};
+            }
+
+            if (!response.ok) {
+                const err = new Error(body.error || "Request failed.");
+                err.status = response.status;
+                err.payload = body;
+                throw err;
+            }
+
+            return body;
         } catch (error) {
-            body = {};
+            if (error && error.name === "AbortError") {
+                throw new Error("Request timed out. Please try again.");
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
         }
-
-        if (!response.ok) {
-            const err = new Error(body.error || "Request failed.");
-            err.status = response.status;
-            err.payload = body;
-            throw err;
-        }
-
-        return body;
     }
 
     function openDownloadUrl(url) {
@@ -393,5 +457,9 @@
         if (!error) return "Something went wrong.";
         if (error.message) return error.message;
         return "Something went wrong.";
+    }
+
+    function cleanString(value) {
+        return String(value || "").trim();
     }
 })();

@@ -3,7 +3,11 @@
     if (!services) return;
 
     const { auth } = services;
-    const SECURITY_API_BASE = "https://us-central1-ajartivo.cloudfunctions.net";
+    const projectId = normalizeText(services.config && services.config.projectId);
+    const functionRegion = normalizeText(window.AJARTIVO_FUNCTION_REGION) || "us-central1";
+    const SECURITY_API_BASE = projectId
+        ? `https://${functionRegion}-${projectId}.cloudfunctions.net`
+        : "https://us-central1-ajartivo.cloudfunctions.net";
 
     const PROTECTED_ROUTE_PATTERNS = [
         /\/pages\/profile\.html$/i,
@@ -388,6 +392,10 @@
             return "Email already registered. Please login.";
         }
         return error && error.message ? error.message : "Authentication failed.";
+    }
+
+    function normalizeText(value) {
+        return String(value || "").trim();
     }
 
     function throttle(fn, waitMs) {
