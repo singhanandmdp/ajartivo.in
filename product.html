@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Banner - AJartivo</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <div id="site-header"></div>
+
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="product-detail">
+        <section class="product-gallery-panel">
+            <div class="product-gallery-glow product-gallery-glow-one"></div>
+            <div class="product-gallery-glow product-gallery-glow-two"></div>
+
+            <div class="product-gallery-head">
+                <div>
+                    <p class="product-kicker">Preview studio</p>
+                    <h2>Live design showcase</h2>
+                </div>
+                <span class="product-zoom-pill">Tap or hover to zoom</span>
+            </div>
+
+            <div class="product-gallery">
+                <button class="preview-box is-loading" id="previewTrigger" type="button" aria-label="Open image preview">
+                    <span class="preview-skeleton" aria-hidden="true"></span>
+                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview" loading="lazy" decoding="async">
+                    <span class="preview-badge">Professional zoom</span>
+                    <span class="preview-hint">Click to inspect details</span>
+                </button>
+
+                <div class="thumbnail-row" id="thumbnailRow" hidden></div>
+
+                <div class="product-gallery-meta" id="productGalleryMeta">
+                    <article class="gallery-meta-card">
+                        <span>Format</span>
+                        <strong id="galleryFormat">PSD</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Access</span>
+                        <strong id="galleryAccess">Premium</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Views</span>
+                        <strong id="galleryViews">0</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Downloads</span>
+                        <strong id="galleryDownloads">0</strong>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="product-info-panel">
+            <div class="product-info">
+                <p class="product-kicker">Premium asset</p>
+                <h1 id="productTitle">Birthday Banner</h1>
+                <p class="product-lead" id="productDescription">Editable PSD design with fonts, layered artwork, and production-ready assets.</p>
+
+                <div class="product-meta-row">
+                    <span class="product-meta-chip" id="productTypeChip">PSD</span>
+                    <span class="product-meta-chip">Instant download</span>
+                    <span class="product-meta-chip">Commercial-ready</span>
+                </div>
+
+                <div class="product-pricing-board">
+                    <div class="price-card">
+                        <span class="price-kicker">Design price</span>
+                        <strong id="productPrice">Rs. 499</strong>
+                        <p id="productPriceNote">One-time purchase with editable source files and preview assets.</p>
+                        <button class="download-btn" id="downloadBtn" type="button">Download</button>
+                    </div>
+
+                    <div class="custom-design-card">
+                        <span class="custom-design-badge">Custom design</span>
+                        <h3>Need your own version?</h3>
+                        <p>Custom design feature is being prepared. We will add the exact workflow later, but the request area is now ready on this page.</p>
+                        <button class="custom-design-btn" id="customDesignBtn" type="button">Request Custom Design</button>
+                    </div>
+                </div>
+
+                <div class="product-feature-board">
+                    <div class="feature-board-head">
+                        <p class="product-kicker">Included</p>
+                        <h3>What comes with this design</h3>
+                    </div>
+
+                    <ul class="product-features" id="productFeatures">
+                        <li>Editable layered source file</li>
+                        <li>Print-friendly composition</li>
+                        <li>Easy asset replacement workflow</li>
+                        <li>Fast preview and direct download access</li>
+                    </ul>
+                </div>
+
+                <div class="product-action-row">
+                    <button class="product-secondary-btn" id="shareBtn" type="button">Share Product</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="product-lightbox" id="productLightbox" hidden>
+        <button class="product-lightbox-close" id="lightboxClose" type="button" aria-label="Close preview">x</button>
+        <img id="lightboxImage" src="images/preview1.jpg" alt="Zoomed design preview">
+    </div>
+
+    <section class="trending-section">
+        <div class="section-header">
+            <h2>Related Designs</h2>
+        </div>
+
+        <div class="trending-grid" id="relatedDesignGrid"></div>
+    </section>
+
+    <div id="site-footer"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="payment.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/download-system.js"></script>
+</body>
+
+</html>

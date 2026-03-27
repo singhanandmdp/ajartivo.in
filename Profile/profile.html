@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="/css/profile.css">
+</head>
+
+<body>
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="profile-page-shell">
+        <section class="profile-card-layout">
+            <aside class="profile-summary-card">
+                <div class="profile-avatar-ring">
+                    <img id="profileAvatar" src="/images/default-user.png" alt="User Avatar">
+                </div>
+                <h1 id="profileName">User Name</h1>
+                <p id="profileEmail">user@email.com</p>
+                <span class="profile-pill">Creative Member</span>
+            </aside>
+
+            <section class="profile-details-card">
+                <div class="profile-topbar">
+                    <div>
+                        <p class="profile-kicker">Account overview</p>
+                        <h2>Your Profile</h2>
+                    </div>
+                    <button id="logout" class="profile-logout-btn">Logout</button>
+                </div>
+
+                <div id="userData" class="profile-info-grid">
+                    <article class="profile-info-box">
+                        <span>Name</span>
+                        <strong>User Name</strong>
+                    </article>
+                    <article class="profile-info-box">
+                        <span>Email</span>
+                        <strong>user@email.com</strong>
+                    </article>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="/js/script.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "ajartivo.firebaseapp.com",
+            projectId: "ajartivo",
+            storageBucket: "ajartivo.appspot.com",
+            messagingSenderId: "185169143149",
+            appId: "1:185169143149:web:xxxx"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "/login.html";
+                return;
+            }
+
+            document.getElementById("profileName").textContent = user.displayName || "User";
+            document.getElementById("profileEmail").textContent = user.email || "No email";
+
+            if (user.photoURL) {
+                document.getElementById("profileAvatar").src = user.photoURL;
+            }
+
+            document.getElementById("userData").innerHTML = `
+                <article class="profile-info-box">
+                    <span>Name</span>
+                    <strong>${user.displayName || "User"}</strong>
+                </article>
+                <article class="profile-info-box">
+                    <span>Email</span>
+                    <strong>${user.email || "No email"}</strong>
+                </article>
+                <article class="profile-info-box">
+                    <span>Login Provider</span>
+                    <strong>${user.providerData[0]?.providerId || "Firebase"}</strong>
+                </article>
+                <article class="profile-info-box">
+                    <span>User ID</span>
+                    <strong>${user.uid}</strong>
+                </article>
+            `;
+        });
+
+        document.getElementById("logout").onclick = () => {
+            signOut(auth).then(() => {
+                window.location.href = "/login.html";
+            });
+        };
+    </script>
+</body>
+
+</html>
