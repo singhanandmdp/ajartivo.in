@@ -13,12 +13,10 @@ const PORT = Number(process.env.PORT || 5000);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DOWNLOADS_ROOT = path.resolve(PROJECT_ROOT, "downloads");
 const ENV_FILE_PATH = path.resolve(__dirname, ".env");
-const FRONTEND_ORIGINS = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500"
-];
 
 loadEnvFile(ENV_FILE_PATH);
+
+const FRONTEND_ORIGINS = buildFrontendOrigins(process.env.FRONTEND_ORIGINS);
 
 const SUPABASE_URL = cleanText(process.env.SUPABASE_URL);
 const SUPABASE_SERVICE_ROLE_KEY = cleanText(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -59,6 +57,24 @@ app.get("/health", function (_req, res) {
         port: PORT
     });
 });
+
+function buildFrontendOrigins(rawOrigins) {
+    const defaults = [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://ajartivo.in",
+        "https://www.ajartivo.in"
+    ];
+
+    const configuredOrigins = cleanText(rawOrigins)
+        .split(",")
+        .map(function (origin) {
+            return cleanText(origin);
+        })
+        .filter(Boolean);
+
+    return Array.from(new Set(defaults.concat(configuredOrigins)));
+}
 
 app.post("/create-order", requireConfiguredServer, requireAuthenticatedUser, async function (req, res) {
     try {
