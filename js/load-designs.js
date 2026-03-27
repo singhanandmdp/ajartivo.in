@@ -1,64 +1,76 @@
 (function () {
-    const services = window.AjArtivoFirebase;
+    const services = window.AjArtivoSupabase;
     if (!services) return;
 
-    const { db } = services;
     const trendingGrid = document.getElementById("trendingGrid");
     const popularGrid = document.getElementById("popularDesignGrid");
+    let refreshTimerId = null;
 
     if (!trendingGrid && !popularGrid) return;
 
-    loadHomepageDesigns();
+    loadHomepageProducts();
+    bindLiveRefresh();
 
-    async function loadHomepageDesigns() {
+    async function loadHomepageProducts() {
         try {
-            const snapshot = await db.collection("designs")
-                .orderBy("createdAt", "desc")
-                .limit(12)
-                .get();
-
-            const designs = snapshot.docs.map(function (doc) {
-                return { id: doc.id, ...doc.data() };
-            });
+            const products = await services.fetchProducts();
+            const latestProducts = [...products]
+                .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
 
             if (trendingGrid) {
-                renderDesignCards(trendingGrid, designs.slice(0, 6));
+                renderProductCards(trendingGrid, latestProducts.slice(0, 6));
             }
 
             if (popularGrid) {
-                const popularDesigns = [...designs]
-                    .sort(function (a, b) {
-                        return Number(b.downloads || 0) - Number(a.downloads || 0);
-                    })
+                const popularProducts = [...products]
+                    .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
                     .slice(0, 6);
 
-                renderDesignCards(popularGrid, popularDesigns);
+                renderProductCards(popularGrid, popularProducts);
             }
         } catch (error) {
-            console.error("Failed to load designs:", error);
+            console.error("Failed to load homepage products:", error);
             if (trendingGrid) {
-                trendingGrid.innerHTML = '<div class="empty-state">Could not load designs right now.</div>';
+                trendingGrid.innerHTML = '<div class="empty-state">Could not load products right now.</div>';
             }
             if (popularGrid) {
-                popularGrid.innerHTML = '<div class="empty-state">Could not load popular designs right now.</div>';
+                popularGrid.innerHTML = '<div class="empty-state">Could not load popular products right now.</div>';
             }
         }
     }
 
-    function renderDesignCards(container, designs) {
-        if (!designs.length) {
-            container.innerHTML = '<div class="empty-state">No designs found yet.</div>';
+    function bindLiveRefresh() {
+        if (document.body.dataset.homeProductsLiveBound === "true") {
             return;
         }
 
-        container.innerHTML = designs.map(function (design) {
-            const title = escapeHtml(design.title || "Untitled Design");
-            const image = escapeHtml(design.image || "/images/trending1.jpg");
-            const productUrl = `/product.html?id=${encodeURIComponent(design.id)}`;
-            const badge = getDesignBadge(design);
+        window.addEventListener("ajartivo:products-changed", function () {
+            if (refreshTimerId) {
+                window.clearTimeout(refreshTimerId);
+            }
+
+            refreshTimerId = window.setTimeout(function () {
+                loadHomepageProducts();
+            }, 250);
+        });
+
+        document.body.dataset.homeProductsLiveBound = "true";
+    }
+
+    function renderProductCards(container, products) {
+        if (!products.length) {
+            container.innerHTML = '<div class="empty-state">No products found yet.</div>';
+            return;
+        }
+
+        container.innerHTML = products.map(function (product) {
+            const title = escapeHtml(product.title);
+            const image = escapeHtml(product.image || "/images/preview1.jpg");
+            const productUrl = `/product.html?id=${encodeURIComponent(product.id)}`;
+            const badge = getProductBadge(product);
 
             return `
-                <article class="product-card homepage-design-card" data-design-id="${escapeHtml(design.id)}">
+                <article class="product-card homepage-design-card" data-product-id="${escapeHtml(product.id)}">
                     <a href="${productUrl}" class="card-link homepage-card-link">
                         <div class="homepage-card-media">
                             <img src="${image}" alt="${title}" class="homepage-card-image">
@@ -70,63 +82,34 @@
         }).join("");
     }
 
-    function isPremiumDesign(design) {
-        if (window.AjArtivoPayment && typeof window.AjArtivoPayment.isPremiumDesign === "function") {
-            return window.AjArtivoPayment.isPremiumDesign(design);
-        }
-
-        const amount = Number(design && design.price ? design.price : 0);
-        return Number.isFinite(amount) && amount > 0;
-    }
-
-    function normalizeDesignFormat(design) {
-        const raw = String(
-            (design && (
-                design.extension ||
-                design.fileType ||
-                design.format ||
-                design.category ||
-                design.type
-            )) || ""
-        )
-            .trim()
-            .replace(/^\./, "")
-            .toUpperCase();
-
-        const aliasMap = {
-            ILLUSTRATOR: "AI",
-            PHOTOSHOP: "PSD",
-            CORELDRAW: "CDR",
-            JPEG: "JPG"
-        };
-
-        return aliasMap[raw] || raw;
-    }
-
-    function getDesignBadge(design) {
-        const format = normalizeDesignFormat(design);
+    function getProductBadge(product) {
+        const format = String(product.category || "").trim().toUpperCase();
         const knownClass = format.toLowerCase();
-        const knownFormats = new Set(["psd", "cdr", "ai", "pmd", "png", "jpg", "jpeg", "pdf", "svg", "eps", "ttf"]);
+        const knownFormats = new Set(["psd", "cdr", "ai", "png", "jpg", "jpeg", "pdf", "svg", "eps"]);
 
         if (format && knownFormats.has(knownClass)) {
             return { label: escapeHtml(format), className: knownClass, styleAttr: "" };
         }
 
         if (format) {
-            const color = colorFromText(format);
             return {
                 label: escapeHtml(format),
                 className: "other",
-                styleAttr: ` style="background:${color};"`
+                styleAttr: ` style="background:${colorFromText(format)};"`
             };
         }
 
-        const premium = isPremiumDesign(design);
         return {
-            label: premium ? "PREMIUM" : "FREE",
-            className: premium ? "premium" : "free",
+            label: product.is_paid ? "PREMIUM" : "FREE",
+            className: product.is_paid ? "premium" : "free",
             styleAttr: ""
         };
+    }
+
+    function getCreatedAtMs(product) {
+        const date = new Date(product.created_at || product.createdAt || 0);
+        const millis = date.getTime();
+        return Number.isFinite(millis) ? millis : 0;
     }
 
     function colorFromText(value) {

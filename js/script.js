@@ -114,16 +114,15 @@ async function updateSidebarDesignCounts() {
     const aiCount = document.getElementById("aiCount");
     if (!psdCount || !cdrCount || !aiCount) return;
 
-    const services = window.AjArtivoFirebase;
-    if (!services || !services.db) return;
+    const services = window.AjArtivoSupabase;
+    if (!services) return;
 
     try {
-        const snapshot = await services.db.collection("designs").get();
+        const products = await services.fetchProducts();
         const counts = { psd: 0, cdr: 0, ai: 0 };
 
-        snapshot.forEach((doc) => {
-            const data = doc.data() || {};
-            const rawType = String(data.category || data.type || "").trim().toUpperCase();
+        products.forEach((product) => {
+            const rawType = String(product.category || product.type || "").trim().toUpperCase();
 
             if (rawType === "PSD") {
                 counts.psd += 1;
@@ -255,8 +254,8 @@ function initSearchResults() {
     const paginationBottom = document.getElementById("searchPaginationBottom");
     if (!container || !title) return;
 
-    const services = window.AjArtivoFirebase;
-    if (!services || !services.db) return;
+    const services = window.AjArtivoSupabase;
+    if (!services) return;
 
     const params = new URLSearchParams(window.location.search);
     const rawQuery = (params.get("q") || "").trim();
@@ -301,11 +300,9 @@ function initSearchResults() {
     });
     container.innerHTML = '<div class="empty-state">Loading designs...</div>';
 
-    services.db.collection("designs")
-        .orderBy("createdAt", "desc")
-        .get()
-        .then((snapshot) => {
-            let designs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    services.fetchProducts()
+        .then((products) => {
+            let designs = Array.isArray(products) ? [...products] : [];
 
             if (category) {
                 designs = designs.filter((design) => {
@@ -596,10 +593,7 @@ function designTitle(design) {
 }
 
 function getCreatedAtMs(design) {
-    const createdAt = design && design.createdAt;
-    if (createdAt && typeof createdAt.toMillis === "function") {
-        return createdAt.toMillis();
-    }
+    const createdAt = design && (design.createdAt || design.created_at);
 
     const asDate = new Date(createdAt || 0);
     const millis = asDate.getTime();
@@ -1059,100 +1053,96 @@ function initSidebarMenu() {
 }
 
 function initAuthUI() {
-    if (typeof firebase === "undefined" || !firebase.auth) return;
+    const services = window.AjArtivoSupabase;
+    const user = services && typeof services.getSession === "function" ? services.getSession() : null;
+    const guestMenu = document.getElementById("guestMenu");
+    const userMenu = document.getElementById("userMenu");
+    const userName = document.getElementById("userName");
+    const memberBox = document.getElementById("memberAccess");
+    const headerAvatar = document.getElementById("headerAvatar");
+    const profileCardAvatar = document.getElementById("profileCardAvatar");
+    const profileFullName = document.getElementById("profileFullName");
+    const profileUserId = document.getElementById("profileUserId");
+    const profileInitial = document.getElementById("profileInitial");
+    const profileVerifiedText = document.getElementById("profileVerifiedText");
 
-    firebase.auth().onAuthStateChanged((user) => {
-        const guestMenu = document.getElementById("guestMenu");
-        const userMenu = document.getElementById("userMenu");
-        const userName = document.getElementById("userName");
-        const memberBox = document.getElementById("memberAccess");
-        const headerAvatar = document.getElementById("headerAvatar");
-        const profileCardAvatar = document.getElementById("profileCardAvatar");
-        const profileFullName = document.getElementById("profileFullName");
-        const profileUserId = document.getElementById("profileUserId");
-        const profileInitial = document.getElementById("profileInitial");
-        const profileVerifiedText = document.getElementById("profileVerifiedText");
+    if (user) {
+        const displayName = user.name || user.email || "User";
+        const firstName = displayName.trim().split(/\s+/)[0];
+        const firstLetter = firstName.charAt(0).toUpperCase();
+        const shortId = (user.id || "AJ000001").slice(0, 8).toUpperCase();
+        const avatarDataUrl = createLetterAvatar(firstLetter);
 
-        if (user) {
-            const displayName = user.displayName || user.email || "User";
-            const firstName = displayName.trim().split(/\s+/)[0];
-            const firstLetter = firstName.charAt(0).toUpperCase();
-            const shortId = user.uid ? user.uid.slice(0, 8).toUpperCase() : "AJ000001";
-            const avatarDataUrl = createLetterAvatar(firstLetter);
-
-            if (guestMenu && userMenu) {
-                guestMenu.style.display = "none";
-                userMenu.style.display = "block";
-            }
-
-            if (userName) {
-                userName.textContent = firstName;
-            }
-
-            if (headerAvatar) {
-                headerAvatar.src = user.photoURL || avatarDataUrl;
-            }
-
-            if (profileCardAvatar) {
-                profileCardAvatar.src = user.photoURL || avatarDataUrl;
-            }
-
-            if (profileFullName) {
-                profileFullName.textContent = displayName;
-            }
-
-            if (profileUserId) {
-                profileUserId.textContent = `ID: ${shortId}`;
-            }
-
-            if (profileInitial) {
-                profileInitial.textContent = firstLetter;
-            }
-
-            if (profileVerifiedText) {
-                profileVerifiedText.textContent = user.emailVerified ? "Verified user" : "Free user";
-            }
-
-            if (memberBox) {
-                memberBox.classList.add("logged-in");
-                const avatarHTML = user.photoURL
-                    ? `<img src="${user.photoURL}" alt="${firstName}" class="member-avatar">`
-                    : `<div class="member-avatar-letter">${firstLetter}</div>`;
-
-                memberBox.innerHTML = `
-                    <div class="member-account-row">
-                        <a href="/pages/profile.html" class="member-user">
-                            ${avatarHTML}
-                            <div class="member-user-text">
-                                <strong>${firstName}</strong>
-                                <span>ID: ${shortId}</span>
-                            </div>
-                        </a>
-                        <a href="#" id="sidebarLogout" class="sidebar-logout">Logout</a>
-                    </div>
-                `;
-            }
-        } else {
-            if (guestMenu && userMenu) {
-                guestMenu.style.display = "block";
-                userMenu.style.display = "none";
-            }
-
-            if (memberBox) {
-                memberBox.classList.remove("logged-in");
-                memberBox.innerHTML = `
-                    <div class="member-text">
-                        <h5>Member Access</h5>
-                        <p>Login to download premium design files.</p>
-                    </div>
-                    <a href="/login.html" class="member-login-btn">
-                        <img src="/icons/login.svg" class="icon-svg" alt="Login">
-                        Login
-                    </a>
-                `;
-            }
+        if (guestMenu && userMenu) {
+            guestMenu.style.display = "none";
+            userMenu.style.display = "block";
         }
-    });
+
+        if (userName) {
+            userName.textContent = firstName;
+        }
+
+        if (headerAvatar) {
+            headerAvatar.src = avatarDataUrl;
+        }
+
+        if (profileCardAvatar) {
+            profileCardAvatar.src = avatarDataUrl;
+        }
+
+        if (profileFullName) {
+            profileFullName.textContent = displayName;
+        }
+
+        if (profileUserId) {
+            profileUserId.textContent = `ID: ${shortId}`;
+        }
+
+        if (profileInitial) {
+            profileInitial.textContent = firstLetter;
+        }
+
+        if (profileVerifiedText) {
+            profileVerifiedText.textContent = "Local session";
+        }
+
+        if (memberBox) {
+            memberBox.classList.add("logged-in");
+            memberBox.innerHTML = `
+                <div class="member-account-row">
+                    <a href="/pages/profile.html" class="member-user">
+                        <div class="member-avatar-letter">${firstLetter}</div>
+                        <div class="member-user-text">
+                            <strong>${firstName}</strong>
+                            <span>ID: ${shortId}</span>
+                        </div>
+                    </a>
+                    <a href="#" id="sidebarLogout" class="sidebar-logout">Logout</a>
+                </div>
+            `;
+        }
+
+        return;
+    }
+
+    if (guestMenu && userMenu) {
+        guestMenu.style.display = "block";
+        userMenu.style.display = "none";
+    }
+
+    if (memberBox) {
+        memberBox.classList.remove("logged-in");
+        memberBox.innerHTML = `
+            <div class="member-text">
+                <h5>Member Access</h5>
+                <p>Login to manage your saved products.</p>
+            </div>
+            <a href="/login.html" class="member-login-btn">
+                <img src="/icons/login.svg" class="icon-svg" alt="Login">
+                Login
+            </a>
+        `;
+    }
 }
 
 function createLetterAvatar(firstLetter) {
