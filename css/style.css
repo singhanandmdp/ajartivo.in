@@ -666,6 +666,35 @@ textarea {
     color: #fff;
 }
 
+/* Premium profile dropdown refresh */
+.profile-panel .upgrade-btn,
+.upgrade-btn {
+    min-height: 42px;
+    border-radius: 16px;
+    width: 100%;
+    padding: 0 18px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    color: #9a3412;
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    box-shadow: 0 10px 18px rgba(217, 119, 6, 0.10);
+}
+
+.profile-panel .upgrade-btn:hover,
+.upgrade-btn:hover {
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    color: #9a3412;
+}
+
+.premium-upgrade-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 16px 28px rgba(217, 119, 6, 0.22);
+    letter-spacing: 0.01em;
+}
+
 /* ===============================
    MENU ICON (SIDEBAR BUTTON)
 ================================ */
@@ -1111,7 +1140,7 @@ textarea {
 
 .hero-home {
     position: relative;
-    min-height: clamp(500px, 76vh, 760px);
+    min-height: clamp(460px, 70vh, 700px);
     padding: clamp(42px, 7vh, 72px) 0 clamp(50px, 8vh, 88px);
     display: flex;
     align-items: center;
@@ -1123,8 +1152,8 @@ textarea {
 }
 
 .hero-home.has-search-panel {
-    min-height: clamp(660px, 92vh, 980px);
-    padding-bottom: clamp(180px, 24vh, 280px);
+    min-height: clamp(620px, 86vh, 900px);
+    padding-bottom: clamp(150px, 20vh, 220px);
     overflow: visible;
 }
 
@@ -1145,7 +1174,7 @@ textarea {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    transition: opacity 0.35s ease;
+    transition: opacity 0.28s ease;
     will-change: opacity;
 }
 
@@ -1158,16 +1187,16 @@ textarea {
 
 .hero-slide::before {
     background:
-        linear-gradient(120deg, rgba(7, 17, 31, 0.82), rgba(7, 17, 31, 0.36) 44%, rgba(7, 17, 31, 0.72)),
-        radial-gradient(circle at 24% 22%, rgba(96, 165, 250, 0.2), transparent 26%);
+        linear-gradient(120deg, rgba(7, 17, 31, 0.78), rgba(7, 17, 31, 0.34) 44%, rgba(7, 17, 31, 0.68)),
+        radial-gradient(circle at 24% 22%, rgba(96, 165, 250, 0.14), transparent 24%);
 }
 
 .hero-slide::after {
     background:
-        linear-gradient(180deg, rgba(7, 17, 31, 0.18), rgba(7, 17, 31, 0.42)),
-        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 120px);
+        linear-gradient(180deg, rgba(7, 17, 31, 0.16), rgba(7, 17, 31, 0.34)),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 140px);
     mix-blend-mode: screen;
-    opacity: 0.45;
+    opacity: 0.28;
 }
 
 .hero-slide.is-active {
@@ -1179,8 +1208,8 @@ textarea {
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 28%),
-        linear-gradient(180deg, rgba(4, 9, 17, 0.2), rgba(4, 9, 17, 0.42));
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 24%),
+        linear-gradient(180deg, rgba(4, 9, 17, 0.16), rgba(4, 9, 17, 0.34));
     z-index: 1;
 }
 
@@ -1211,11 +1240,11 @@ textarea {
 .hero-gridlines {
     z-index: 1;
     background:
-        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 120px 120px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 72%);
-    opacity: 0.08;
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 160px 160px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 72%);
+    opacity: 0.05;
 }
 
 .hero-content {
@@ -1238,8 +1267,7 @@ textarea {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
-    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -1260,7 +1288,7 @@ textarea {
     line-height: 1.04;
     letter-spacing: -0.04em;
     margin-bottom: 14px;
-    text-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+    text-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
 }
 
 .hero-content p {
@@ -1291,10 +1319,9 @@ textarea {
         linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.9));
     border: 1px solid rgba(255, 255, 255, 0.38);
     box-shadow:
-        0 24px 60px rgba(2, 6, 23, 0.28),
+        0 18px 40px rgba(2, 6, 23, 0.20),
         inset 0 1px 0 rgba(255, 255, 255, 0.92),
         inset 0 -1px 0 rgba(148, 163, 184, 0.12);
-    backdrop-filter: blur(10px);
     transition:
         transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
         box-shadow 0.34s ease,
@@ -1314,11 +1341,11 @@ textarea {
 
 .hero-search.is-focused,
 .hero-search:focus-within {
-    transform: translateY(-7px) scale(1.01);
+    transform: translateY(-4px) scale(1.005);
     border-color: rgba(255, 255, 255, 0.72);
     box-shadow:
-        0 30px 80px rgba(2, 6, 23, 0.36),
-        0 0 0 10px rgba(255, 255, 255, 0.08),
+        0 22px 54px rgba(2, 6, 23, 0.24),
+        0 0 0 6px rgba(255, 255, 255, 0.06),
         0 0 0 1px rgba(96, 165, 250, 0.16);
 }
 
@@ -1415,8 +1442,8 @@ textarea {
     inset: 18px 28px -10px;
     border-radius: 999px;
     background: radial-gradient(circle at center, rgba(255, 255, 255, 0.18), transparent 68%);
-    filter: blur(8px);
-    opacity: 0.62;
+    filter: blur(6px);
+    opacity: 0.4;
     z-index: -1;
     animation: none;
 }
@@ -1464,7 +1491,6 @@ textarea {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.04em;
-    backdrop-filter: blur(14px);
     animation: none;
 }
 
@@ -1487,7 +1513,7 @@ textarea {
     transform: translateX(-50%);
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid rgba(226, 232, 240, 0.94);
-    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.16);
     text-align: left;
     z-index: 5;
     max-height: min(50vh, 340px);
@@ -2797,6 +2823,11 @@ textarea {
     color: #4338ca;
 }
 
+#wishlistBtn[data-saved="true"] {
+    background: linear-gradient(135deg, #fee2e2, #fde68a);
+    color: #9a3412;
+}
+
 .product-lightbox {
     position: fixed;
     inset: 0;
@@ -3818,4 +3849,20 @@ body {
     60% {
         opacity: 0;
     }
+}
+
+/* Premium profile menu chevron */
+.profile-menu-item::after {
+    content: "";
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid #b08a4a;
+    border-right: 2px solid #b08a4a;
+    transform: translateY(-50%) rotate(45deg);
+    opacity: 0.95;
+    color: transparent;
+    font-size: 0;
 }

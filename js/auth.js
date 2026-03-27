@@ -1,92 +1,47 @@
 (function () {
-    const services = window.AjArtivoFirebase;
+    const services = window.AjArtivoSupabase;
     if (!services) return;
 
-    const { auth } = services;
-    const projectId = normalizeText(services.config && services.config.projectId);
-    const functionRegion = normalizeText(window.AJARTIVO_FUNCTION_REGION) || "us-central1";
-    const SECURITY_API_BASE = projectId
-        ? `https://${functionRegion}-${projectId}.cloudfunctions.net`
-        : "https://us-central1-ajartivo.cloudfunctions.net";
-
-    const PROTECTED_ROUTE_PATTERNS = [
-        /\/pages\/profile\.html$/i,
-        /\/admin/i
-    ];
-
-    const ADMIN_ROUTE_PATTERNS = [
-        /\/admin/i
-    ];
-
-    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
-    const ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
-    let inactivityTimer = null;
-
-    window.AjArtivoAuth = {
-        redirectAfterLogin(user) {
-            if (!user) return;
-            const next = getNextUrl();
-            window.location.href = next || "/pages/profile.html";
-        }
-    };
-
-    bindEmailLogin();
+    bindLogin();
     bindSignup();
     bindLogout();
-    bindSocialLogin();
-    handleRouteSecurity();
-    redirectLoggedInAuthPages();
+    bindOAuthButtons();
+    bindPasswordToggle();
+    initProfileRouteGuard();
 
-    function bindEmailLogin() {
+    function bindLogin() {
         const loginBtn = document.getElementById("loginBtn");
         if (!loginBtn) return;
 
         loginBtn.addEventListener("click", async function () {
-            const email = document.getElementById("email")?.value.trim().toLowerCase();
-            const password = document.getElementById("password")?.value || "";
+            const email = cleanText(document.getElementById("email")?.value).toLowerCase();
+            const password = cleanText(document.getElementById("password")?.value);
 
             if (!isValidEmail(email)) {
-                alert("Please enter a valid email.");
+                alert("Please enter a valid email address.");
                 return;
             }
 
             if (!password) {
-                alert("Please enter password.");
+                alert("Please enter your password.");
                 return;
             }
 
             loginBtn.disabled = true;
+            const originalText = loginBtn.textContent;
+            loginBtn.textContent = "Logging in...";
 
             try {
-                const gate = await postSecurity("preLoginCheck", { email: email });
-                if (gate && gate.allowed === false) {
-                    const waitSeconds = Number(gate.retryAfterSeconds || 60);
-                    alert(`Too many attempts. Try again in ${waitSeconds} seconds.`);
-                    return;
-                }
+                await services.signIn(email, password);
 
-                const credential = await auth.signInWithEmailAndPassword(email, password);
-                const user = credential.user;
-
-                if (!user) {
-                    throw new Error("Unable to login. Please try again.");
-                }
-
-                await user.reload();
-                if (!user.emailVerified) {
-                    await auth.signOut();
-                    alert("Please verify your email before login. Check your inbox.");
-                    return;
-                }
-
-                await postSecurity("reportLoginAttempt", { email: email, success: true });
-                window.AjArtivoAuth.redirectAfterLogin(user);
+                const params = new URLSearchParams(window.location.search);
+                const next = cleanText(params.get("next"));
+                window.location.href = next && next.startsWith("/") ? next : "/pages/profile.html";
             } catch (error) {
-                console.error("Login error:", error);
-                await postSecurity("reportLoginAttempt", { email: email, success: false });
-                alert(readableAuthError(error));
+                alert(mapAuthError(error, "login"));
             } finally {
                 loginBtn.disabled = false;
+                loginBtn.textContent = originalText;
             }
         });
     }
@@ -98,313 +53,199 @@
         signupForm.addEventListener("submit", async function (event) {
             event.preventDefault();
 
-            const fullname = document.getElementById("fullname")?.value.trim();
-            const email = document.getElementById("email")?.value.trim().toLowerCase();
-            const password = document.getElementById("password")?.value || "";
+            const fullname = cleanText(document.getElementById("fullname")?.value);
+            const email = cleanText(document.getElementById("email")?.value).toLowerCase();
+            const password = cleanText(document.getElementById("password")?.value);
+            const submitBtn = signupForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn ? submitBtn.textContent : "";
 
-            if (!fullname || !isValidEmail(email)) {
-                alert("Please enter full name and valid email.");
+            if (!fullname) {
+                alert("Please enter your full name.");
                 return;
             }
 
-            const passwordError = validateStrongPassword(password);
-            if (passwordError) {
-                alert(passwordError);
+            if (!isValidEmail(email)) {
+                alert("Please enter a valid email address.");
                 return;
+            }
+
+            if (password.length < 6) {
+                alert("Please use a password with at least 6 characters.");
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Creating account...";
             }
 
             try {
-                const credential = await auth.createUserWithEmailAndPassword(email, password);
-                if (!credential.user) {
-                    throw new Error("Account creation failed. Please retry.");
+                const result = await services.signUp({
+                    fullName: fullname,
+                    email: email,
+                    password: password
+                });
+
+                if (result && result.requiresEmailVerification) {
+                    alert("Account created. Please verify your email from the Supabase confirmation email, then log in.");
+                    window.location.href = "/login.html";
+                    return;
                 }
 
-                await credential.user.updateProfile({ displayName: fullname });
-                await credential.user.sendEmailVerification({
-                    url: window.location.origin + "/login.html",
-                    handleCodeInApp: false
-                });
-                await auth.signOut();
-
-                alert("Account created. Verification email sent. Verify email before login.");
-                window.location.href = "/login.html";
+                alert("Signup successful. Check your email for the next steps.");
+                window.location.href = "/pages/profile.html";
             } catch (error) {
-                console.error("Signup error:", error);
-                alert(readableAuthError(error));
+                alert(mapAuthError(error, "signup"));
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
             }
         });
     }
 
-    function bindSocialLogin() {
-        const googleBtn = document.getElementById("googleLogin") || document.querySelector(".google-btn");
-        const facebookBtn = document.getElementById("facebookLogin");
-
-        if (googleBtn) {
-            googleBtn.addEventListener("click", async function () {
-                try {
-                    const provider = new firebase.auth.GoogleAuthProvider();
-                    const credential = await auth.signInWithPopup(provider);
-                    window.AjArtivoAuth.redirectAfterLogin(credential.user);
-                } catch (error) {
-                    console.error("Google login error:", error);
-                    alert(readableAuthError(error));
-                }
-            });
-        }
-
-        if (facebookBtn) {
-            facebookBtn.addEventListener("click", async function () {
-                try {
-                    const provider = new firebase.auth.FacebookAuthProvider();
-                    const credential = await auth.signInWithPopup(provider);
-                    window.AjArtivoAuth.redirectAfterLogin(credential.user);
-                } catch (error) {
-                    console.error("Facebook login error:", error);
-                    alert(readableAuthError(error));
-                }
-            });
-        }
-    }
-
     function bindLogout() {
-        document.addEventListener("click", function (event) {
+        document.addEventListener("click", async function (event) {
             const target = event.target;
             if (!target) return;
 
             const logoutIds = ["logoutBtn", "sidebarLogout", "logout"];
             if (!logoutIds.includes(target.id)) return;
 
-            auth.signOut()
-                .then(function () {
-                    clearSessionTimers();
-                    window.location.href = "/login.html";
-                })
-                .catch(function (error) {
-                    console.error("Logout error:", error);
-                });
-        });
-    }
+            event.preventDefault();
 
-    function handleRouteSecurity() {
-        auth.onAuthStateChanged(async function (user) {
-            const path = window.location.pathname || "";
-            const onProtectedRoute = PROTECTED_ROUTE_PATTERNS.some((pattern) => pattern.test(path));
-            const onAdminRoute = ADMIN_ROUTE_PATTERNS.some((pattern) => pattern.test(path));
-
-            if (!user) {
-                clearSessionTimers();
-                if (onProtectedRoute) {
-                    goLoginWithNext();
-                }
-                return;
+            try {
+                await services.signOut();
+            } catch (error) {
+                console.error("Supabase logout failed:", error);
+                services.clearSession();
             }
 
-            await user.reload();
-            if (requiresEmailVerification(user) && !user.emailVerified) {
-                await auth.signOut();
-                if (onProtectedRoute) {
-                    alert("Please verify your email first.");
-                    goLoginWithNext();
+            window.location.href = "/login.html";
+        });
+    }
+
+    async function initProfileRouteGuard() {
+        const path = window.location.pathname || "";
+        const requiresSession = /\/pages\/profile\.html$/i.test(path) || /\/Profile\/profile\.html$/i.test(path);
+        if (!requiresSession) return;
+
+        const session = await services.refreshSession();
+        if (!session) {
+            const next = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/login.html?next=${next}`;
+        }
+    }
+
+    function bindOAuthButtons() {
+        const googleButtons = [
+            document.getElementById("googleLogin"),
+            document.querySelector(".google-btn")
+        ].filter(Boolean);
+        const facebookButton = document.getElementById("facebookLogin");
+
+        googleButtons.forEach(function (button) {
+            if (button.dataset.oauthReady === "true") return;
+
+            button.addEventListener("click", async function () {
+                const redirectUrl = buildOAuthRedirectUrl();
+                try {
+                    await services.signInWithOAuth("google", redirectUrl);
+                } catch (error) {
+                    alert(mapAuthError(error, "oauth"));
                 }
-                return;
-            }
-
-            startSessionGuards();
-
-            if (onAdminRoute) {
-                const allowed = await checkAdminAccess(user);
-                if (!allowed) {
-                    alert("Unauthorized admin access.");
-                    window.location.href = "/index.html";
-                }
-            }
-        });
-    }
-
-    function redirectLoggedInAuthPages() {
-        const isAuthPage = /\/(login|signup)\.html$/i.test(window.location.pathname);
-        if (!isAuthPage) return;
-
-        auth.onAuthStateChanged(async function (user) {
-            if (!user) return;
-            await user.reload();
-            if (requiresEmailVerification(user) && !user.emailVerified) return;
-            window.AjArtivoAuth.redirectAfterLogin(user);
-        });
-    }
-
-    function requiresEmailVerification(user) {
-        if (!user || !Array.isArray(user.providerData)) return false;
-        return user.providerData.some(function (provider) {
-            return provider && provider.providerId === "password";
-        });
-    }
-
-    function startSessionGuards() {
-        const now = Date.now();
-        const authStart = Number(localStorage.getItem("aj_auth_start") || now);
-        const lastActive = Number(localStorage.getItem("aj_last_active") || now);
-
-        if (!localStorage.getItem("aj_auth_start")) {
-            localStorage.setItem("aj_auth_start", String(now));
-        }
-        localStorage.setItem("aj_last_active", String(now));
-
-        if (now - authStart > ABSOLUTE_TIMEOUT_MS) {
-            forceLogout("Session expired. Please login again.");
-            return;
-        }
-
-        if (now - lastActive > INACTIVITY_TIMEOUT_MS) {
-            forceLogout("Logged out due to inactivity.");
-            return;
-        }
-
-        resetInactivityTimer();
-        bindActivityListeners();
-    }
-
-    function bindActivityListeners() {
-        if (window.__ajAuthActivityBound) return;
-        window.__ajAuthActivityBound = true;
-
-        const handler = throttle(function () {
-            localStorage.setItem("aj_last_active", String(Date.now()));
-            resetInactivityTimer();
-        }, 3000);
-
-        ["click", "keydown", "mousemove", "touchstart"].forEach(function (eventName) {
-            document.addEventListener(eventName, handler, { passive: true });
-        });
-    }
-
-    function resetInactivityTimer() {
-        if (inactivityTimer) {
-            clearTimeout(inactivityTimer);
-        }
-
-        inactivityTimer = setTimeout(function () {
-            forceLogout("Logged out due to inactivity.");
-        }, INACTIVITY_TIMEOUT_MS);
-    }
-
-    function clearSessionTimers() {
-        if (inactivityTimer) {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = null;
-        }
-        localStorage.removeItem("aj_auth_start");
-        localStorage.removeItem("aj_last_active");
-    }
-
-    async function forceLogout(message) {
-        try {
-            await auth.signOut();
-        } catch (error) {
-            console.error("Forced logout failed:", error);
-        } finally {
-            clearSessionTimers();
-            if (message) alert(message);
-            goLoginWithNext();
-        }
-    }
-
-    function goLoginWithNext() {
-        const next = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.href = "/login.html?next=" + next;
-    }
-
-    function getNextUrl() {
-        const params = new URLSearchParams(window.location.search);
-        const next = params.get("next");
-        if (!next) return "";
-        if (!next.startsWith("/")) return "";
-        return next;
-    }
-
-    async function checkAdminAccess(user) {
-        try {
-            const token = await user.getIdToken(true);
-            const response = await fetch(SECURITY_API_BASE + "/adminGuardCheck", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify({})
             });
-            if (!response.ok) return false;
-            const payload = await response.json();
-            return Boolean(payload.allowed);
-        } catch (error) {
-            console.error("Admin check failed:", error);
-            return false;
+
+            button.dataset.oauthReady = "true";
+        });
+
+        if (facebookButton && facebookButton.dataset.oauthReady !== "true") {
+            facebookButton.addEventListener("click", async function () {
+                const redirectUrl = buildOAuthRedirectUrl();
+                try {
+                    await services.signInWithOAuth("facebook", redirectUrl);
+                } catch (error) {
+                    alert(mapAuthError(error, "oauth"));
+                }
+            });
+
+            facebookButton.dataset.oauthReady = "true";
         }
     }
 
-    async function postSecurity(endpoint, payload) {
-        const response = await fetch(SECURITY_API_BASE + "/" + endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload || {})
-        });
+    function bindPasswordToggle() {
+        const passwordInput = document.getElementById("password");
+        const toggleButton = document.getElementById("passwordToggle");
 
-        if (!response.ok) {
-            throw new Error("Security validation failed.");
+        if (!passwordInput || !toggleButton) {
+            return;
         }
 
-        return response.json();
+        toggleButton.addEventListener("click", function () {
+            const shouldShow = passwordInput.type === "password";
+            passwordInput.type = shouldShow ? "text" : "password";
+            toggleButton.textContent = shouldShow ? "Hide" : "Show";
+            toggleButton.setAttribute("aria-pressed", shouldShow ? "true" : "false");
+            toggleButton.setAttribute("aria-label", shouldShow ? "Hide password" : "Show password");
+        });
+    }
+
+    function buildOAuthRedirectUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const next = cleanText(params.get("next"));
+        const url = new URL(window.location.origin + "/login.html");
+
+        if (next && next.startsWith("/")) {
+            url.searchParams.set("next", next);
+        }
+
+        return url.toString();
+    }
+
+    function mapAuthError(error, mode) {
+        const message = cleanText(error && (error.message || error.error_description || error.code)).toLowerCase();
+
+        if (message.includes("invalid login credentials")) {
+            return "Incorrect email or password.";
+        }
+
+        if (message.includes("email not confirmed")) {
+            return "Please verify your email before logging in.";
+        }
+
+        if (message.includes("user already registered")) {
+            return "An account with this email already exists. Please log in instead.";
+        }
+
+        if (message.includes("password should be at least")) {
+            return "Password must be at least 6 characters long.";
+        }
+
+        if (message.includes("provider is not enabled")) {
+            return "This social login provider is not enabled in Supabase.";
+        }
+
+        if (message.includes("failed to fetch") || message.includes("network")) {
+            return "Network error. Please check your connection and try again.";
+        }
+
+        if (mode === "signup") {
+            return "Signup could not be completed. Please review your details and try again.";
+        }
+
+        if (mode === "oauth") {
+            return "Social login could not be started. Please check the Supabase provider settings.";
+        }
+
+        return "Login could not be completed. Please try again.";
     }
 
     function isValidEmail(email) {
-        if (!email) return false;
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "");
     }
 
-    function validateStrongPassword(password) {
-        if (typeof password !== "string" || password.length < 12) {
-            return "Password must be at least 12 characters.";
-        }
-        if (!/[A-Z]/.test(password)) {
-            return "Password must include at least one uppercase letter.";
-        }
-        if (!/[a-z]/.test(password)) {
-            return "Password must include at least one lowercase letter.";
-        }
-        if (!/[0-9]/.test(password)) {
-            return "Password must include at least one number.";
-        }
-        if (!/[^A-Za-z0-9]/.test(password)) {
-            return "Password must include at least one special character.";
-        }
-        return "";
-    }
-
-    function readableAuthError(error) {
-        const code = String(error && error.code ? error.code : "");
-        if (code === "auth/wrong-password" || code === "auth/user-not-found") {
-            return "Invalid email or password.";
-        }
-        if (code === "auth/too-many-requests") {
-            return "Too many attempts. Please try later.";
-        }
-        if (code === "auth/email-already-in-use") {
-            return "Email already registered. Please login.";
-        }
-        return error && error.message ? error.message : "Authentication failed.";
-    }
-
-    function normalizeText(value) {
+    function cleanText(value) {
         return String(value || "").trim();
-    }
-
-    function throttle(fn, waitMs) {
-        let last = 0;
-        return function () {
-            const now = Date.now();
-            if (now - last < waitMs) return;
-            last = now;
-            fn();
-        };
     }
 })();

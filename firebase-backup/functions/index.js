@@ -78,7 +78,7 @@ exports.preLoginCheck = onRequest({ region: REGION, cors: true }, async (req, re
   const lockUntil = Number(data.lockUntil || 0);
   if (lockUntil > now) {
     const retryAfterSeconds = Math.ceil((lockUntil - now) / 1000);
-    return json(res, 200, { allowed: false, retryAfterSeconds });
+    return json(res, 200, { allowed: false, retryAfterSeconds: retryAfterSeconds });
   }
 
   return json(res, 200, { allowed: true });
@@ -120,12 +120,12 @@ exports.reportLoginAttempt = onRequest({ region: REGION, cors: true }, async (re
     tx.set(
       ref,
       {
-        email,
-        ip,
-        failedAttempts,
-        lockUntil,
+        email: email,
+        ip: ip,
+        failedAttempts: failedAttempts,
+        lockUntil: lockUntil,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        dateKey
+        dateKey: dateKey
       },
       { merge: true }
     );
@@ -134,10 +134,6 @@ exports.reportLoginAttempt = onRequest({ region: REGION, cors: true }, async (re
   return json(res, 200, { ok: true });
 });
 
-// Production endpoint:
-// Returns a short-lived signed URL after eligibility checks.
-// - FREE: enforces daily limit.
-// - PREMIUM: requires verified purchase.
 exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async (req, res) => {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -196,10 +192,10 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
         }
 
         tx.set(nonceRef, {
-          uid,
-          designId,
-          ip,
-          dateKey,
+          uid: uid,
+          designId: designId,
+          ip: ip,
+          dateKey: dateKey,
           type: "premium",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           expiresAtMs: now + DOWNLOAD_URL_TTL_MS
@@ -208,11 +204,11 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
         tx.update(designRef, { downloads: admin.firestore.FieldValue.increment(1) });
 
         tx.set(db.collection("downloadEvents").doc(), {
-          uid,
-          email,
-          ip,
-          dateKey,
-          designId,
+          uid: uid,
+          email: email,
+          ip: ip,
+          dateKey: dateKey,
+          designId: designId,
           flow: "premium",
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -224,7 +220,7 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
     try {
       const downloadUrl = await getSignedDownloadUrl(filePath);
       return json(res, 200, {
-        downloadUrl,
+        downloadUrl: downloadUrl,
         expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
         premium: true
       });
@@ -234,7 +230,6 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
     }
   }
 
-  // FREE download with daily limit.
   const userDailyRef = db.collection("downloadDaily").doc(`${uid}_${dateKey}`);
   const ipDailyRef = db.collection("downloadIpDaily").doc(`${ip}_${dateKey}`);
   let shouldIncrementDesignDownloads = false;
@@ -276,10 +271,10 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
       tx.set(
         userDailyRef,
         {
-          uid,
-          email,
-          ip,
-          dateKey,
+          uid: uid,
+          email: email,
+          ip: ip,
+          dateKey: dateKey,
           count: nextUserCount,
           files: { [designId]: true },
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -290,8 +285,8 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
       tx.set(
         ipDailyRef,
         {
-          ip,
-          dateKey,
+          ip: ip,
+          dateKey: dateKey,
           count: nextIpCount,
           users: { [uid]: true },
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -300,21 +295,21 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
       );
 
       tx.set(nonceRef, {
-        uid,
-        designId,
-        ip,
-        dateKey,
+        uid: uid,
+        designId: designId,
+        ip: ip,
+        dateKey: dateKey,
         type: "free",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         expiresAtMs: now + DOWNLOAD_URL_TTL_MS
       });
 
       tx.set(db.collection("downloadEvents").doc(), {
-        uid,
-        email,
-        ip,
-        dateKey,
-        designId,
+        uid: uid,
+        email: email,
+        ip: ip,
+        dateKey: dateKey,
+        designId: designId,
         flow: "free",
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -325,14 +320,13 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
     });
   } catch (error) {
     const message = String(error && error.message ? error.message : "Download limit reached.");
-    const status = message.toLowerCase().includes("daily limit reached") ? 429 : 429;
-    return json(res, status, { error: message });
+    return json(res, 429, { error: message });
   }
 
   try {
     const downloadUrl = await getSignedDownloadUrl(filePath);
     return json(res, 200, {
-      downloadUrl,
+      downloadUrl: downloadUrl,
       expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000),
       remainingDailyDownloads: Math.max(0, DAILY_FREE_LIMIT_PER_USER - userDailyCount),
       premium: false
@@ -343,10 +337,8 @@ exports.requestDownloadAccess = onRequest({ region: REGION, cors: true }, async 
   }
 });
 
-// Backward compatibility endpoint name used by older frontend code.
 exports.requestSecureDownload = exports.requestDownloadAccess;
 
-// Creates Razorpay order from backend using secure secret.
 exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res) => {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -387,7 +379,6 @@ exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res)
     return json(res, 400, { error: "Invalid premium amount configured." });
   }
 
-  // Optional client amount cross-check (client sends INR, backend stores paise).
   if (Number.isFinite(requestedAmount) && requestedAmount > 0) {
     const requestedPaise = Math.round(requestedAmount * 100);
     if (requestedPaise !== amountPaise) {
@@ -400,21 +391,21 @@ exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res)
     const order = await razorpay.orders.create({
       amount: amountPaise,
       currency: RAZORPAY_CURRENCY,
-      receipt,
+      receipt: receipt,
       notes: {
-        uid,
-        designId
+        uid: uid,
+        designId: designId
       }
     });
 
     await db.collection("paymentOrders").doc(order.id).set({
-      uid,
-      email,
-      designId,
+      uid: uid,
+      email: email,
+      designId: designId,
       amount: Number(order.amount),
       currency: String(order.currency || RAZORPAY_CURRENCY),
       status: "created",
-      receipt,
+      receipt: receipt,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       ip: readClientIp(req)
     });
@@ -431,7 +422,6 @@ exports.createOrder = onRequest({ region: REGION, cors: true }, async (req, res)
   }
 });
 
-// Verifies Razorpay signature and records ownership of purchased design.
 exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, res) => {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -499,30 +489,38 @@ exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, re
   const purchaseRef = db.collection("userPurchases").doc(`${uid}_${designId}`);
 
   await db.runTransaction(async (tx) => {
-    tx.set(orderRef, {
-      status: "paid",
-      paymentId,
-      signature,
-      verifiedAt: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    tx.set(
+      orderRef,
+      {
+        status: "paid",
+        paymentId: paymentId,
+        signature: signature,
+        verifiedAt: admin.firestore.FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
 
-    tx.set(purchaseRef, {
-      uid,
-      email,
-      designId,
-      orderId,
-      paymentId,
-      amount: Number(orderData.amount || 0),
-      currency: String(orderData.currency || RAZORPAY_CURRENCY),
-      purchasedAt: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    tx.set(
+      purchaseRef,
+      {
+        uid: uid,
+        email: email,
+        designId: designId,
+        orderId: orderId,
+        paymentId: paymentId,
+        amount: Number(orderData.amount || 0),
+        currency: String(orderData.currency || RAZORPAY_CURRENCY),
+        purchasedAt: admin.firestore.FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
 
     tx.set(db.collection("paymentEvents").doc(), {
-      uid,
-      email,
-      designId,
-      orderId,
-      paymentId,
+      uid: uid,
+      email: email,
+      designId: designId,
+      orderId: orderId,
+      paymentId: paymentId,
       action: "verified",
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -532,7 +530,7 @@ exports.verifyPayment = onRequest({ region: REGION, cors: true }, async (req, re
     const downloadUrl = await getSignedDownloadUrl(filePath);
     return json(res, 200, {
       success: true,
-      downloadUrl,
+      downloadUrl: downloadUrl,
       expiresInSeconds: Math.floor(DOWNLOAD_URL_TTL_MS / 1000)
     });
   } catch (error) {
@@ -560,7 +558,7 @@ exports.adminGuardCheck = onRequest({ region: REGION, cors: true }, async (req, 
   const inEmailWhitelist = ADMIN_EMAIL_WHITELIST.has(email);
 
   const allowed = hasAdminClaim && inUidWhitelist && inEmailWhitelist;
-  return json(res, 200, { allowed });
+  return json(res, 200, { allowed: allowed });
 });
 
 async function verifyBearerToken(req) {

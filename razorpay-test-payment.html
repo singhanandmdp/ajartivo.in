@@ -378,16 +378,6 @@
         }
 
         function isUserLoggedIn() {
-            // If your site has Firebase auth loaded, use real auth state
-            try {
-                if (window.firebase && firebase.auth && firebase.auth().currentUser) {
-                    return true;
-                }
-            } catch (error) {
-                console.log("Firebase auth check skipped:", error);
-            }
-
-            // Fallback local flag for simple HTML/JS testing
             return localStorage.getItem("ajartivo_logged_in") === "true";
         }
 

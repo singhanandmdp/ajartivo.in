@@ -1,114 +1,311 @@
 (function () {
-    const services = window.AjArtivoFirebase;
+    const services = window.AjArtivoSupabase;
     if (!services) return;
 
     const productTitle = document.getElementById("productTitle");
     if (!productTitle) return;
 
     const params = new URLSearchParams(window.location.search);
-    const designId = params.get("id");
-    const designName = params.get("name");
-    let currentDesign = null;
+    const productId = cleanText(params.get("id"));
+    let currentProduct = null;
+    let refreshTimerId = null;
+    let accessRequestId = 0;
+    let currentAccessState = createAccessState();
 
     initPage();
+    bindLiveRefresh();
+    bindPurchaseStateEvents();
 
     async function initPage() {
         bindStaticInteractions();
 
         try {
-            currentDesign = await fetchDesign();
-            if (!currentDesign) {
-                setText("productTitle", "Design not found");
-                setText("productDescription", "This design is not available right now.");
-                bindDownload(null);
+            if (!productId) {
+                setText("productTitle", "Product not found");
+                setText("productDescription", "Product link is missing or invalid.");
+                bindActionButton(null, createAccessState());
                 return;
             }
 
-            renderProduct(currentDesign);
-            await loadRelatedDesigns(currentDesign.id);
-            incrementViews(currentDesign.id);
+            currentProduct = await services.fetchProductById(productId);
+
+            if (!currentProduct) {
+                setText("productTitle", "Product not found");
+                setText("productDescription", "This product is not available right now.");
+                bindActionButton(null, createAccessState());
+                return;
+            }
+
+            currentProduct = services.normalizeProduct(currentProduct);
+            renderProduct(currentProduct);
+
+            await Promise.all([
+                loadRelatedProducts(currentProduct.id),
+                bindWishlistButton(currentProduct),
+                refreshProductAccess(currentProduct)
+            ]);
         } catch (error) {
             console.error("Product load failed:", error);
-            setText("productTitle", "Unable to load design");
+            setText("productTitle", "Unable to load product");
             setText("productDescription", "Please try again later.");
+            bindActionButton(null, createAccessState());
         }
     }
 
-    async function fetchDesign() {
-        if (designId) {
-            const doc = await services.db.collection("designs").doc(designId).get();
-            if (doc.exists) {
-                return { id: doc.id, ...doc.data() };
-            }
+    function bindLiveRefresh() {
+        if (document.body.dataset.productLiveBound === "true") {
+            return;
         }
 
-        if (designName) {
-            const snapshot = await services.db.collection("designs")
-                .where("title", "==", designName)
-                .limit(1)
-                .get();
-
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                return { id: doc.id, ...doc.data() };
+        window.addEventListener("ajartivo:products-changed", function () {
+            if (refreshTimerId) {
+                window.clearTimeout(refreshTimerId);
             }
-        }
 
-        return null;
+            refreshTimerId = window.setTimeout(function () {
+                initPage();
+            }, 250);
+        });
+
+        document.body.dataset.productLiveBound = "true";
     }
 
-    function renderProduct(design) {
-        const title = design.title || "Untitled Design";
-        const type = normalizeDesignFormat(design) || "OTHER";
-        const price = Number(design.price);
-        const amount = Number.isFinite(price) && price > 0 ? `Rs. ${price}` : "Free";
-        const premium = isPremiumDesign(design);
+    function bindPurchaseStateEvents() {
+        if (document.body.dataset.productPurchaseBound === "true") {
+            return;
+        }
+
+        window.addEventListener("ajartivo:purchase-completed", function (event) {
+            const detail = event && event.detail ? event.detail : {};
+            if (!currentProduct || String(detail.productId) !== String(currentProduct.id)) {
+                return;
+            }
+
+            currentAccessState = createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: true,
+                reason: "purchased",
+                userEmail: cleanText(detail.userEmail).toLowerCase()
+            });
+            currentProduct = applyAccessState(currentProduct, currentAccessState);
+            updateAccessUi(currentProduct, currentAccessState);
+        });
+
+        window.addEventListener("ajartivo:session-changed", function () {
+            if (!currentProduct || isFreeDesign(currentProduct)) {
+                return;
+            }
+
+            refreshProductAccess(currentProduct);
+        });
+
+        document.body.dataset.productPurchaseBound = "true";
+    }
+
+    function renderProduct(product) {
+        const title = product.title || "Untitled Design";
+        const type = String(product.category || "OTHER").toUpperCase();
+        const price = Number(product.price || 0);
+        const amount = isFreeDesign(product) ? "Free" : `Rs. ${price}`;
 
         document.title = `${title} - AJartivo`;
         setText("productTitle", title);
-        setText("productDescription", design.description || "Premium design package.");
+        setText("productDescription", product.description || "Creative product ready for instant access.");
         setText("productTypeChip", type);
         setText("productPrice", amount);
-        setText("productPriceNote", "One-time purchase with editable source files and external download delivery.");
         setText("galleryFormat", type);
-        setText("galleryAccess", premium ? "Premium" : "Free");
-        setText("galleryViews", String(Number(design.views || 0)));
-        setText("galleryDownloads", String(Number(design.downloads || 0)));
+        setText("galleryViews", String(Number(product.views || 0)));
+        setText("galleryDownloads", String(Number(product.downloads || 0)));
 
-        renderFeatures(design, type);
-        renderThumbnails(collectPreviewImages(design), title);
-        bindDownload(design);
+        renderFeatures(product, type);
+        renderThumbnails(getProductImages(product), title);
+        updateAccessUi(product, deriveInitialAccessState(product));
     }
 
-    async function loadRelatedDesigns(currentId) {
+    async function refreshProductAccess(product) {
+        const normalizedProduct = services.normalizeProduct(product);
+        const requestId = accessRequestId + 1;
+        accessRequestId = requestId;
+
+        if (isFreeDesign(normalizedProduct)) {
+            currentAccessState = createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: true,
+                reason: "free",
+                userEmail: getCurrentUserEmail()
+            });
+            currentProduct = applyAccessState(normalizedProduct, currentAccessState);
+            updateAccessUi(currentProduct, currentAccessState);
+            return currentProduct;
+        }
+
+        currentAccessState = createAccessState({
+            loading: true,
+            checked: false,
+            hasAccess: false,
+            reason: "checking",
+            userEmail: getCurrentUserEmail()
+        });
+        updateAccessUi(normalizedProduct, currentAccessState);
+
+        const resolvedAccess = await resolveProductAccess(normalizedProduct);
+        if (requestId !== accessRequestId) {
+            return currentProduct;
+        }
+
+        currentAccessState = resolvedAccess;
+        currentProduct = applyAccessState(normalizedProduct, resolvedAccess);
+        updateAccessUi(currentProduct, resolvedAccess);
+        return currentProduct;
+    }
+
+    async function resolveProductAccess(product) {
+        if (isFreeDesign(product)) {
+            return createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: true,
+                reason: "free",
+                userEmail: getCurrentUserEmail()
+            });
+        }
+
+        const userSession = getCurrentUserSession();
+        if (!userSession) {
+            return createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: false,
+                reason: "paid",
+                userEmail: ""
+            });
+        }
+
+        const hasPurchase = services.hasPurchasedDesign
+            ? await services.hasPurchasedDesign(userSession, product.id)
+            : false;
+
+        return createAccessState({
+            loading: false,
+            checked: true,
+            hasAccess: hasPurchase,
+            reason: hasPurchase ? "purchased" : "paid",
+            userEmail: cleanText(userSession.email).toLowerCase()
+        });
+    }
+
+    function updateAccessUi(product, accessState) {
+        const normalizedProduct = applyAccessState(product, accessState);
+        const type = String(normalizedProduct.category || "OTHER").toUpperCase();
+        const isFree = isFreeDesign(normalizedProduct);
+        const unlocked = hasDownloadAccess(normalizedProduct);
+
+        setText("galleryAccess", isFree ? "Free" : unlocked ? "Unlocked" : "Premium");
+        setText("productPriceNote", resolvePriceNote(normalizedProduct, accessState));
+        renderFeatures(normalizedProduct, type);
+        bindActionButton(normalizedProduct, accessState);
+    }
+
+    function resolvePriceNote(product, accessState) {
+        const signedIn = Boolean(getCurrentUserEmail());
+
+        if (accessState && accessState.loading) {
+            return "Checking your purchase access...";
+        }
+
+        if (isFreeDesign(product)) {
+            if (!signedIn) {
+                return "Log in from the popup to download this free product.";
+            }
+            return "This is a free product. Download starts instantly.";
+        }
+
+        if (hasDownloadAccess(product)) {
+            return "Purchase verified. Your download is unlocked.";
+        }
+
+        if (!signedIn) {
+            return "Log in first, then use Buy Now to continue.";
+        }
+
+        return "This is a paid product. Use Buy Now to continue.";
+    }
+
+    function deriveInitialAccessState(product) {
+        if (isFreeDesign(product)) {
+            return createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: true,
+                reason: "free",
+                userEmail: getCurrentUserEmail()
+            });
+        }
+
+        if (hasDownloadAccess(product)) {
+            return createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: true,
+                reason: "purchased",
+                userEmail: getCurrentUserEmail()
+            });
+        }
+
+        return createAccessState({
+            loading: true,
+            checked: false,
+            hasAccess: false,
+            reason: "checking",
+            userEmail: getCurrentUserEmail()
+        });
+    }
+
+    function applyAccessState(product, accessState) {
+        const normalizedProduct = services.normalizeProduct(product);
+        const isFree = isFreeDesign(normalizedProduct);
+        const isPurchased = !isFree && Boolean(accessState && accessState.hasAccess);
+
+        return services.normalizeProduct({
+            ...normalizedProduct,
+            has_access: isFree || isPurchased,
+            isPurchased: isPurchased,
+            is_purchased: isPurchased
+        });
+    }
+
+    function createAccessState(overrides) {
+        return {
+            loading: false,
+            checked: false,
+            hasAccess: false,
+            reason: "unknown",
+            userEmail: "",
+            ...(overrides || {})
+        };
+    }
+
+    async function loadRelatedProducts(currentId) {
         const relatedGrid = document.getElementById("relatedDesignGrid");
         if (!relatedGrid) return;
 
-        relatedGrid.innerHTML = '<div class="empty-state">Loading related designs...</div>';
+        relatedGrid.innerHTML = '<div class="empty-state">Loading related products...</div>';
 
         try {
-            const snapshot = await services.db.collection("designs")
-                .orderBy("createdAt", "desc")
-                .get();
+            const products = await services.fetchRelatedProducts(currentId, 6);
 
-            const designs = snapshot.docs
-                .map(function (doc) {
-                    return { id: doc.id, ...doc.data() };
-                })
-                .filter(function (design) {
-                    return design.id !== currentId;
-                });
-
-            if (!designs.length) {
-                relatedGrid.innerHTML = '<div class="empty-state">No uploaded related designs found.</div>';
+            if (!products.length) {
+                relatedGrid.innerHTML = '<div class="empty-state">No related products found.</div>';
                 return;
             }
 
-            relatedGrid.innerHTML = designs.map(function (design) {
-                const title = escapeHtml(design.title || "Untitled Design");
-                const badge = getDesignBadge(design);
-                const image = escapeHtml(design.image || "/images/trending1.jpg");
-                const productUrl = `/product.html?id=${encodeURIComponent(design.id)}`;
+            relatedGrid.innerHTML = products.map(function (product) {
+                const title = escapeHtml(product.title);
+                const image = escapeHtml(product.image || "/images/preview1.jpg");
+                const badge = getProductBadge(product);
+                const productUrl = `/product.html?id=${encodeURIComponent(product.id)}`;
 
                 return `
                     <article class="design-card homepage-design-card">
@@ -122,21 +319,20 @@
                 `;
             }).join("");
         } catch (error) {
-            console.error("Related designs load failed:", error);
-            relatedGrid.innerHTML = '<div class="empty-state">Could not load related designs right now.</div>';
+            console.error("Related products load failed:", error);
+            relatedGrid.innerHTML = '<div class="empty-state">Could not load related products right now.</div>';
         }
     }
 
-    function renderFeatures(design, type) {
+    function renderFeatures(product, type) {
         const featureList = document.getElementById("productFeatures");
         if (!featureList) return;
 
-        const tags = Array.isArray(design.tags) ? design.tags : [];
         const features = [
-            `Editable ${String(type || "design").toUpperCase()} template ready for production work`,
-            design.description || "Built for fast customization and marketplace delivery",
-            tags.length ? `Tags: ${tags.join(", ")}` : "Curated for creators and print-ready workflows",
-            `Views: ${Number(design.views || 0)} | Downloads: ${Number(design.downloads || 0)}`
+            `${type} source file ready for creative work`,
+            resolveAccessFeature(product),
+            product.protected_download_link || product.download_link ? "Secure delivery after access verification" : "Download link will be added soon",
+            `Category: ${type}`
         ];
 
         featureList.innerHTML = features.map(function (feature) {
@@ -144,21 +340,27 @@
         }).join("");
     }
 
+    function resolveAccessFeature(product) {
+        if (isFreeDesign(product)) {
+            return "Free product with account-based download";
+        }
+
+        if (hasDownloadAccess(product)) {
+            return "Purchased access is unlocked for your account";
+        }
+
+        return "Paid license with Buy Now access";
+    }
+
     function renderThumbnails(images, title) {
         const row = document.getElementById("thumbnailRow");
-        const previewImages = Array.isArray(images) && images.length ? images : ["/images/trending1.jpg"];
+        const previewImages = Array.isArray(images) && images.length ? images : ["/images/preview1.jpg"];
         const primaryImage = previewImages[0];
         setMainPreviewImage(primaryImage, title);
 
         if (!row) return;
 
-        if (previewImages.length <= 1) {
-            row.hidden = true;
-            row.innerHTML = "";
-            return;
-        }
-
-        row.hidden = false;
+        row.hidden = previewImages.length <= 1;
         row.innerHTML = previewImages.map((image, index) => `
             <button class="thumbnail-btn${index === 0 ? " active" : ""}" type="button" data-preview="${escapeHtml(image)}" aria-label="Show preview ${index + 1}">
                 <img src="${escapeHtml(image)}" alt="${escapeHtml(title)} thumbnail ${index + 1}" loading="lazy" decoding="async">
@@ -177,33 +379,6 @@
         });
     }
 
-    function collectPreviewImages(design) {
-        const candidates = [];
-
-        if (Array.isArray(design.previewImages)) {
-            candidates.push(...design.previewImages);
-        }
-
-        if (Array.isArray(design.images)) {
-            candidates.push(...design.images);
-        }
-
-        candidates.push(
-            design.preview1,
-            design.preview2,
-            design.preview3,
-            design.preview4,
-            design.preview5,
-            design.image
-        );
-
-        const clean = candidates
-            .map((item) => String(item || "").trim())
-            .filter(Boolean);
-
-        return [...new Set(clean)];
-    }
-
     function setMainPreviewImage(src, title) {
         const previewBox = document.getElementById("previewTrigger");
         const mainImage = document.getElementById("mainImage");
@@ -212,21 +387,15 @@
 
         previewBox.classList.add("is-loading");
         mainImage.alt = title || "Product Preview";
-        mainImage.loading = "lazy";
-        mainImage.decoding = "async";
 
         const preloader = new Image();
-        preloader.decoding = "async";
         preloader.onload = function () {
             mainImage.src = src;
             if (lightboxImage) {
                 lightboxImage.src = src;
                 lightboxImage.alt = `${title || "Product Preview"} zoomed preview`;
             }
-
-            requestAnimationFrame(() => {
-                previewBox.classList.remove("is-loading");
-            });
+            requestAnimationFrame(() => previewBox.classList.remove("is-loading"));
         };
         preloader.onerror = function () {
             mainImage.src = src;
@@ -238,97 +407,105 @@
         preloader.src = src;
     }
 
-    function bindDownload(design) {
+    function getProductImages(product) {
+        const images = Array.isArray(product && product.previewImages)
+            ? product.previewImages
+            : Array.isArray(product && product.gallery)
+            ? product.gallery
+            : [product && product.image];
+
+        return images
+            .map((image) => cleanText(image))
+            .filter(Boolean);
+    }
+
+    function bindActionButton(product, accessState) {
         const button = document.getElementById("downloadBtn");
         if (!button) return;
 
-        if (!design || !design.id) {
+        if (!product || !product.id) {
             button.disabled = true;
-            button.textContent = "Download Coming Soon";
+            button.textContent = "Unavailable";
+            button.onclick = null;
             return;
         }
 
-        const premium = window.AjArtivoPayment && window.AjArtivoPayment.isPremiumDesign
-            ? window.AjArtivoPayment.isPremiumDesign(design)
-            : Number(design.price || 0) > 0;
+        const currentItem = services.normalizeProduct(product);
+        const buttonState = resolveActionButtonState(currentItem);
 
-        button.disabled = false;
-        button.textContent = premium ? "Buy & Download" : "Download Free";
+        button.disabled = Boolean(accessState && accessState.loading);
+        button.textContent = accessState && accessState.loading ? "Checking..." : buttonState.idleText;
+        button.dataset.mode = buttonState.mode;
+
         button.onclick = async function () {
+            const activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : currentItem;
+            const activeState = resolveActionButtonState(activeProduct);
+
             button.disabled = true;
-            button.textContent = "Processing...";
+            button.textContent = activeState.busyText;
 
             try {
-                if (!window.AjArtivoPayment || !window.AjArtivoPayment.startDownloadFlow) {
-                    throw new Error("Payment system is not ready.");
-                }
-
-                await window.AjArtivoPayment.startDownloadFlow(design);
+                await window.AjArtivoPayment.startDownloadFlow(activeProduct);
             } catch (error) {
-                console.error("Secure download failed:", error);
-                alert(error.message || "Unable to download right now.");
+                console.error("Download failed:", error);
+                alert("Unable to start the download right now.");
             } finally {
+                const refreshedProduct = currentProduct ? services.normalizeProduct(currentProduct) : activeProduct;
+                const refreshedState = resolveActionButtonState(refreshedProduct);
+
                 button.disabled = false;
-                button.textContent = premium ? "Buy & Download" : "Download Free";
+                button.textContent = refreshedState.idleText;
+                button.dataset.mode = refreshedState.mode;
             }
         };
     }
 
-    function isPremiumDesign(design) {
-        if (window.AjArtivoPayment && typeof window.AjArtivoPayment.isPremiumDesign === "function") {
-            return window.AjArtivoPayment.isPremiumDesign(design);
-        }
+    async function bindWishlistButton(product) {
+        const button = document.getElementById("wishlistBtn");
+        if (!button || !product || !product.id) return;
 
-        const amount = Number(design && design.price ? design.price : 0);
-        return Number.isFinite(amount) && amount > 0;
-    }
-
-    function normalizeDesignFormat(design) {
-        const raw = String(
-            (design && (
-                design.extension ||
-                design.fileType ||
-                design.format ||
-                design.category ||
-                design.type
-            )) || ""
-        )
-            .trim()
-            .replace(/^\./, "")
-            .toUpperCase();
-
-        const aliasMap = {
-            ILLUSTRATOR: "AI",
-            PHOTOSHOP: "PSD",
-            CORELDRAW: "CDR",
-            JPEG: "JPG"
+        const updateButtonState = function (saved) {
+            button.dataset.saved = saved ? "true" : "false";
+            button.textContent = saved ? "Saved in Wishlist" : "Save to Wishlist";
         };
 
-        return aliasMap[raw] || raw;
+        updateButtonState(await window.AjArtivoPayment.isInWishlist(product.id));
+
+        button.onclick = async function () {
+            button.disabled = true;
+
+            try {
+                const result = await window.AjArtivoPayment.toggleWishlist(product);
+                updateButtonState(Boolean(result && result.saved));
+            } catch (error) {
+                console.error("Wishlist update failed:", error);
+                alert("Unable to update wishlist right now.");
+            } finally {
+                button.disabled = false;
+            }
+        };
     }
 
-    function getDesignBadge(design) {
-        const format = normalizeDesignFormat(design);
+    function getProductBadge(product) {
+        const format = String(product.category || "").trim().toUpperCase();
         const knownClass = format.toLowerCase();
-        const knownFormats = new Set(["psd", "cdr", "ai", "pmd", "png", "jpg", "jpeg", "pdf", "svg", "eps", "ttf"]);
+        const knownFormats = new Set(["psd", "cdr", "ai", "png", "jpg", "jpeg", "pdf", "svg", "eps"]);
 
         if (format && knownFormats.has(knownClass)) {
             return { label: escapeHtml(format), className: knownClass, styleAttr: "" };
         }
 
         if (format) {
-            const color = colorFromText(format);
             return {
                 label: escapeHtml(format),
                 className: "other",
-                styleAttr: ` style="background:${color};"`
+                styleAttr: ` style="background:${colorFromText(format)};"`
             };
         }
 
-        const premium = isPremiumDesign(design);
         return {
-            label: premium ? "PREMIUM" : "FREE",
-            className: premium ? "premium" : "free",
+            label: isFreeDesign(product) ? "FREE" : "PREMIUM",
+            className: isFreeDesign(product) ? "free" : "premium",
             styleAttr: ""
         };
     }
@@ -345,22 +522,19 @@
         return `hsl(${hue}, 66%, 42%)`;
     }
 
-    function incrementViews(id) {
-        if (!id) return;
-        services.db.collection("designs").doc(id).update({
-            views: services.increment(1)
-        }).catch(function (error) {
-            console.error("View counter update failed:", error);
-        });
-    }
-
     function bindStaticInteractions() {
+        if (document.body.dataset.productStaticBound === "true") {
+            return;
+        }
+
         initPreviewZoom();
         initLightbox();
         initCustomDesignButton();
         initShareButton();
         syncPreviewHint();
         window.addEventListener("resize", syncPreviewHint);
+
+        document.body.dataset.productStaticBound = "true";
     }
 
     function initPreviewZoom() {
@@ -419,8 +593,9 @@
     function initCustomDesignButton() {
         const button = document.getElementById("customDesignBtn");
         if (!button) return;
+
         button.addEventListener("click", function () {
-            alert("Custom design section is ready. Share the exact workflow and we will connect it next.");
+            alert("Custom design requests can be connected here next.");
         });
     }
 
@@ -430,8 +605,8 @@
 
         button.addEventListener("click", async function () {
             const shareData = {
-                title: document.getElementById("productTitle")?.textContent || "AjArtivo Design",
-                text: "Check out this design on AjArtivo.",
+                title: document.getElementById("productTitle")?.textContent || "AJartivo Product",
+                text: "Check out this product on AJartivo.",
                 url: window.location.href
             };
 
@@ -468,6 +643,64 @@
         }
     }
 
+    function isFreeDesign(product) {
+        const item = services.normalizeProduct(product);
+        return item.is_free === true || (item.is_paid !== true && Number(item.price || 0) <= 0);
+    }
+
+    function hasDownloadAccess(product) {
+        const item = services.normalizeProduct(product);
+        return item.is_free === true || item.has_access === true || item.isPurchased === true || item.is_purchased === true;
+    }
+
+    function resolveActionButtonState(product) {
+        const signedIn = Boolean(getCurrentUserEmail());
+
+        if (hasDownloadAccess(product)) {
+            if (isFreeDesign(product) && !signedIn) {
+                return {
+                    mode: "login-download",
+                    idleText: "Login to Download",
+                    busyText: "Opening..."
+                };
+            }
+
+            return {
+                mode: "download",
+                idleText: "Download",
+                busyText: "Preparing..."
+            };
+        }
+
+        if (!signedIn) {
+            return {
+                mode: "login-buy",
+                idleText: "Login to Buy",
+                busyText: "Opening..."
+            };
+        }
+
+        return {
+            mode: "buy",
+            idleText: "Buy Now",
+            busyText: "Opening..."
+        };
+    }
+
+    function getCurrentUserSession() {
+        const session = services.getSession ? services.getSession() : null;
+        if (!session || !cleanText(session.email)) {
+            return null;
+        }
+
+        return session;
+    }
+
+    function getCurrentUserEmail() {
+        const session = getCurrentUserSession();
+        return cleanText(session && session.email).toLowerCase();
+    }
+
     function setText(id, value) {
         const element = document.getElementById(id);
         if (element) {
@@ -484,4 +717,7 @@
             .replace(/'/g, "&#39;");
     }
 
+    function cleanText(value) {
+        return String(value || "").trim();
+    }
 })();
