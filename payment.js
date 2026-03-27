@@ -1,114 +1,123 @@
 (function () {
-    const services = window.AjArtivoFirebase;
+    const services = window.AjArtivoSupabase;
     if (!services) return;
 
-    const FRONTEND_RAZORPAY_KEY = "rzp_live_SUjeQN7Wu5zSJz";
-    const projectId = cleanString(services.config && services.config.projectId);
-    const functionRegion = cleanString(window.AJARTIVO_FUNCTION_REGION) || "us-central1";
-    const FUNCTION_BASE = projectId
-        ? `https://${functionRegion}-${projectId}.cloudfunctions.net`
-        : "https://us-central1-ajartivo.cloudfunctions.net";
+    const BACKEND_BASE_URL = "http://localhost:5000";
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
+        buyNow: buyNow,
+        hasDownloadAccess: hasDownloadAccess,
+        isSignedIn: isSignedIn,
         isPremiumDesign: isPremiumDesign,
-        requireVerifiedUser: requireVerifiedUser,
         toggleWishlist: toggleWishlist,
         isInWishlist: isInWishlist
     };
 
-    let loginModalState = null;
     let downloadPopupState = null;
+    let loginPopupState = null;
 
-    // Main download entry point for both FREE and PREMIUM designs.
-    async function startDownloadFlow(design) {
-        if (!design || !design.id) {
-            alert("Design not found.");
+    async function startDownloadFlow(product) {
+        const item = services.normalizeProduct(product);
+
+        if (!item.id) {
+            alert("Product not found.");
             return;
         }
 
-        const user = await requireVerifiedUser();
-        if (!user) return;
+        const authContext = await getAuthContext({
+            reason: hasDownloadAccess(item) ? "download" : "buy"
+        });
+        if (!authContext) {
+            return;
+        }
 
-        const premium = isPremiumDesign(design);
+        if (!hasDownloadAccess(item) && isPremiumDesign(item)) {
+            await buyNow(item, authContext);
+            return;
+        }
 
-        if (!premium) {
-            const directDownloadUrl = resolveDirectDownloadUrl(design);
-            if (!directDownloadUrl) {
-                alert("Download file not found for this design.");
+        await downloadFile(item, authContext);
+    }
+
+    async function buyNow(product, authOverride) {
+        const item = services.normalizeProduct(product);
+
+        if (hasDownloadAccess(item)) {
+            const authContext = authOverride || await getAuthContext({ reason: "download" });
+            if (!authContext) {
                 return;
             }
 
-            await downloadFile(directDownloadUrl, buildDownloadFileName(design, directDownloadUrl), design, user);
+            await downloadFile(item, authContext);
             return;
         }
 
-        const directDownloadUrl = resolveDirectDownloadUrl(design);
-        if (!directDownloadUrl) {
-            alert("Download URL not found for this premium design.");
+        const authContext = authOverride || await getAuthContext({ reason: "buy" });
+        if (!authContext) {
             return;
         }
 
-        await openDirectCheckout(design, directDownloadUrl, user);
+        await openCheckout(item, authContext);
     }
 
-    function resolveDirectDownloadUrl(design) {
-        const candidates = [
-            design && design.downloadUrl,
-            design && design.fileUrl,
-            design && design.zipUrl,
-            design && design.downloadLink,
-            design && design.fileLink,
-            design && design.url,
-            design && design.sourceFile,
-            design && design.sourceUrl
-        ];
-
-        for (const candidate of candidates) {
-            const value = cleanString(candidate);
-            if (value) {
-                return value;
-            }
-        }
-
-        return "";
-    }
-
-    async function openDirectCheckout(design, downloadUrl, user) {
-        if (typeof Razorpay === "undefined") {
-            alert("Razorpay checkout failed to load.");
+    async function openCheckout(product, authContext) {
+        if (typeof window.Razorpay === "undefined") {
+            alert("Payment system failed to load.");
             return;
         }
 
-        const amount = Number(design && design.price ? design.price : 0);
-        const amountInPaise = Math.round(amount * 100);
-
-        if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
-            alert("Invalid premium amount.");
+        let order;
+        try {
+            order = await createOrder(product, authContext);
+        } catch (error) {
+            console.error("[AJartivo Payment] order creation failed", error);
+            alert(error && error.message ? error.message : "Unable to create payment order right now.");
             return;
         }
 
-        const checkout = new Razorpay({
-            key: FRONTEND_RAZORPAY_KEY,
-            amount: amountInPaise,
-            currency: "INR",
+        if (order && order.alreadyPurchased) {
+            const unlockedProduct = markProductAsPurchased(product);
+            emitPurchaseCompleted(unlockedProduct, authContext, order);
+            await downloadFile(unlockedProduct, authContext);
+            return;
+        }
+
+        const checkout = new window.Razorpay({
+            key: cleanText(order && order.key),
+            amount: Number(order && order.amount || 0),
+            currency: cleanText(order && order.currency) || "INR",
             name: "AJartivo",
-            description: "Design Purchase",
-            handler: async function () {
-                alert("Payment Successful");
-                await downloadFile(downloadUrl, buildDownloadFileName(design, downloadUrl), design, user);
+            description: product.title || "Design Purchase",
+            order_id: cleanText(order && order.order_id),
+            handler: async function (response) {
+                try {
+                    const result = await verifyPayment({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        product_id: product.id
+                    }, authContext);
+
+                    if (!result || result.success !== true) {
+                        throw new Error("Payment verification failed.");
+                    }
+
+                    const unlockedProduct = markProductAsPurchased(product);
+                    emitPurchaseCompleted(unlockedProduct, authContext, result);
+                    await downloadFile(unlockedProduct, authContext);
+                } catch (error) {
+                    console.error("[AJartivo Payment] payment verification failed", error);
+                    alert(error && error.message ? error.message : "Payment was completed, but verification failed.");
+                }
             },
-            prefill: {
-                name: user && user.displayName ? user.displayName : "",
-                email: user && user.email ? user.email : ""
+            prefill: buildPrefill(authContext),
+            notes: {
+                product_id: cleanText(product && product.id),
+                user_id: cleanText(authContext && authContext.id)
             },
             theme: {
-                color: "#2563eb"
-            },
-            modal: {
-                ondismiss: function () {
-                    alert("Payment cancelled.");
-                }
+                color: "#1e3a8a"
             }
         });
 
@@ -116,403 +125,356 @@
             const reason = response && response.error && response.error.description
                 ? response.error.description
                 : "Payment failed. Please try again.";
+            console.error("[AJartivo Payment] checkout payment.failed", response);
             alert(reason);
         });
 
         checkout.open();
     }
 
-    function isPremiumDesign(design) {
-        if (!design) return false;
-
-        const declaredType = String(design.accessType || design.tier || design.plan || "")
-            .trim()
-            .toUpperCase();
-
-        if (declaredType === "PREMIUM") return true;
-        if (declaredType === "FREE") return false;
-
-        const amount = Number(design.price || 0);
-        return Number.isFinite(amount) && amount > 0;
+    function buildPrefill(authContext) {
+        const session = services.getSession ? services.getSession() : null;
+        return {
+            name: cleanText(authContext && authContext.name) || cleanText(session && session.name),
+            email: cleanText(authContext && authContext.email) || cleanText(session && session.email)
+        };
     }
 
-    async function requireVerifiedUser() {
-        const user = services.auth.currentUser;
-        if (!user) {
-            const loggedInUser = await openLoginPopup();
-            if (!loggedInUser) return null;
-            await loggedInUser.reload();
-            if (!loggedInUser.emailVerified && requiresEmailVerification(loggedInUser)) {
-                alert("Please verify your email first.");
-                return null;
-            }
-            return loggedInUser;
+    async function createOrder(product, authContext) {
+        return postJson("/create-order", {
+            product_id: cleanText(product && product.id)
+        }, authContext);
+    }
+
+    async function verifyPayment(payload, authContext) {
+        return postJson("/verify-payment", payload, authContext);
+    }
+
+    async function postJson(route, payload, authContext) {
+        const endpoint = `${BACKEND_BASE_URL}${route}`;
+        let response;
+
+        try {
+            response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    ...buildAuthHeaders(authContext),
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload || {})
+            });
+        } catch (error) {
+            throw mapPaymentRequestError(error, endpoint);
         }
 
-        await user.reload();
-        if (!user.emailVerified && requiresEmailVerification(user)) {
-            alert("Please verify your email first.");
+        const data = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok) {
+            throw new Error(data.error || `Request failed. HTTP ${response.status}`);
+        }
+
+        return data;
+    }
+
+    async function getAuthContext(options) {
+        let authSession = await readAuthSession();
+
+        if (!authSession) {
+            const loginResult = await openLoginPopup(options);
+            if (!loginResult) {
+                return null;
+            }
+
+            authSession = await readAuthSession();
+        }
+
+        if (!authSession || !authSession.user || !cleanText(authSession.access_token)) {
+            alert("Authentication failed. Please log in again.");
             return null;
         }
 
-        return user;
+        return {
+            id: cleanText(authSession.user.id),
+            email: cleanText(authSession.user.email).toLowerCase(),
+            name: cleanText(
+                authSession.user.user_metadata &&
+                (authSession.user.user_metadata.full_name || authSession.user.user_metadata.name)
+            ),
+            accessToken: cleanText(authSession.access_token),
+            sessionUser: services.getSession ? services.getSession() : null
+        };
     }
 
-    function requiresEmailVerification(user) {
-        if (!user || !Array.isArray(user.providerData)) return false;
-        return user.providerData.some(function (provider) {
-            return provider && provider.providerId === "password";
-        });
-    }
-
-    async function openLoginPopup() {
-        if (loginModalState && loginModalState.promise) {
-            return loginModalState.promise;
+    async function readAuthSession() {
+        if (services.getAuthSession) {
+            return services.getAuthSession();
         }
 
-        loginModalState = {};
-        ensureLoginModalStyles();
+        if (services.client && services.client.auth && typeof services.client.auth.getSession === "function") {
+            const result = await services.client.auth.getSession();
+            return result && result.data ? result.data.session : null;
+        }
+
+        return null;
+    }
+
+    function buildAuthHeaders(authContext) {
+        return {
+            "Authorization": `Bearer ${cleanText(authContext && authContext.accessToken)}`
+        };
+    }
+
+    function getCurrentSession() {
+        const session = services.getSession ? services.getSession() : null;
+        const email = cleanText(session && session.email).toLowerCase();
+        if (!email) {
+            return null;
+        }
+
+        return session;
+    }
+
+    function isSignedIn() {
+        return Boolean(getCurrentSession());
+    }
+
+    async function openLoginPopup(options) {
+        if (loginPopupState && loginPopupState.promise) {
+            return loginPopupState.promise;
+        }
+
+        ensureLoginPopupStyles();
+
+        const reason = cleanText(options && options.reason).toLowerCase() === "buy" ? "buy" : "download";
+        const title = reason === "buy" ? "Log in to Buy" : "Log in to Download";
+        const subtitle = reason === "buy"
+            ? "Sign in to continue with this purchase."
+            : "Sign in to continue with this download.";
 
         const wrapper = document.createElement("div");
         wrapper.className = "aj-login-modal";
+        wrapper.hidden = true;
+        wrapper.style.display = "none";
         wrapper.innerHTML = `
             <div class="aj-login-backdrop"></div>
-            <div class="aj-login-dialog" role="dialog" aria-modal="true" aria-label="Login Required">
+            <div class="aj-login-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
                 <button type="button" class="aj-login-close" aria-label="Close">x</button>
-                <div class="aj-login-logo-wrap">
-                    <img src="/images/logo.png" alt="AJ Artivo">
+                <p class="aj-login-kicker">AJartivo Access</p>
+                <h3 class="aj-login-title">${escapeHtml(title)}</h3>
+                <p class="aj-login-subtitle">${escapeHtml(subtitle)}</p>
+                <p class="aj-login-error" hidden></p>
+                <label class="aj-login-field">
+                    <span>Email</span>
+                    <input type="email" class="aj-login-input aj-login-email" placeholder="Email address" autocomplete="email">
+                </label>
+                <label class="aj-login-field">
+                    <span>Password</span>
+                    <input type="password" class="aj-login-input aj-login-password" placeholder="Password" autocomplete="current-password">
+                </label>
+                <button type="button" class="aj-login-submit">Log In</button>
+                <div class="aj-login-actions">
+                    <a class="aj-login-link" href="/signup.html">Create account</a>
+                    <a class="aj-login-link" href="/login.html">Open full login page</a>
                 </div>
-                <h3>Welcome back</h3>
-                <p>Login to continue download</p>
-                <div class="aj-login-error" id="ajLoginError"></div>
-                <input type="email" id="ajLoginEmail" placeholder="Email address">
-                <input type="password" id="ajLoginPassword" placeholder="Password">
-                <button type="button" class="aj-login-submit" id="ajLoginSubmit">Login</button>
-                <div class="aj-login-social">
-                    <button type="button" id="ajLoginGoogle">Google</button>
-                    <button type="button" id="ajLoginFacebook">Facebook</button>
-                </div>
-                <a href="/signup.html" class="aj-login-signup">Create account</a>
             </div>
         `;
 
         document.body.appendChild(wrapper);
+        wrapper.hidden = false;
+        wrapper.style.display = "grid";
         document.body.classList.add("aj-login-open");
 
-        const closeBtn = wrapper.querySelector(".aj-login-close");
+        const emailInput = wrapper.querySelector(".aj-login-email");
+        const passwordInput = wrapper.querySelector(".aj-login-password");
+        const submitButton = wrapper.querySelector(".aj-login-submit");
+        const closeButton = wrapper.querySelector(".aj-login-close");
         const backdrop = wrapper.querySelector(".aj-login-backdrop");
-        const submitBtn = wrapper.querySelector("#ajLoginSubmit");
-        const googleBtn = wrapper.querySelector("#ajLoginGoogle");
-        const facebookBtn = wrapper.querySelector("#ajLoginFacebook");
-        const emailInput = wrapper.querySelector("#ajLoginEmail");
-        const passwordInput = wrapper.querySelector("#ajLoginPassword");
-        const errorBox = wrapper.querySelector("#ajLoginError");
+        const errorNode = wrapper.querySelector(".aj-login-error");
 
-        const cleanup = () => {
-            document.body.classList.remove("aj-login-open");
-            wrapper.remove();
-            loginModalState = null;
-        };
+        loginPopupState = {
+            root: wrapper,
+            promise: new Promise(function (resolve) {
+                let closed = false;
 
-        const resolveAndClose = (user) => {
-            if (loginModalState && typeof loginModalState.resolve === "function") {
-                loginModalState.resolve(user || null);
-            }
-            cleanup();
-        };
+                const cleanup = function () {
+                    if (closed) return;
+                    closed = true;
+                    document.body.classList.remove("aj-login-open");
+                    wrapper.remove();
+                    loginPopupState = null;
+                };
 
-        const showError = (message) => {
-            if (!errorBox) return;
-            errorBox.textContent = message || "";
-            errorBox.style.display = message ? "block" : "none";
-        };
+                const finish = function (session) {
+                    cleanup();
+                    resolve(session || null);
+                };
 
-        const toReadableAuthError = (error) => {
-            const code = String(error && error.code ? error.code : "");
-            if (code === "auth/wrong-password" || code === "auth/user-not-found") return "Invalid email or password.";
-            if (code === "auth/too-many-requests") return "Too many attempts. Try again later.";
-            if (code === "auth/popup-closed-by-user") return "";
-            return error && error.message ? error.message : "Login failed.";
-        };
+                const showError = function (message) {
+                    if (!errorNode) return;
+                    const text = cleanText(message);
+                    errorNode.hidden = !text;
+                    errorNode.textContent = text;
+                };
 
-        closeBtn.addEventListener("click", () => resolveAndClose(null));
-        backdrop.addEventListener("click", () => resolveAndClose(null));
+                const close = function () {
+                    finish(null);
+                };
 
-        const onEsc = (event) => {
-            if (event.key === "Escape") {
-                resolveAndClose(null);
-            }
-        };
-        document.addEventListener("keydown", onEsc, { once: true });
+                const submit = async function () {
+                    const email = cleanText(emailInput && emailInput.value).toLowerCase();
+                    const password = cleanText(passwordInput && passwordInput.value);
 
-        const setBusy = (busy) => {
-            [submitBtn, googleBtn, facebookBtn].forEach((btn) => {
-                if (btn) btn.disabled = busy;
-            });
-        };
-
-        submitBtn.addEventListener("click", async () => {
-            const email = (emailInput.value || "").trim().toLowerCase();
-            const password = passwordInput.value || "";
-            if (!email || !password) {
-                showError("Enter email and password.");
-                return;
-            }
-
-            setBusy(true);
-            showError("");
-            try {
-                const credential = await services.auth.signInWithEmailAndPassword(email, password);
-                resolveAndClose(credential.user || null);
-            } catch (error) {
-                showError(toReadableAuthError(error));
-                setBusy(false);
-            }
-        });
-
-        googleBtn.addEventListener("click", async () => {
-            setBusy(true);
-            showError("");
-            try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                const credential = await services.auth.signInWithPopup(provider);
-                resolveAndClose(credential.user || null);
-            } catch (error) {
-                const message = toReadableAuthError(error);
-                if (message) showError(message);
-                setBusy(false);
-            }
-        });
-
-        facebookBtn.addEventListener("click", async () => {
-            setBusy(true);
-            showError("");
-            try {
-                const provider = new firebase.auth.FacebookAuthProvider();
-                const credential = await services.auth.signInWithPopup(provider);
-                resolveAndClose(credential.user || null);
-            } catch (error) {
-                const message = toReadableAuthError(error);
-                if (message) showError(message);
-                setBusy(false);
-            }
-        });
-
-        emailInput.focus();
-
-        loginModalState.promise = new Promise((resolve) => {
-            loginModalState.resolve = resolve;
-        });
-        return loginModalState.promise;
-    }
-
-    function ensureLoginModalStyles() {
-        if (document.getElementById("ajLoginModalStyles")) return;
-        const style = document.createElement("style");
-        style.id = "ajLoginModalStyles";
-        style.textContent = `
-            body.aj-login-open { overflow: hidden; }
-            .aj-login-modal { position: fixed; inset: 0; z-index: 6000; display: grid; place-items: center; }
-            .aj-login-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.62); backdrop-filter: blur(4px); }
-            .aj-login-dialog { position: relative; width: min(92vw, 430px); border-radius: 24px; background: #f8fafc; padding: 26px 22px 22px; display: grid; gap: 12px; box-shadow: 0 28px 60px rgba(15, 23, 42, 0.28); }
-            .aj-login-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border: none; border-radius: 50%; background: #e2e8f0; color: #1e293b; cursor: pointer; font-weight: 700; }
-            .aj-login-logo-wrap { width: 74px; height: 74px; margin: 0 auto 2px; border-radius: 18px; background: #ffffff; padding: 10px; box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12); }
-            .aj-login-logo-wrap img { width: 100%; height: 100%; object-fit: contain; }
-            .aj-login-dialog h3 { margin: 0; text-align: center; color: #0f172a; font-size: 40px; }
-            .aj-login-dialog p { margin: -2px 0 8px; text-align: center; color: #64748b; }
-            .aj-login-dialog input { width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid #cbd5e1; padding: 0 14px; background: #ffffff; }
-            .aj-login-submit { min-height: 50px; border: none; border-radius: 14px; font-weight: 700; color: #fff; cursor: pointer; background: linear-gradient(135deg,#2563eb,#3b82f6); }
-            .aj-login-social { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-            .aj-login-social button { min-height: 46px; border-radius: 14px; border: 1px solid #cbd5e1; background: #fff; font-weight: 700; color: #0f172a; cursor: pointer; }
-            .aj-login-signup { text-align: center; color: #2563eb; font-weight: 700; text-decoration: none; }
-            .aj-login-error { display: none; margin-top: -2px; color: #dc2626; font-size: 13px; text-align: center; }
-        `;
-        document.head.appendChild(style);
-    }
-
-    async function requestDownloadAccess(designId, token, allowPaymentRequired) {
-        try {
-            return await postSecure(
-                "requestDownloadAccess",
-                { designId: designId, nonce: generateNonce(designId) },
-                token
-            );
-        } catch (error) {
-            if (allowPaymentRequired && error && error.status === 402) {
-                return { requiresPayment: true };
-            }
-
-            const message = readableError(error);
-            alert(message);
-            return null;
-        }
-    }
-
-    async function openCheckoutAndVerify(orderPayload, design, token) {
-        if (typeof Razorpay === "undefined") {
-            alert("Razorpay checkout failed to load.");
-            return;
-        }
-
-        const options = {
-            key: String(orderPayload.keyId || "").trim(),
-            amount: Number(orderPayload.amount || 0),
-            currency: orderPayload.currency || "INR",
-            name: "AJartivo",
-            description: "Design Purchase",
-            order_id: orderPayload.orderId,
-            handler: async function (response) {
-                try {
-                    const verification = await postSecure(
-                        "verifyPayment",
-                        {
-                            designId: design.id,
-                            orderId: response.razorpay_order_id,
-                            paymentId: response.razorpay_payment_id,
-                            signature: response.razorpay_signature
-                        },
-                        token
-                    );
-
-                    if (!verification || !verification.downloadUrl) {
-                        throw new Error("Payment verified but download link was not returned.");
+                    if (!isValidEmail(email)) {
+                        showError("Enter a valid email address.");
+                        return;
                     }
 
-                    alert("Payment Successful");
-                    await downloadFile(
-                        verification.downloadUrl,
-                        buildDownloadFileName(design, verification.downloadUrl),
-                        design,
-                        services.auth.currentUser || null
-                    );
-                } catch (error) {
-                    alert(readableError(error));
+                    if (!password) {
+                        showError("Enter your password.");
+                        return;
+                    }
+
+                    submitButton.disabled = true;
+                    submitButton.textContent = "Logging in...";
+                    showError("");
+
+                    try {
+                        const session = services.signIn
+                            ? await services.signIn(email, password)
+                            : null;
+
+                        if (!session || !cleanText(session.email)) {
+                            throw new Error("Login was successful, but session could not be loaded.");
+                        }
+
+                        finish(session);
+                    } catch (error) {
+                        console.error("[AJartivo Payment] login popup sign-in failed", error);
+                        showError(mapLoginError(error));
+                        submitButton.disabled = false;
+                        submitButton.textContent = "Log In";
+                    }
+                };
+
+                if (closeButton) {
+                    closeButton.addEventListener("click", close);
                 }
-            },
-            prefill: {
-                name: services.auth.currentUser?.displayName || "",
-                email: services.auth.currentUser?.email || ""
-            },
-            theme: {
-                color: "#2563eb"
-            }
+
+                if (backdrop) {
+                    backdrop.addEventListener("click", close);
+                }
+
+                wrapper.addEventListener("keydown", function (event) {
+                    if (event.key === "Escape") {
+                        close();
+                    }
+                });
+
+                if (submitButton) {
+                    submitButton.addEventListener("click", submit);
+                }
+
+                if (passwordInput) {
+                    passwordInput.addEventListener("keydown", function (event) {
+                        if (event.key === "Enter") {
+                            submit();
+                        }
+                    });
+                }
+
+                if (emailInput) {
+                    emailInput.focus();
+                }
+            })
         };
 
-        if (!options.key) {
-            alert("Payment gateway key is not configured.");
-            return;
-        }
-
-        const checkout = new Razorpay(options);
-        checkout.on("payment.failed", function (response) {
-            const reason = response && response.error && response.error.description
-                ? response.error.description
-                : "Payment failed. Please try again.";
-            alert(reason);
-        });
-
-        checkout.open();
+        return loginPopupState.promise;
     }
 
-    async function postSecure(endpoint, payload, idToken) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-
-        try {
-            const response = await fetch(FUNCTION_BASE + "/" + endpoint, {
-                method: "POST",
-                mode: "cors",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + idToken
-                },
-                body: JSON.stringify(payload || {}),
-                signal: controller.signal
-            });
-
-            let body = {};
-            try {
-                body = await response.json();
-            } catch (error) {
-                body = {};
-            }
-
-            if (!response.ok) {
-                const err = new Error(body.error || "Request failed.");
-                err.status = response.status;
-                err.payload = body;
-                throw err;
-            }
-
-            return body;
-        } catch (error) {
-            if (error && error.name === "AbortError") {
-                throw new Error("Request timed out. Please try again.");
-            }
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-        }
-    }
-
-    async function downloadFile(url, fileName, design, user) {
-        const cleanUrl = cleanString(url);
-        if (!cleanUrl) {
-            alert("Download URL is missing.");
-            return;
-        }
-
-        const safeFileName = fileName || "aj-file";
-        let historySaved = false;
-
+    async function downloadFile(product, authContext) {
+        const fileName = buildDownloadFileName(product, "");
         const popupControls = showDownloadPopup({
-            title: cleanString(design && (design.title || design.name)) || "Your file is getting ready",
-            fileName: safeFileName,
+            title: cleanText(product.title) || "Preparing your file",
+            fileName: fileName,
             onRetry: async function () {
                 await attemptDownload();
             }
         });
 
-        async function maybeSaveHistory() {
-            if (historySaved || !user || !design || !design.id) return;
-            historySaved = true;
-            await recordDownloadHistory(user, design, cleanUrl, safeFileName);
-        }
-
         async function attemptDownload() {
             if (popupControls) {
-                popupControls.setStatus("Trying to start your download...");
+                popupControls.setStatus("Preparing your secure download...");
             }
 
-            try {
-                const response = await fetch(cleanUrl, { mode: "cors" });
-                if (!response.ok) {
-                    throw new Error("Download request failed.");
-                }
+            const response = await fetch(`${BACKEND_BASE_URL}/download/${encodeURIComponent(product.id)}`, {
+                method: "GET",
+                headers: buildAuthHeaders(authContext)
+            });
 
-                const blob = await response.blob();
-                const objectUrl = URL.createObjectURL(blob);
-                triggerBrowserDownload(objectUrl, safeFileName);
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to download this file."));
+            }
 
-                window.setTimeout(() => {
-                    URL.revokeObjectURL(objectUrl);
-                }, 30000);
+            const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
 
-                await maybeSaveHistory();
-                if (popupControls) {
-                    popupControls.setStatus("Download should begin shortly. If not, use click here.");
-                }
-                return;
-            } catch (error) {
-                triggerBrowserDownload(cleanUrl, safeFileName);
-                await maybeSaveHistory();
-                if (popupControls) {
-                    popupControls.setStatus("If download did not start, use click here to retry.");
-                }
+            triggerBrowserDownload(objectUrl, resolvedFileName);
+            services.addDownloadHistoryItem({
+                ...product,
+                download_link: resolvedFileName
+            });
+
+            window.setTimeout(function () {
+                URL.revokeObjectURL(objectUrl);
+            }, 30000);
+
+            if (popupControls) {
+                popupControls.setStatus("Download started. If it does not begin, use Download again.");
             }
         }
 
-        await attemptDownload();
+        try {
+            await attemptDownload();
+        } catch (error) {
+            console.error("[AJartivo Payment] secure download failed", error);
+            if (popupControls) {
+                popupControls.setStatus(cleanText(error && error.message) || "Download failed.");
+            }
+            alert(error && error.message ? error.message : "Unable to download this file right now.");
+        }
+    }
+
+    function isPremiumDesign(product) {
+        const item = services.normalizeProduct(product);
+        return item.is_free !== true && (item.is_paid === true || Number(item.price || 0) > 0);
+    }
+
+    function hasDownloadAccess(product) {
+        const item = services.normalizeProduct(product);
+        return item.is_free === true || item.has_access === true || item.isPurchased === true || item.is_purchased === true;
+    }
+
+    async function toggleWishlist(product) {
+        const item = services.normalizeProduct(product);
+
+        if (!item.id) {
+            throw new Error("Product not found.");
+        }
+
+        if (services.isWishlisted(item.id)) {
+            services.removeWishlistItem(item.id);
+            return { saved: false };
+        }
+
+        services.addWishlistItem(item);
+        return { saved: true };
+    }
+
+    async function isInWishlist(productId) {
+        return services.isWishlisted(productId);
     }
 
     function triggerBrowserDownload(url, fileName) {
@@ -526,129 +488,58 @@
         link.remove();
     }
 
-    function buildDownloadFileName(design, url) {
-        const title = cleanString((design && (design.title || design.name)) || "file");
-        const baseName = slugify(title) || "file";
-        const extension = resolveFileExtension(design, url);
+    function buildDownloadFileName(product, url) {
+        const title = cleanText(product.title) || "file";
+        const baseName = title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "file";
+        const extension = resolveFileExtension(product, url);
         return `aj-${baseName}${extension}`;
     }
 
-    function resolveFileExtension(design, url) {
-        const urlPath = cleanString(url).split("?")[0].split("#")[0];
-        const lastSegment = urlPath.split("/").pop() || "";
-        const directMatch = lastSegment.match(/(\.[a-z0-9]{2,8})$/i);
+    function resolveFileExtension(product, url) {
+        const path = cleanText(url).split("?")[0].split("#")[0];
+        const fileName = path.split("/").pop() || "";
+        const directMatch = fileName.match(/(\.[a-z0-9]{2,8})$/i);
         if (directMatch) {
             return directMatch[1].toLowerCase();
         }
 
-        const rawExtension = cleanString(
-            (design && (
-                design.extension ||
-                design.fileExtension ||
-                design.fileType ||
-                design.format ||
-                design.category ||
-                design.type
-            )) || ""
-        ).replace(/^\./, "");
-
-        return rawExtension ? `.${rawExtension.toLowerCase()}` : "";
+        const category = cleanText(product.category).replace(/^\./, "");
+        return category ? `.${category.toLowerCase()}` : "";
     }
 
-    function slugify(value) {
-        return String(value || "")
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "");
-    }
-
-    async function toggleWishlist(design, user) {
-        if (!design || !design.id) {
-            throw new Error("Design not found.");
+    function parseFileNameFromDisposition(contentDisposition) {
+        const value = cleanText(contentDisposition);
+        if (!value) {
+            return "";
         }
 
-        const currentUser = user || await requireVerifiedUser();
-        if (!currentUser) {
-            throw new Error("Login required.");
+        const utfMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utfMatch && utfMatch[1]) {
+            return decodeURIComponent(utfMatch[1]);
         }
 
-        const docId = `${currentUser.uid}_${design.id}`;
-        const ref = services.db.collection("userWishlists").doc(docId);
-        const snap = await ref.get();
-
-        if (snap.exists) {
-            await ref.delete();
-            return { saved: false };
-        }
-
-        await ref.set(buildWishlistPayload(currentUser, design), { merge: true });
-        return { saved: true };
+        const plainMatch = value.match(/filename="?([^"]+)"?/i);
+        return plainMatch && plainMatch[1] ? plainMatch[1] : "";
     }
 
-    async function isInWishlist(designId, user) {
-        const currentUser = user || services.auth.currentUser;
-        if (!currentUser || !designId) return false;
-
-        const docId = `${currentUser.uid}_${designId}`;
-        const snap = await services.db.collection("userWishlists").doc(docId).get();
-        return snap.exists;
-    }
-
-    function buildWishlistPayload(user, design) {
-        return {
-            uid: user.uid,
-            designId: design.id,
-            title: cleanString(design.title || design.name) || "Untitled Design",
-            image: resolvePrimaryImage(design),
-            price: Number(design.price || 0) || 0,
-            fileUrl: resolveDirectDownloadUrl(design),
-            fileName: buildDownloadFileName(design, resolveDirectDownloadUrl(design)),
-            type: cleanString(design.extension || design.fileType || design.format || design.category || design.type),
-            savedAt: services.timestamp()
-        };
-    }
-
-    async function recordDownloadHistory(user, design, url, fileName) {
+    async function readErrorMessage(response, fallbackMessage) {
         try {
-            await services.db.collection("userDownloadHistory").add({
-                uid: user.uid,
-                designId: design.id,
-                title: cleanString(design.title || design.name) || "Untitled Design",
-                image: resolvePrimaryImage(design),
-                price: Number(design.price || 0) || 0,
-                fileUrl: cleanString(url),
-                fileName: cleanString(fileName),
-                type: cleanString(design.extension || design.fileType || design.format || design.category || design.type),
-                downloadedAt: services.timestamp()
-            });
-        } catch (error) {
-            console.error("Download history save failed:", error);
+            const data = await response.json();
+            return cleanText(data && data.error) || fallbackMessage;
+        } catch (_error) {
+            return fallbackMessage;
         }
-    }
-
-    function resolvePrimaryImage(design) {
-        const candidates = [
-            design && design.image,
-            design && design.preview1,
-            design && design.preview2,
-            Array.isArray(design && design.previewImages) ? design.previewImages[0] : "",
-            Array.isArray(design && design.images) ? design.images[0] : ""
-        ];
-
-        for (const candidate of candidates) {
-            const value = cleanString(candidate);
-            if (value) return value;
-        }
-
-        return "/images/preview1.jpg";
     }
 
     function showDownloadPopup(options) {
         ensureDownloadPopup();
         if (!downloadPopupState) return null;
 
-        const title = cleanString(options && options.title) || "Preparing download";
-        const fileName = cleanString(options && options.fileName) || "aj-file";
+        const title = cleanText(options && options.title) || "Preparing download";
+        const fileName = cleanText(options && options.fileName) || "aj-file";
         const onRetry = options && typeof options.onRetry === "function" ? options.onRetry : function () {};
 
         downloadPopupState.title.textContent = title;
@@ -657,7 +548,6 @@
         downloadPopupState.countdown.textContent = "12";
         downloadPopupState.root.hidden = false;
         downloadPopupState.root.style.display = "grid";
-        downloadPopupState.root.style.pointerEvents = "auto";
         document.body.classList.add("aj-download-open");
 
         if (downloadPopupState.timerId) {
@@ -665,13 +555,13 @@
         }
 
         let remaining = 12;
-        downloadPopupState.timerId = window.setInterval(() => {
+        downloadPopupState.timerId = window.setInterval(function () {
             remaining -= 1;
             if (remaining <= 0) {
                 remaining = 0;
                 window.clearInterval(downloadPopupState.timerId);
                 downloadPopupState.timerId = null;
-                downloadPopupState.status.textContent = "If your file has not started yet, use download again.";
+                downloadPopupState.status.textContent = "If your file has not started yet, use Download again.";
             }
             downloadPopupState.countdown.textContent = String(remaining);
         }, 1000);
@@ -683,7 +573,7 @@
 
         return {
             setStatus: function (message) {
-                downloadPopupState.status.textContent = cleanString(message) || "We are preparing your file.";
+                downloadPopupState.status.textContent = cleanText(message) || "We are preparing your file.";
             }
         };
     }
@@ -697,12 +587,11 @@
         wrapper.className = "aj-download-modal";
         wrapper.hidden = true;
         wrapper.style.display = "none";
-        wrapper.style.pointerEvents = "none";
         wrapper.innerHTML = `
             <div class="aj-download-backdrop"></div>
             <div class="aj-download-dialog" role="dialog" aria-modal="true" aria-label="Download status">
-                <button type="button" class="aj-download-close" aria-label="Close">×</button>
-                <p class="aj-download-kicker">Premium download</p>
+                <button type="button" class="aj-download-close" aria-label="Close">x</button>
+                <p class="aj-download-kicker">Download status</p>
                 <h3 class="aj-download-title"></h3>
                 <p class="aj-download-file"></p>
                 <div class="aj-download-countdown-wrap">
@@ -715,14 +604,14 @@
         `;
 
         document.body.appendChild(wrapper);
+
         const dialog = wrapper.querySelector(".aj-download-dialog");
         const backdrop = wrapper.querySelector(".aj-download-backdrop");
         const closeButton = wrapper.querySelector(".aj-download-close");
 
-        const close = () => {
+        const close = function () {
             wrapper.hidden = true;
             wrapper.style.display = "none";
-            wrapper.style.pointerEvents = "none";
             document.body.classList.remove("aj-download-open");
             if (downloadPopupState && downloadPopupState.timerId) {
                 window.clearInterval(downloadPopupState.timerId);
@@ -735,20 +624,16 @@
         }
 
         if (closeButton) {
-            closeButton.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                close();
-            });
+            closeButton.addEventListener("click", close);
         }
 
-        wrapper.addEventListener("click", (event) => {
+        wrapper.addEventListener("click", function (event) {
             if (dialog && !dialog.contains(event.target)) {
                 close();
             }
         }, true);
 
-        document.addEventListener("keydown", (event) => {
+        document.addEventListener("keydown", function (event) {
             if (event.key === "Escape" && downloadPopupState && !downloadPopupState.root.hidden) {
                 close();
             }
@@ -761,8 +646,7 @@
             countdown: wrapper.querySelector(".aj-download-countdown"),
             status: wrapper.querySelector(".aj-download-status"),
             retry: wrapper.querySelector(".aj-download-retry"),
-            timerId: null,
-            close: close
+            timerId: null
         };
     }
 
@@ -774,35 +658,110 @@
         style.textContent = `
             body.aj-download-open { overflow: hidden; }
             .aj-download-modal { position: fixed; inset: 0; z-index: 7000; place-items: center; padding: 20px; }
-            .aj-download-backdrop { position: absolute; inset: 0; z-index: 0; background: rgba(8, 15, 31, 0.66); backdrop-filter: blur(6px); }
-            .aj-download-dialog { position: relative; z-index: 1; width: min(92vw, 430px); padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #fffdf8 0%, #fff8ee 100%); border: 1px solid rgba(251, 191, 36, 0.22); box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28); display: grid; gap: 14px; text-align: center; overflow: hidden; }
-            .aj-download-dialog::before { content: ""; position: absolute; inset: 0 0 auto; height: 110px; background: radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 48%), radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 42%); pointer-events: none; }
-            .aj-download-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 38px; height: 38px; border: none; border-radius: 50%; background: rgba(226, 232, 240, 0.92); color: #0f172a; cursor: pointer; font-size: 20px; font-weight: 700; line-height: 1; }
-            .aj-download-kicker { position: relative; z-index: 1; margin: 0; color: #b45309; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-            .aj-download-title { position: relative; z-index: 1; margin: 0; color: #0f172a; font-size: 30px; line-height: 1.12; }
-            .aj-download-file { position: relative; z-index: 1; margin: 0; color: #64748b; word-break: break-word; font-size: 15px; }
-            .aj-download-countdown-wrap { position: relative; z-index: 1; display: grid; gap: 6px; justify-items: center; padding: 16px; border-radius: 22px; background: linear-gradient(180deg, #fff4d9, #fef3c7); color: #0f172a; border: 1px solid rgba(245, 158, 11, 0.18); }
+            .aj-download-backdrop { position: absolute; inset: 0; background: rgba(8, 15, 31, 0.66); backdrop-filter: blur(6px); }
+            .aj-download-dialog { position: relative; z-index: 1; width: min(92vw, 430px); padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #fffdf8 0%, #fff8ee 100%); border: 1px solid rgba(251, 191, 36, 0.22); box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28); display: grid; gap: 14px; text-align: center; }
+            .aj-download-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: none; border-radius: 50%; background: rgba(226, 232, 240, 0.92); color: #0f172a; cursor: pointer; font-size: 18px; font-weight: 700; }
+            .aj-download-kicker { margin: 0; color: #b45309; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+            .aj-download-title { margin: 0; color: #0f172a; font-size: 30px; line-height: 1.12; }
+            .aj-download-file { margin: 0; color: #64748b; word-break: break-word; font-size: 15px; }
+            .aj-download-countdown-wrap { display: grid; gap: 6px; justify-items: center; padding: 16px; border-radius: 22px; background: linear-gradient(180deg, #fff4d9, #fef3c7); color: #0f172a; border: 1px solid rgba(245, 158, 11, 0.18); }
             .aj-download-countdown-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; }
             .aj-download-countdown { font-size: 46px; line-height: 1; color: #111827; }
-            .aj-download-status { position: relative; z-index: 1; margin: 0; color: #334155; line-height: 1.65; font-size: 16px; }
-            .aj-download-retry { position: relative; z-index: 1; min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; cursor: pointer; font-weight: 800; box-shadow: 0 18px 28px rgba(217, 119, 6, 0.22); }
-            .aj-download-retry:hover { filter: brightness(1.02); }
+            .aj-download-status { margin: 0; color: #334155; line-height: 1.65; font-size: 16px; }
+            .aj-download-retry { min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; cursor: pointer; font-weight: 800; }
         `;
         document.head.appendChild(style);
     }
 
-    function generateNonce(designId) {
-        const raw = `${designId}|${Date.now()}|${Math.random().toString(36).slice(2, 12)}`;
-        return raw;
+    function markProductAsPurchased(product) {
+        return services.normalizeProduct({
+            ...product,
+            has_access: true,
+            isPurchased: true,
+            is_purchased: true
+        });
     }
 
-    function readableError(error) {
-        if (!error) return "Something went wrong.";
-        if (error.message) return error.message;
-        return "Something went wrong.";
+    function emitPurchaseCompleted(product, authContext, result) {
+        window.dispatchEvent(new CustomEvent("ajartivo:purchase-completed", {
+            detail: {
+                productId: cleanText(product && product.id),
+                userId: cleanText(authContext && authContext.id),
+                userEmail: cleanText(authContext && authContext.email).toLowerCase(),
+                amount: Number(result && result.amount || 0),
+                paymentId: cleanText(result && result.payment_id),
+                product: product || null
+            }
+        }));
     }
 
-    function cleanString(value) {
+    function ensureLoginPopupStyles() {
+        if (document.getElementById("ajLoginPopupStyles")) return;
+
+        const style = document.createElement("style");
+        style.id = "ajLoginPopupStyles";
+        style.textContent = `
+            body.aj-login-open { overflow: hidden; }
+            .aj-login-modal { position: fixed; inset: 0; z-index: 7100; place-items: center; padding: 20px; }
+            .aj-login-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.58); backdrop-filter: blur(6px); }
+            .aj-login-dialog { position: relative; z-index: 1; width: min(92vw, 440px); display: grid; gap: 14px; padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24); }
+            .aj-login-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: none; border-radius: 50%; background: #e2e8f0; color: #0f172a; cursor: pointer; font-size: 18px; font-weight: 700; }
+            .aj-login-kicker { margin: 0; color: #2563eb; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+            .aj-login-title { margin: 0; color: #0f172a; font-size: 30px; line-height: 1.1; }
+            .aj-login-subtitle { margin: 0; color: #475569; font-size: 15px; line-height: 1.6; }
+            .aj-login-error { margin: 0; min-height: 20px; color: #dc2626; font-size: 14px; }
+            .aj-login-field { display: grid; gap: 8px; color: #0f172a; font-size: 14px; font-weight: 600; }
+            .aj-login-input { min-height: 48px; width: 100%; border: 1px solid #cbd5e1; border-radius: 16px; padding: 0 14px; font: inherit; color: #0f172a; background: #fff; }
+            .aj-login-submit { min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; font-weight: 800; cursor: pointer; }
+            .aj-login-submit:disabled { opacity: 0.7; cursor: wait; }
+            .aj-login-actions { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+            .aj-login-link { color: #1d4ed8; text-decoration: none; font-weight: 700; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function mapLoginError(error) {
+        const message = cleanText(error && (error.message || error.error_description || error.code)).toLowerCase();
+
+        if (message.includes("invalid login credentials")) {
+            return "Incorrect email or password.";
+        }
+
+        if (message.includes("email not confirmed")) {
+            return "Please verify your email before logging in.";
+        }
+
+        if (message.includes("failed to fetch") || message.includes("network")) {
+            return "Network error. Please check your connection and try again.";
+        }
+
+        return cleanText(error && error.message) || "Login failed. Please try again.";
+    }
+
+    function mapPaymentRequestError(error, endpoint) {
+        const message = cleanText(error && error.message).toLowerCase();
+
+        if (message.includes("failed to fetch") || message.includes("network")) {
+            return new Error(`Payment backend is not reachable at ${endpoint}. Start the backend server and try again.`);
+        }
+
+        return error instanceof Error ? error : new Error("Payment request failed.");
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "");
     }
 })();
