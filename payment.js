@@ -2,7 +2,9 @@
     const services = window.AjArtivoSupabase;
     if (!services) return;
 
-    const BACKEND_BASE_URL = "http://localhost:5000";
+    const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
+    const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
+    const BACKEND_BASE_URL = resolveBackendBaseUrl();
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
@@ -16,6 +18,23 @@
 
     let downloadPopupState = null;
     let loginPopupState = null;
+
+    function resolveBackendBaseUrl() {
+        const configuredUrl = cleanText(
+            window.AJARTIVO_BACKEND_URL ||
+            (document.querySelector('meta[name="ajartivo-backend-url"]') || {}).content
+        );
+        if (configuredUrl) {
+            return configuredUrl.replace(/\/+$/, "");
+        }
+
+        const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+            return LOCAL_BACKEND_BASE_URL;
+        }
+
+        return LIVE_BACKEND_BASE_URL;
+    }
 
     async function startDownloadFlow(product) {
         const item = services.normalizeProduct(product);

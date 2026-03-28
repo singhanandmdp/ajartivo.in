@@ -13,24 +13,24 @@ const PORT = Number(process.env.PORT || 5000);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DOWNLOADS_ROOT = path.resolve(PROJECT_ROOT, "downloads");
 const ENV_FILE_PATH = path.resolve(__dirname, ".env");
-const FRONTEND_ORIGINS = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500"
-];
 
-loadEnvFile(ENV_FILE_PATH);
+loadEnvFile(ENV_FILE_PATH, { overrideExisting: true });
+
+const FRONTEND_ORIGINS = buildFrontendOrigins(process.env.FRONTEND_ORIGINS);
 
 const SUPABASE_URL = cleanText(process.env.SUPABASE_URL);
 const SUPABASE_SERVICE_ROLE_KEY = cleanText(process.env.SUPABASE_SERVICE_ROLE_KEY);
 const RAZORPAY_KEY_ID = cleanText(process.env.RAZORPAY_KEY_ID);
 const RAZORPAY_KEY_SECRET = cleanText(process.env.RAZORPAY_KEY_SECRET);
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false
-    }
-});
+const supabase = hasSupabaseConfig()
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    })
+    : null;
 
 const razorpay = new Razorpay({
     key_id: RAZORPAY_KEY_ID,
@@ -59,6 +59,125 @@ app.get("/health", function (_req, res) {
         port: PORT
     });
 });
+
+app.post("/test/create-order", requireRazorpayConfigured, async function (req, res) {
+    try {
+        const description = cleanText(req.body && req.body.description) || "AJartivo Razorpay Test Payment";
+        const customerName = cleanText(req.body && req.body.customer_name);
+        const customerEmail = cleanText(req.body && req.body.customer_email).toLowerCase();
+        const amountInRupees = Number(req.body && req.body.amount);
+        const amountInPaise = Math.round(amountInRupees * 100);
+
+        if (!Number.isFinite(amountInRupees) || amountInRupees <= 0) {
+            return res.status(400).json({ error: "Valid amount is required." });
+        }
+
+        if (!Number.isFinite(amountInPaise) || amountInPaise < 100) {
+            return res.status(400).json({ error: "Minimum test amount is Rs. 1." });
+        }
+
+        const order = await razorpay.orders.create({
+            amount: amountInPaise,
+            currency: "INR",
+            receipt: buildTestReceipt(),
+            notes: {
+                mode: "standalone_test",
+                customer_name: customerName.slice(0, 60),
+                customer_email: customerEmail.slice(0, 80),
+                description: description.slice(0, 100)
+            }
+        });
+
+        return res.json({
+            success: true,
+            key: RAZORPAY_KEY_ID,
+            order_id: cleanText(order && order.id),
+            amount: Number(order && order.amount || 0),
+            currency: cleanText(order && order.currency) || "INR",
+            description: description,
+            customer_name: customerName,
+            customer_email: customerEmail
+        });
+    } catch (error) {
+        return handleServerError(res, error, "Unable to create Razorpay test order.");
+    }
+});
+
+app.post("/test/verify-payment", requireRazorpayConfigured, async function (req, res) {
+    try {
+        const orderId = cleanText(req.body && req.body.razorpay_order_id);
+        const paymentId = cleanText(req.body && req.body.razorpay_payment_id);
+        const signature = cleanText(req.body && req.body.razorpay_signature);
+
+        if (!orderId || !paymentId || !signature) {
+            return res.status(400).json({ error: "Missing required payment fields." });
+        }
+
+        const expectedSignature = crypto
+            .createHmac("sha256", RAZORPAY_KEY_SECRET)
+            .update(`${orderId}|${paymentId}`)
+            .digest("hex");
+
+        if (!safeCompare(expectedSignature, signature)) {
+            return res.status(400).json({ error: "Invalid payment signature." });
+        }
+
+        const [razorpayOrder, razorpayPayment] = await Promise.all([
+            razorpay.orders.fetch(orderId),
+            razorpay.payments.fetch(paymentId)
+        ]);
+
+        if (!razorpayOrder || !razorpayPayment) {
+            return res.status(400).json({ error: "Unable to verify payment details." });
+        }
+
+        if (cleanText(razorpayPayment.order_id) !== orderId) {
+            return res.status(400).json({ error: "Payment order mismatch." });
+        }
+
+        const finalizedPayment = await capturePaymentIfNeeded(razorpayPayment, Number(razorpayOrder.amount || 0));
+        if (!isSuccessfulPayment(finalizedPayment)) {
+            return res.status(400).json({ error: "Payment is not successful." });
+        }
+
+        return res.json({
+            success: true,
+            test_mode: true,
+            order_id: cleanText(razorpayOrder && razorpayOrder.id),
+            payment_id: cleanText(finalizedPayment && finalizedPayment.id),
+            amount: Number(finalizedPayment && finalizedPayment.amount || razorpayOrder && razorpayOrder.amount || 0),
+            currency: cleanText(finalizedPayment && finalizedPayment.currency || razorpayOrder && razorpayOrder.currency || "INR"),
+            status: cleanText(finalizedPayment && finalizedPayment.status),
+            method: cleanText(finalizedPayment && finalizedPayment.method) || "Razorpay",
+            email: cleanText(finalizedPayment && finalizedPayment.email),
+            contact: cleanText(finalizedPayment && finalizedPayment.contact),
+            captured_at: Number(finalizedPayment && finalizedPayment.created_at)
+                ? new Date(Number(finalizedPayment.created_at) * 1000).toISOString()
+                : "",
+            notes: razorpayOrder && razorpayOrder.notes ? razorpayOrder.notes : {}
+        });
+    } catch (error) {
+        return handleServerError(res, error, "Unable to verify Razorpay test payment.");
+    }
+});
+
+function buildFrontendOrigins(rawOrigins) {
+    const defaults = [
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://ajartivo.in",
+        "https://www.ajartivo.in"
+    ];
+
+    const configuredOrigins = cleanText(rawOrigins)
+        .split(",")
+        .map(function (origin) {
+            return cleanText(origin);
+        })
+        .filter(Boolean);
+
+    return Array.from(new Set(defaults.concat(configuredOrigins)));
+}
 
 app.post("/create-order", requireConfiguredServer, requireAuthenticatedUser, async function (req, res) {
     try {
@@ -247,6 +366,10 @@ app.get("/download/:productId", requireConfiguredServer, requireAuthenticatedUse
 
 async function requireAuthenticatedUser(req, res, next) {
     try {
+        if (!supabase) {
+            return res.status(500).json({ error: "Supabase is not configured on the backend." });
+        }
+
         const token = extractBearerToken(req.headers.authorization);
         if (!token) {
             return res.status(401).json({ error: "Authentication required." });
@@ -277,6 +400,15 @@ async function requireAuthenticatedUser(req, res, next) {
 
 function requireConfiguredServer(_req, res, next) {
     const configError = getConfigurationError();
+    if (configError) {
+        return res.status(500).json({ error: configError });
+    }
+
+    next();
+}
+
+function requireRazorpayConfigured(_req, res, next) {
+    const configError = getRazorpayConfigurationError();
     if (configError) {
         return res.status(500).json({ error: configError });
     }
@@ -574,6 +706,10 @@ function buildReceipt(productId) {
     return baseReceipt.slice(0, 40);
 }
 
+function buildTestReceipt() {
+    return `aj_test_${Date.now()}`.slice(0, 40);
+}
+
 function extractBearerToken(headerValue) {
     const value = cleanText(headerValue);
     if (!value.toLowerCase().startsWith("bearer ")) {
@@ -619,6 +755,14 @@ function ensureTrailingSeparator(value) {
 }
 
 function getConfigurationError() {
+    return getSupabaseConfigurationError() || getRazorpayConfigurationError();
+}
+
+function hasSupabaseConfig() {
+    return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+}
+
+function getSupabaseConfigurationError() {
     if (!SUPABASE_URL) {
         return "SUPABASE_URL is missing on the backend.";
     }
@@ -627,6 +771,10 @@ function getConfigurationError() {
         return "SUPABASE_SERVICE_ROLE_KEY is missing on the backend.";
     }
 
+    return "";
+}
+
+function getRazorpayConfigurationError() {
     if (!RAZORPAY_KEY_ID) {
         return "RAZORPAY_KEY_ID is missing on the backend.";
     }
@@ -638,10 +786,15 @@ function getConfigurationError() {
     return "";
 }
 
-function loadEnvFile(filePath) {
+function loadEnvFile(filePath, options) {
     if (!fs.existsSync(filePath)) {
         return;
     }
+
+    const overrideExisting = Boolean(
+        options === true ||
+        options && options.overrideExisting === true
+    );
 
     const fileContents = fs.readFileSync(filePath, "utf8");
     fileContents
@@ -661,7 +814,7 @@ function loadEnvFile(filePath) {
             const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
             const normalizedValue = rawValue.replace(/^['"]|['"]$/g, "");
 
-            if (!process.env[key]) {
+            if (overrideExisting || !process.env[key]) {
                 process.env[key] = normalizedValue;
             }
         });

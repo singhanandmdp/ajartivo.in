@@ -3,192 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AJartivo | Test Payment Integration</title>
+    <title>AJartivo | Razorpay Standalone Test</title>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         :root {
-            --bg: #f4f7fb;
+            --bg: #f3f6fb;
             --surface: #ffffff;
+            --surface-alt: #edf4ff;
             --text: #0f172a;
             --muted: #64748b;
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --ok: #16a34a;
-            --warning: #ea580c;
-            --border: #e2e8f0;
-            --shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
-            --radius: 16px;
+            --border: #dbe4f0;
+            --primary: #0f6cbd;
+            --primary-dark: #0b57a0;
+            --success: #15803d;
+            --danger: #b42318;
+            --shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+            --radius: 20px;
         }
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
         body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 40%);
-            color: var(--text);
-            line-height: 1.5;
+            margin: 0;
             min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top right, rgba(15, 108, 189, 0.14), transparent 28%),
+                linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
             padding: 24px;
         }
 
-        .container {
-            max-width: 1180px;
+        .shell {
+            max-width: 1120px;
             margin: 0 auto;
         }
 
-        .header {
-            margin-bottom: 20px;
+        .hero {
+            margin-bottom: 22px;
         }
 
-        .header h1 {
-            font-size: clamp(24px, 3vw, 36px);
-            font-weight: 800;
-            letter-spacing: 0.2px;
-        }
-
-        .header p {
-            color: var(--muted);
-            margin-top: 8px;
-        }
-
-        .top-actions {
-            margin-top: 14px;
-            display: flex;
+        .eyebrow {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
 
-        .top-actions button {
-            border: 1px solid var(--border);
+        .hero h1 {
+            margin: 14px 0 10px;
+            font-size: clamp(30px, 4vw, 52px);
+            line-height: 1.05;
+        }
+
+        .hero p {
+            max-width: 720px;
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr);
+            gap: 22px;
+        }
+
+        .panel {
             background: var(--surface);
-            border-radius: 10px;
-            min-height: 40px;
-            padding: 0 14px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #1e293b;
-            transition: border-color 0.2s ease, transform 0.2s ease;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
         }
 
-        .top-actions button:hover {
-            transform: translateY(-1px);
-            border-color: #cbd5e1;
+        .panel-header {
+            padding: 24px 24px 12px;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .panel-header p {
+            margin: 8px 0 0;
+            color: var(--muted);
+        }
+
+        .panel-body {
+            padding: 0 24px 24px;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 18px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
         }
 
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            overflow: hidden;
-            box-shadow: var(--shadow);
+        .field {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
 
-        .card-image {
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        input,
+        textarea {
             width: 100%;
-            height: 170px;
-            object-fit: cover;
-            background: #e2e8f0;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 15px;
+            font: inherit;
+            color: var(--text);
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .card-body {
-            padding: 14px;
+        input:focus,
+        textarea:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15);
+        }
+
+        textarea {
+            min-height: 88px;
+            resize: vertical;
+        }
+
+        .summary {
+            background: var(--surface-alt);
+            border: 1px solid #cfe0ff;
+            border-radius: 18px;
+            padding: 18px;
+            margin-top: 18px;
+        }
+
+        .summary strong {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        .summary-row {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            flex: 1;
-        }
-
-        .card-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .card-meta {
-            display: flex;
-            align-items: center;
             justify-content: space-between;
-            gap: 10px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 28px;
-            min-width: 74px;
-            padding: 0 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.05em;
-            border: 1px solid transparent;
-        }
-
-        .badge.free {
-            background: #ecfdf3;
-            color: #15803d;
-            border-color: #bbf7d0;
-        }
-
-        .badge.premium {
-            background: #fff7ed;
-            color: #c2410c;
-            border-color: #fed7aa;
-        }
-
-        .price {
-            font-weight: 700;
+            gap: 12px;
             color: #1e293b;
+            font-size: 14px;
+            padding: 6px 0;
         }
 
-        .action-btn {
+        .summary-row span:last-child {
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        .btn {
+            appearance: none;
             border: none;
-            border-radius: 12px;
-            min-height: 44px;
-            padding: 0 14px;
-            font-size: 14px;
+            border-radius: 14px;
+            min-height: 48px;
+            padding: 0 18px;
+            font: inherit;
             font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
         }
 
-        .action-btn:hover {
+        .btn:hover {
             transform: translateY(-1px);
         }
 
-        .action-btn.free {
-            background: var(--ok);
-            color: #fff;
-            box-shadow: 0 10px 22px rgba(22, 163, 74, 0.24);
+        .btn:disabled {
+            cursor: wait;
+            opacity: 0.7;
+            transform: none;
         }
 
-        .action-btn.premium {
+        .btn-primary {
             background: var(--primary);
             color: #fff;
-            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
         }
 
-        .action-btn.premium:hover {
+        .btn-primary:hover {
             background: var(--primary-dark);
         }
 
-        .footer-note {
-            margin-top: 20px;
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .status-box {
+            border-radius: 18px;
+            padding: 18px;
+            margin-top: 18px;
+            border: 1px solid var(--border);
+            background: #fff;
+        }
+
+        .status-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .status-box p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .status-box.success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .status-box.error {
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .status-box.info {
+            border-color: #cfe0ff;
+            background: #eff6ff;
+        }
+
+        .detail-list {
+            margin-top: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            font-size: 14px;
+        }
+
+        .detail-item span:first-child {
+            color: var(--muted);
+        }
+
+        .detail-item span:last-child {
+            text-align: right;
+            word-break: break-word;
+            font-weight: 700;
+        }
+
+        .notes {
+            display: grid;
+            gap: 14px;
+        }
+
+        .note-card {
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            padding: 20px;
+        }
+
+        .note-card h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .note-card p,
+        .note-card li {
             color: var(--muted);
             font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .note-card ul {
+            margin: 10px 0 0;
+            padding-left: 18px;
+        }
+
+        .inline-code {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #0f172a;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 640px) {
@@ -196,211 +333,364 @@
                 padding: 16px;
             }
 
-            .card-image {
-                height: 150px;
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .panel-header,
+            .panel-body {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .summary-row,
+            .detail-item {
+                flex-direction: column;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>AJartivo Design Store</h1>
-            <p>Razorpay Test Mode integration for FREE and PREMIUM design downloads.</p>
-
-            <div class="top-actions">
-                <!-- Demo login toggles so you can test login-check behavior quickly -->
-                <button type="button" id="mockLoginBtn">Mock Login</button>
-                <button type="button" id="mockLogoutBtn">Mock Logout</button>
-            </div>
-        </header>
-
-        <main>
-            <section class="grid" id="designGrid"></section>
-            <p class="footer-note">
-                Test Mode only. Key Secret is intentionally not used in frontend.
+    <div class="shell">
+        <section class="hero">
+            <span class="eyebrow">Standalone Razorpay Test</span>
+            <h1>Test payment flow without any Supabase call</h1>
+            <p>
+                Yeh page seedha backend ke test endpoints ko hit karta hai. Koi Supabase auth, product lookup,
+                ya purchase table dependency nahi hai.
             </p>
-        </main>
+        </section>
+
+        <section class="layout">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Create test payment</h2>
+                    <p>Amount aur buyer details dijiye, phir Razorpay checkout open hoga.</p>
+                </div>
+
+                <div class="panel-body">
+                    <form id="paymentForm" novalidate>
+                        <div class="grid">
+                            <div class="field">
+                                <label for="customerName">Customer name</label>
+                                <input id="customerName" name="customerName" type="text" value="AJartivo Test User" placeholder="Enter name">
+                            </div>
+
+                            <div class="field">
+                                <label for="customerEmail">Customer email</label>
+                                <input id="customerEmail" name="customerEmail" type="email" value="testuser@ajartivo.in" placeholder="Enter email">
+                            </div>
+
+                            <div class="field">
+                                <label for="customerContact">Customer contact</label>
+                                <input id="customerContact" name="customerContact" type="tel" value="9999999999" placeholder="10 digit number">
+                            </div>
+
+                            <div class="field">
+                                <label for="amount">Amount in INR</label>
+                                <input id="amount" name="amount" type="number" min="1" step="0.01" value="1" placeholder="1">
+                            </div>
+
+                            <div class="field full">
+                                <label for="description">Payment description</label>
+                                <textarea id="description" name="description" placeholder="Standalone Razorpay test payment">AJartivo standalone Razorpay test payment</textarea>
+                            </div>
+
+                            <div class="field full">
+                                <label for="backendUrl">Backend URL</label>
+                                <input id="backendUrl" name="backendUrl" type="url" placeholder="http://localhost:5000">
+                            </div>
+                        </div>
+
+                        <div class="summary" id="summaryBox">
+                            <strong>Checkout summary</strong>
+                            <div class="summary-row">
+                                <span>Mode</span>
+                                <span>Razorpay test order</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Supabase usage</span>
+                                <span>Disabled</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Payable amount</span>
+                                <span id="summaryAmount">Rs. 1.00</span>
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-primary" id="payButton" type="submit">Pay with Razorpay</button>
+                            <button class="btn btn-secondary" id="resetButton" type="button">Reset result</button>
+                        </div>
+                    </form>
+
+                    <div class="status-box info" id="statusBox">
+                        <strong>Ready</strong>
+                        <p>Backend start karke form submit kariye. Checkout ke baad verification response yahin dikh jayega.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notes">
+                <div class="note-card">
+                    <h3>How this test works</h3>
+                    <ul>
+                        <li>Page <span class="inline-code">/test/create-order</span> call karta hai.</li>
+                        <li>Checkout success ke baad <span class="inline-code">/test/verify-payment</span> hit hota hai.</li>
+                        <li>Koi Supabase token, login, product table, ya purchases table use nahi hoti.</li>
+                    </ul>
+                </div>
+
+                <div class="note-card">
+                    <h3>What you need</h3>
+                    <ul>
+                        <li>Backend ke <span class="inline-code">RAZORPAY_KEY_ID</span> aur <span class="inline-code">RAZORPAY_KEY_SECRET</span> set hone chahiye.</li>
+                        <li>Page ko local server se open karein, for example Live Server.</li>
+                        <li>Razorpay dashboard ke test instruments use karein, live credentials nahi.</li>
+                    </ul>
+                </div>
+
+                <div class="note-card">
+                    <h3>Verified response</h3>
+                    <p>Successful verification ke baad order ID, payment ID, status, method, email, aur capture time show hota hai.</p>
+                    <div class="detail-list" id="resultDetails"></div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
-        // Razorpay Test Key ID (safe for frontend in test mode)
-        const RAZORPAY_KEY_ID = "rzp_test_S0J9wQ1HstsZ4d";
+        (function () {
+            const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
 
-        // Design dataset (replace fileUrl/image with your real uploaded files)
-        const designs = [
-            {
-                id: "d1",
-                title: "Festival Poster Pack",
-                image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900",
-                type: "FREE",
-                amount: 0,
-                fileUrl: "/downloads/festival-poster-pack.zip"
-            },
-            {
-                id: "d2",
-                title: "Premium Business Flyer",
-                image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=900",
-                type: "PREMIUM",
-                amount: 500,
-                fileUrl: "/downloads/premium-business-flyer.zip"
-            },
-            {
-                id: "d3",
-                title: "Social Media Bundle",
-                image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=900",
-                type: "PREMIUM",
-                amount: 799,
-                fileUrl: "/downloads/social-media-bundle.zip"
-            },
-            {
-                id: "d4",
-                title: "Free Wedding Invitation",
-                image: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900",
-                type: "FREE",
-                amount: 0,
-                fileUrl: "/downloads/free-wedding-invitation.zip"
-            }
-        ];
+            const form = document.getElementById("paymentForm");
+            const amountInput = document.getElementById("amount");
+            const backendUrlInput = document.getElementById("backendUrl");
+            const payButton = document.getElementById("payButton");
+            const resetButton = document.getElementById("resetButton");
+            const summaryAmount = document.getElementById("summaryAmount");
+            const statusBox = document.getElementById("statusBox");
+            const resultDetails = document.getElementById("resultDetails");
 
-        const designGrid = document.getElementById("designGrid");
-        const mockLoginBtn = document.getElementById("mockLoginBtn");
-        const mockLogoutBtn = document.getElementById("mockLogoutBtn");
+            backendUrlInput.value = resolveBackendBaseUrl();
+            updateSummary();
 
-        renderCards();
-        bindMockLoginButtons();
+            amountInput.addEventListener("input", updateSummary);
+            resetButton.addEventListener("click", resetResult);
+            form.addEventListener("submit", handleSubmit);
 
-        function renderCards() {
-            designGrid.innerHTML = designs.map((design) => {
-                const isFree = design.type === "FREE";
-                const price = isFree ? "Free" : `₹${Number(design.amount || 0)}`;
-                const btnText = isFree ? "Download Free" : "Buy & Download";
+            async function handleSubmit(event) {
+                event.preventDefault();
 
-                return `
-                    <article class="card">
-                        <img class="card-image" src="${escapeHtml(design.image)}" alt="${escapeHtml(design.title)}">
-                        <div class="card-body">
-                            <h3 class="card-title">${escapeHtml(design.title)}</h3>
-                            <div class="card-meta">
-                                <span class="badge ${isFree ? "free" : "premium"}">${design.type}</span>
-                                <span class="price">${price}</span>
-                            </div>
-                            <button
-                                type="button"
-                                class="action-btn ${isFree ? "free" : "premium"}"
-                                data-design-id="${escapeHtml(design.id)}"
-                            >
-                                ${btnText}
-                            </button>
-                        </div>
-                    </article>
-                `;
-            }).join("");
-
-            designGrid.querySelectorAll("button[data-design-id]").forEach((button) => {
-                button.addEventListener("click", () => {
-                    const designId = button.getAttribute("data-design-id");
-                    const selectedDesign = designs.find((item) => item.id === designId);
-                    if (!selectedDesign) return;
-                    handleDesignAction(selectedDesign);
-                });
-            });
-        }
-
-        function handleDesignAction(design) {
-            // Login check for both FREE and PREMIUM flow
-            if (!isUserLoggedIn()) {
-                alert("Login required");
-                return;
-            }
-
-            if (design.type === "FREE") {
-                downloadFile(design);
-                return;
-            }
-
-            openRazorpayCheckout(design);
-        }
-
-        function openRazorpayCheckout(design) {
-            const amountInPaise = Math.round(Number(design.amount || 0) * 100);
-
-            if (!amountInPaise || amountInPaise < 100) {
-                alert("Invalid premium amount.");
-                return;
-            }
-
-            const options = {
-                key: RAZORPAY_KEY_ID,
-                amount: amountInPaise,
-                currency: "INR",
-                name: "AJartivo",
-                description: "Design Purchase",
-                image: "https://ajartivo.in/ajartivo.ico",
-                // In production: create order_id from secure backend and use here
-                handler: function () {
-                    alert("Payment Successful");
-                    // Only the purchased design file is downloaded after success
-                    downloadFile(design);
-                },
-                prefill: {
-                    name: "AJartivo Test User",
-                    email: "testuser@ajartivo.in",
-                    contact: "9999999999"
-                },
-                theme: {
-                    color: "#2563eb"
-                },
-                modal: {
-                    ondismiss: function () {
-                        console.log("Payment popup closed by user.");
-                    }
+                if (typeof window.Razorpay === "undefined") {
+                    setStatus("error", "Checkout script missing", "Razorpay checkout load nahi hua.");
+                    return;
                 }
-            };
 
-            const razorpay = new Razorpay(options);
+                const payload = readForm();
+                if (!payload) {
+                    return;
+                }
 
-            razorpay.on("payment.failed", function (response) {
-                console.error("Payment failed:", response.error);
-                alert("Payment failed. Please retry in test mode.");
-            });
+                setBusy(true);
+                setStatus("info", "Creating order", "Backend se Razorpay test order create ho raha hai...");
+                renderDetails([]);
 
-            razorpay.open();
-        }
+                try {
+                    const order = await postJson("/test/create-order", {
+                        amount: payload.amount,
+                        customer_name: payload.customerName,
+                        customer_email: payload.customerEmail,
+                        description: payload.description
+                    }, payload.backendUrl);
 
-        function downloadFile(design) {
-            const link = document.createElement("a");
-            link.href = design.fileUrl;
-            link.download = "";
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        }
+                    openCheckout(order, payload);
+                } catch (error) {
+                    setBusy(false);
+                    setStatus("error", "Order creation failed", cleanMessage(error));
+                }
+            }
 
-        function isUserLoggedIn() {
-            return localStorage.getItem("ajartivo_logged_in") === "true";
-        }
+            function openCheckout(order, payload) {
+                const checkout = new window.Razorpay({
+                    key: String(order.key || ""),
+                    amount: Number(order.amount || 0),
+                    currency: String(order.currency || "INR"),
+                    name: "AJartivo",
+                    description: String(order.description || payload.description || "Standalone test payment"),
+                    order_id: String(order.order_id || ""),
+                    prefill: {
+                        name: payload.customerName,
+                        email: payload.customerEmail,
+                        contact: payload.customerContact
+                    },
+                    notes: {
+                        mode: "standalone_test"
+                    },
+                    theme: {
+                        color: "#0f6cbd"
+                    },
+                    handler: async function (response) {
+                        setStatus("info", "Verifying payment", "Payment complete hua, backend verification chal rahi hai...");
 
-        function bindMockLoginButtons() {
-            mockLoginBtn.addEventListener("click", function () {
-                localStorage.setItem("ajartivo_logged_in", "true");
-                alert("Mock login enabled");
-            });
+                        try {
+                            const verification = await postJson("/test/verify-payment", response, payload.backendUrl);
+                            setStatus("success", "Payment verified", "Razorpay payment successfully verify ho gaya.");
+                            renderDetails([
+                                ["Order ID", verification.order_id],
+                                ["Payment ID", verification.payment_id],
+                                ["Amount", formatMoneyFromPaise(verification.amount)],
+                                ["Currency", verification.currency],
+                                ["Status", verification.status],
+                                ["Method", verification.method],
+                                ["Email", verification.email || payload.customerEmail],
+                                ["Contact", verification.contact || payload.customerContact],
+                                ["Captured at", verification.captured_at || "N/A"]
+                            ]);
+                        } catch (error) {
+                            setStatus("error", "Verification failed", cleanMessage(error));
+                            renderDetails([]);
+                        } finally {
+                            setBusy(false);
+                        }
+                    },
+                    modal: {
+                        ondismiss: function () {
+                            setBusy(false);
+                            setStatus("info", "Checkout closed", "Payment popup user ne close kar diya.");
+                        }
+                    }
+                });
 
-            mockLogoutBtn.addEventListener("click", function () {
-                localStorage.removeItem("ajartivo_logged_in");
-                alert("Mock login removed");
-            });
-        }
+                checkout.on("payment.failed", function (response) {
+                    setBusy(false);
+                    const description = response && response.error && response.error.description
+                        ? response.error.description
+                        : "Payment failed. Please try again.";
+                    setStatus("error", "Payment failed", description);
+                });
 
-        function escapeHtml(value) {
-            return String(value)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
-        }
+                checkout.open();
+            }
+
+            function readForm() {
+                const amount = Number(amountInput.value);
+                const customerName = document.getElementById("customerName").value.trim();
+                const customerEmail = document.getElementById("customerEmail").value.trim();
+                const customerContact = document.getElementById("customerContact").value.trim();
+                const description = document.getElementById("description").value.trim();
+                const backendUrl = backendUrlInput.value.trim().replace(/\/+$/, "");
+
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    setStatus("error", "Invalid amount", "Amount 0 se bada hona chahiye.");
+                    return null;
+                }
+
+                if (!backendUrl) {
+                    setStatus("error", "Backend URL missing", "Backend URL zaroori hai.");
+                    return null;
+                }
+
+                if (!customerEmail) {
+                    setStatus("error", "Email missing", "Customer email bhariye.");
+                    return null;
+                }
+
+                return {
+                    amount: amount,
+                    customerName: customerName || "AJartivo Test User",
+                    customerEmail: customerEmail,
+                    customerContact: customerContact || "9999999999",
+                    description: description || "AJartivo standalone Razorpay test payment",
+                    backendUrl: backendUrl
+                };
+            }
+
+            function updateSummary() {
+                const amount = Number(amountInput.value);
+                const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+                summaryAmount.textContent = `Rs. ${safeAmount.toFixed(2)}`;
+            }
+
+            function resolveBackendBaseUrl() {
+                const configured = (window.AJARTIVO_BACKEND_URL || "").trim();
+                if (configured) {
+                    return configured.replace(/\/+$/, "");
+                }
+
+                return LOCAL_BACKEND_BASE_URL;
+            }
+
+            async function postJson(route, payload, backendBaseUrl) {
+                const response = await fetch(`${backendBaseUrl}${route}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload || {})
+                }).catch(function () {
+                    throw new Error(`Backend reachable nahi hai at ${backendBaseUrl}.`);
+                });
+
+                const data = await response.json().catch(function () {
+                    return {};
+                });
+
+                if (!response.ok) {
+                    throw new Error(data.error || `Request failed with HTTP ${response.status}.`);
+                }
+
+                return data;
+            }
+
+            function setBusy(busy) {
+                payButton.disabled = busy;
+                payButton.textContent = busy ? "Processing..." : "Pay with Razorpay";
+            }
+
+            function setStatus(type, title, message) {
+                statusBox.className = `status-box ${type}`;
+                statusBox.innerHTML = `
+                    <strong>${escapeHtml(title)}</strong>
+                    <p>${escapeHtml(message)}</p>
+                `;
+            }
+
+            function renderDetails(items) {
+                resultDetails.innerHTML = items.map(function (entry) {
+                    return `
+                        <div class="detail-item">
+                            <span>${escapeHtml(entry[0])}</span>
+                            <span>${escapeHtml(entry[1] || "N/A")}</span>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            function resetResult() {
+                setBusy(false);
+                renderDetails([]);
+                setStatus("info", "Ready", "Fresh test run ke liye form submit kariye.");
+            }
+
+            function formatMoneyFromPaise(amount) {
+                const value = Number(amount || 0) / 100;
+                return `Rs. ${value.toFixed(2)}`;
+            }
+
+            function cleanMessage(error) {
+                return error && error.message ? error.message : "Unexpected error.";
+            }
+
+            function escapeHtml(value) {
+                return String(value || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+        })();
     </script>
 </body>
 </html>
