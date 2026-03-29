@@ -2,7 +2,7 @@
     const services = window.AjArtivoSupabase;
     if (!services) return;
 
-    const BACKEND_BASE_URL = "http://localhost:5000";
+    const BACKEND_BASE_URL = https://ajartivo-in.onrender.com;
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
