@@ -760,6 +760,14 @@
             };
         }
 
+        if (signedIn && isFreeDesign(product)) {
+            return {
+                mode: "download",
+                idleText: "Download",
+                busyText: "Preparing..."
+            };
+        }
+
         if (!signedIn) {
             return {
                 mode: "login-buy",

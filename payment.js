@@ -56,6 +56,11 @@
             return;
         }
 
+        if (isFreeDownload(item)) {
+            await downloadFile(item, authContext);
+            return;
+        }
+
         try {
             const summary = await fetchDownloadAccess(item.id, authContext);
             await openAccessPopup(item, summary, authContext);
@@ -656,6 +661,11 @@
     function hasDownloadAccess(product) {
         const item = services.normalizeProduct(product);
         return item.is_free === true || item.has_access === true || item.isPurchased === true || item.is_purchased === true;
+    }
+
+    function isFreeDownload(product) {
+        const item = services.normalizeProduct(product);
+        return item.is_free === true || (item.is_paid !== true && Number(item.price || 0) <= 0);
     }
 
     async function toggleWishlist(product) {

@@ -53,39 +53,15 @@ function buildDesignAccessDecision(context) {
     }
 
     if (isFreeDesign) {
-        if (premiumActive) {
-            return createAccessDecision({
-                allowed: true,
-                grantType: "premium_free",
-                status: "premium",
-                message: `Premium Active: Unlimited free downloads. You have ${weeklyRemaining} out of ${config.limits.premiumWeeklyDownloads} premium downloads remaining this week.`,
-                canBuy: false,
-                canUpgrade: false,
-                freeRemaining: freeRemaining,
-                weeklyRemaining: weeklyRemaining
-            });
-        }
-
-        if (freeRemaining > 0) {
-            return createAccessDecision({
-                allowed: true,
-                grantType: "free_lifetime",
-                status: "free",
-                message: `You have ${freeRemaining} out of ${config.limits.freeLifetimeDownloads} free downloads remaining.`,
-                canBuy: false,
-                canUpgrade: true,
-                freeRemaining: freeRemaining,
-                weeklyRemaining: weeklyRemaining
-            });
-        }
-
         return createAccessDecision({
-            allowed: false,
-            grantType: "none",
-            status: "limit_reached",
-            message: "Your free download limit is over. Upgrade to continue.",
-            canBuy: canBuy,
-            canUpgrade: true,
+            allowed: true,
+            grantType: "free_login",
+            status: premiumActive ? "premium" : "free",
+            message: premiumActive
+                ? "Premium Active: Free designs download instantly after login."
+                : "Free design unlocked. Logged-in members can download instantly.",
+            canBuy: false,
+            canUpgrade: false,
             freeRemaining: freeRemaining,
             weeklyRemaining: weeklyRemaining
         });
