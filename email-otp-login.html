@@ -415,7 +415,7 @@
                     <strong id="sessionTitle">You are logged in</strong>
                     <span id="sessionEmail">user@example.com</span>
                     <div class="actions">
-                        <button id="goDashboardBtn" class="button button-primary" type="button">Go to Dashboard</button>
+                        <button id="goDashboardBtn" class="button button-primary" type="button">Go to Home</button>
                         <button id="logoutBtn" class="button button-secondary" type="button">Logout</button>
                     </div>
                 </div>
@@ -431,7 +431,7 @@
     <script>
         const SUPABASE_URL = "https://hlmyjnslyijgdrfuktun.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_VZYzXaf0npSI8sdhgsIFjQ_1i-SMZY6";
-        const DASHBOARD_URL = `${window.location.origin}/dashboard.html`;
+        const HOME_URL = `${window.location.origin}/index.html`;
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
@@ -513,7 +513,7 @@
             });
 
             goDashboardBtn.addEventListener("click", function () {
-                window.location.href = DASHBOARD_URL;
+                window.location.href = HOME_URL;
             });
 
             logoutBtn.addEventListener("click", async function () {
@@ -626,10 +626,10 @@
                 }
 
                 handleLoggedInSession(data.session);
-                setStatus("OTP verified successfully. Redirecting to dashboard...", "success");
+                setStatus("OTP verified successfully. Redirecting to home page...", "success");
 
                 window.setTimeout(function () {
-                    window.location.href = DASHBOARD_URL;
+                    window.location.href = HOME_URL;
                 }, 900);
             } catch (error) {
                 setStatus(resolveOtpError(error, "verify"), "error");

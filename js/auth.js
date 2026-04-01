@@ -5,7 +5,7 @@
     const supabase = services.client;
     const HOME_PATH = "/index.html";
     const LOGIN_PATH = "/login.html";
-    const DEFAULT_NEXT = "/dashboard.html";
+    const DEFAULT_NEXT = HOME_PATH;
     const RESEND_SECONDS = 60;
 
     const ui = {};
