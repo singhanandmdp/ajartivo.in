@@ -100,8 +100,8 @@
         }
 
         return {
-            label: product.is_paid ? "PREMIUM" : "FREE",
-            className: product.is_paid ? "premium" : "free",
+            label: product.is_premium ? "PREMIUM" : "FREE",
+            className: product.is_premium ? "premium" : "free",
             styleAttr: ""
         };
     }

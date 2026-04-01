@@ -58,6 +58,13 @@ h2 {
     font-weight: 600;
 }
 
+.signup-note {
+    margin-bottom: 18px;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
 /* --- 4. Input & Floating Label Logic --- */
 .input-box {
     position: relative;
@@ -116,6 +123,22 @@ h2 {
 .signup-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 30px rgba(37, 99, 235, 0.5);
+}
+
+.auth-message {
+    margin-top: 14px;
+    min-height: 22px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+
+.auth-message.is-error {
+    color: #fca5a5;
+}
+
+.auth-message.is-success {
+    color: #86efac;
 }
 
 .divider {

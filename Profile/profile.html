@@ -35,24 +35,126 @@
 
                 <div id="userData" class="profile-info-grid">
                     <article class="profile-info-box">
-                        <span>Name</span>
-                        <strong>User Name</strong>
+                        <span>First name</span>
+                        <strong>User</strong>
                     </article>
                     <article class="profile-info-box">
-                        <span>Email</span>
-                        <strong>user@email.com</strong>
+                        <span>Last name</span>
+                        <strong>Name</strong>
+                    </article>
+                    <article class="profile-info-box">
+                        <span>Address</span>
+                        <strong>Not added</strong>
+                    </article>
+                    <article class="profile-info-box">
+                        <span>Mobile number</span>
+                        <strong>Not added</strong>
                     </article>
                 </div>
+
+                <section class="profile-data-section">
+                    <div class="profile-section-head">
+                        <div>
+                            <p class="profile-kicker">Personal details</p>
+                            <h3>Edit Profile</h3>
+                        </div>
+                        <span class="profile-section-pill">Public identity</span>
+                    </div>
+                    <form id="profileDetailsForm" class="profile-form-card">
+                        <div class="profile-form-grid">
+                            <label class="profile-field">
+                                <span>First name</span>
+                                <input id="profileFirstName" type="text" placeholder="First name" autocomplete="given-name" required>
+                            </label>
+                            <label class="profile-field">
+                                <span>Last name</span>
+                                <input id="profileLastName" type="text" placeholder="Last name" autocomplete="family-name">
+                            </label>
+                            <label class="profile-field profile-field-wide">
+                                <span>Address</span>
+                                <input id="profileAddress" type="text" placeholder="Address" autocomplete="street-address">
+                            </label>
+                            <label class="profile-field profile-field-wide">
+                                <span>Mobile number</span>
+                                <input id="profileMobileNumber" type="tel" placeholder="Mobile number" autocomplete="tel" inputmode="tel">
+                            </label>
+                            <label class="profile-field profile-field-wide">
+                                <span>Email address</span>
+                                <input id="profileEmailField" type="email" placeholder="Email address" autocomplete="email" disabled>
+                            </label>
+                        </div>
+                        <div class="profile-form-actions">
+                            <p id="profileDetailsStatus" class="profile-form-status" hidden></p>
+                            <button id="profileSaveBtn" type="submit" class="profile-primary-btn">Save Changes</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="profile-data-section">
+                    <div class="profile-section-head">
+                        <div>
+                            <p class="profile-kicker">Security</p>
+                            <h3>Change Password</h3>
+                        </div>
+                        <span class="profile-section-pill">Secure access</span>
+                    </div>
+                    <form id="passwordChangeForm" class="profile-form-card">
+                        <div class="profile-form-grid">
+                            <label class="profile-field">
+                                <span>New password</span>
+                                <input id="profileNewPassword" type="password" placeholder="New password" autocomplete="new-password" required>
+                            </label>
+                            <label class="profile-field">
+                                <span>Confirm password</span>
+                                <input id="profileConfirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
+                            </label>
+                        </div>
+                        <div class="profile-form-actions">
+                            <p id="passwordChangeStatus" class="profile-form-status" hidden></p>
+                            <button id="passwordSaveBtn" type="submit" class="profile-primary-btn">Update Password</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="profile-data-section">
+                    <div class="profile-section-head">
+                        <div>
+                            <p class="profile-kicker">Membership</p>
+                            <h3>Download Benefits</h3>
+                        </div>
+                        <span class="profile-section-pill" id="accountPlanBadge">Free Member</span>
+                    </div>
+                    <div class="profile-info-grid" id="accountBenefitGrid">
+                        <article class="profile-info-box">
+                            <span>Free downloads remaining</span>
+                            <strong id="accountFreeRemaining">0 / 5</strong>
+                        </article>
+                        <article class="profile-info-box">
+                            <span>Weekly premium remaining</span>
+                            <strong id="accountWeeklyRemaining">0 / 2</strong>
+                        </article>
+                        <article class="profile-info-box">
+                            <span>Premium expiry</span>
+                            <strong id="accountPremiumExpiry">Not active</strong>
+                        </article>
+                        <article class="profile-info-box">
+                            <span>Access summary</span>
+                            <strong id="accountAccessSummary">Upgrade to unlock premium benefits.</strong>
+                        </article>
+                    </div>
+                </section>
             </section>
         </section>
     </main>
 
     <div id="site-footer"></div>
 
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/js/supabase-config.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/script.js"></script>
+    <script src="/payment.js"></script>
     <script src="/js/profile-page.js"></script>
 </body>
 

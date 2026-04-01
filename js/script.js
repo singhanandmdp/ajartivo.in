@@ -14,6 +14,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+window.addEventListener("ajartivo:session-changed", () => {
+    initAuthUI();
+});
+
+window.addEventListener("ajartivo:account-updated", () => {
+    initAuthUI();
+});
+
 function initQuickCategoryNavigation() {
     const cards = document.querySelectorAll(".quick-category-grid .category-card[data-category]");
     if (!cards.length) return;
@@ -688,8 +696,7 @@ function isPremiumDesign(design) {
         return window.AjArtivoPayment.isPremiumDesign(design);
     }
 
-    const amount = Number(design && design.price ? design.price : 0);
-    return Number.isFinite(amount) && amount > 0;
+    return Boolean(design && design.is_premium === true);
 }
 
 function normalizeDesignFormat(design) {
@@ -1058,6 +1065,7 @@ function initAuthUI() {
     const guestMenu = document.getElementById("guestMenu");
     const userMenu = document.getElementById("userMenu");
     const userName = document.getElementById("userName");
+    const headerPlanBadge = document.getElementById("headerPlanBadge");
     const memberBox = document.getElementById("memberAccess");
     const headerAvatar = document.getElementById("headerAvatar");
     const profileCardAvatar = document.getElementById("profileCardAvatar");
@@ -1065,13 +1073,32 @@ function initAuthUI() {
     const profileUserId = document.getElementById("profileUserId");
     const profileInitial = document.getElementById("profileInitial");
     const profileVerifiedText = document.getElementById("profileVerifiedText");
+    const profilePlanBadge = document.getElementById("profilePlanBadge");
+    const profileExpiryText = document.getElementById("profileExpiryText");
+    const profileFreeCounter = document.getElementById("profileFreeCounter");
+    const profileWeeklyCounter = document.getElementById("profileWeeklyCounter");
+    const profileUpgradeCtaText = document.getElementById("profileUpgradeCtaText");
 
     if (user) {
-        const displayName = user.name || user.email || "User";
-        const firstName = displayName.trim().split(/\s+/)[0];
-        const firstLetter = firstName.charAt(0).toUpperCase();
+        const displayName = user.fullName || user.name || user.email || "User";
+        const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || "User";
+        const firstLetter = firstName.charAt(0).toUpperCase() || "U";
         const shortId = (user.id || "AJ000001").slice(0, 8).toUpperCase();
         const avatarDataUrl = createLetterAvatar(firstLetter);
+        const premiumActive = user.premiumActive === true;
+        const premiumLabel = premiumActive ? "Premium Active" : "Free Member";
+        const freeRemaining = Number(user.freeDownloadRemaining || 0);
+        const weeklyRemaining = Number(user.weeklyPremiumRemaining || 0);
+        const premiumExpiry = user.premiumExpiry
+            ? new Date(user.premiumExpiry).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            })
+            : "";
+        const expiryLabel = premiumActive && premiumExpiry
+            ? `Active until ${premiumExpiry}`
+            : "Upgrade to unlock premium benefits";
 
         if (guestMenu && userMenu) {
             guestMenu.style.display = "none";
@@ -1080,6 +1107,10 @@ function initAuthUI() {
 
         if (userName) {
             userName.textContent = firstName;
+        }
+
+        if (headerPlanBadge) {
+            headerPlanBadge.textContent = premiumLabel;
         }
 
         if (headerAvatar) {
@@ -1091,11 +1122,11 @@ function initAuthUI() {
         }
 
         if (profileFullName) {
-            profileFullName.textContent = displayName;
+            profileFullName.textContent = firstName;
         }
 
         if (profileUserId) {
-            profileUserId.textContent = `ID: ${shortId}`;
+            profileUserId.textContent = user.email || `ID: ${shortId}`;
         }
 
         if (profileInitial) {
@@ -1103,18 +1134,38 @@ function initAuthUI() {
         }
 
         if (profileVerifiedText) {
-            profileVerifiedText.textContent = "Local session";
+            profileVerifiedText.textContent = premiumLabel;
+        }
+
+        if (profilePlanBadge) {
+            profilePlanBadge.textContent = premiumLabel;
+        }
+
+        if (profileExpiryText) {
+            profileExpiryText.textContent = expiryLabel;
+        }
+
+        if (profileFreeCounter) {
+            profileFreeCounter.textContent = String(freeRemaining);
+        }
+
+        if (profileWeeklyCounter) {
+            profileWeeklyCounter.textContent = String(weeklyRemaining);
+        }
+
+        if (profileUpgradeCtaText) {
+            profileUpgradeCtaText.textContent = premiumActive ? "Manage Premium Plan" : "Upgrade to Premium";
         }
 
         if (memberBox) {
             memberBox.classList.add("logged-in");
             memberBox.innerHTML = `
                 <div class="member-account-row">
-                    <a href="/pages/profile.html" class="member-user">
+                    <a href="/dashboard.html" class="member-user">
                         <div class="member-avatar-letter">${firstLetter}</div>
                         <div class="member-user-text">
                             <strong>${firstName}</strong>
-                            <span>ID: ${shortId}</span>
+                            <span>${premiumLabel} • ID: ${shortId}</span>
                         </div>
                     </a>
                     <a href="#" id="sidebarLogout" class="sidebar-logout">Logout</a>

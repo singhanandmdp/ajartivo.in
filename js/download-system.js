@@ -93,7 +93,15 @@
         });
 
         window.addEventListener("ajartivo:session-changed", function () {
-            if (!currentProduct || isFreeDesign(currentProduct)) {
+            if (!currentProduct) {
+                return;
+            }
+
+            refreshProductAccess(currentProduct);
+        });
+
+        window.addEventListener("ajartivo:account-updated", function () {
+            if (!currentProduct) {
                 return;
             }
 
@@ -128,19 +136,6 @@
         const requestId = accessRequestId + 1;
         accessRequestId = requestId;
 
-        if (isFreeDesign(normalizedProduct)) {
-            currentAccessState = createAccessState({
-                loading: false,
-                checked: true,
-                hasAccess: true,
-                reason: "free",
-                userEmail: getCurrentUserEmail()
-            });
-            currentProduct = applyAccessState(normalizedProduct, currentAccessState);
-            updateAccessUi(currentProduct, currentAccessState);
-            return currentProduct;
-        }
-
         currentAccessState = createAccessState({
             loading: true,
             checked: false,
@@ -162,37 +157,65 @@
     }
 
     async function resolveProductAccess(product) {
-        if (isFreeDesign(product)) {
-            return createAccessState({
-                loading: false,
-                checked: true,
-                hasAccess: true,
-                reason: "free",
-                userEmail: getCurrentUserEmail()
-            });
-        }
-
         const userSession = getCurrentUserSession();
         if (!userSession) {
             return createAccessState({
                 loading: false,
                 checked: true,
                 hasAccess: false,
-                reason: "paid",
-                userEmail: ""
+                reason: "login_required",
+                userEmail: "",
+                message: isFreeDesign(product)
+                    ? "Log in to download this free design."
+                    : "Log in first to review your access options."
             });
         }
 
-        const hasPurchase = services.hasPurchasedDesign
-            ? await services.hasPurchasedDesign(userSession, product.id)
-            : false;
+        if (window.AjArtivoPayment && typeof window.AjArtivoPayment.fetchDownloadAccess === "function") {
+            try {
+                const authSession = await services.getAuthSession({ sync: false });
+                const summary = await window.AjArtivoPayment.fetchDownloadAccess(product.id, {
+                    id: cleanText(authSession && authSession.user && authSession.user.id),
+                    email: cleanText(authSession && authSession.user && authSession.user.email).toLowerCase(),
+                    accessToken: cleanText(authSession && authSession.access_token)
+                });
+
+                return createAccessState({
+                    loading: false,
+                    checked: true,
+                    hasAccess: Boolean(summary && summary.access && summary.access.allowed),
+                    reason: cleanText(summary && summary.access && summary.access.status) || "restricted",
+                    userEmail: cleanText(userSession.email).toLowerCase(),
+                    message: cleanText(summary && summary.access && summary.access.message),
+                    freeRemaining: Number(summary && summary.account && summary.account.free_download_remaining || 0),
+                    weeklyPremiumRemaining: Number(summary && summary.account && summary.account.weekly_premium_remaining || 0),
+                    premiumActive: Boolean(summary && summary.account && summary.account.premium_active),
+                    canBuy: Boolean(summary && summary.access && summary.access.can_buy),
+                    canUpgrade: Boolean(summary && summary.access && summary.access.can_upgrade)
+                });
+            } catch (error) {
+                console.error("Access summary load failed:", error);
+
+                return createAccessState({
+                    loading: false,
+                    checked: true,
+                    hasAccess: false,
+                    reason: "unavailable",
+                    userEmail: cleanText(userSession.email).toLowerCase(),
+                    message: resolveAccessFailureMessage(error, product),
+                    canBuy: isFreeDesign(product) !== true,
+                    canUpgrade: isFreeDesign(product) !== true
+                });
+            }
+        }
 
         return createAccessState({
             loading: false,
             checked: true,
-            hasAccess: hasPurchase,
-            reason: hasPurchase ? "purchased" : "paid",
-            userEmail: cleanText(userSession.email).toLowerCase()
+            hasAccess: false,
+            reason: "restricted",
+            userEmail: cleanText(userSession.email).toLowerCase(),
+            message: "Access could not be confirmed right now."
         });
     }
 
@@ -204,11 +227,19 @@
 
         setText("galleryAccess", isFree ? "Free" : unlocked ? "Unlocked" : "Premium");
         setText("productPriceNote", resolvePriceNote(normalizedProduct, accessState));
+        setText("membershipBadge", accessState && accessState.premiumActive ? "Premium Active" : "Free Member");
+        setText("freeDownloadRemaining", `${Number(accessState && accessState.freeRemaining || 0)} / 5 remaining`);
+        setText("weeklyPremiumRemaining", `${Number(accessState && accessState.weeklyPremiumRemaining || 0)} / 2 remaining`);
+        setText("downloadAccessStatus", resolveAccessHeadline(normalizedProduct, accessState));
         renderFeatures(normalizedProduct, type);
         bindActionButton(normalizedProduct, accessState);
     }
 
     function resolvePriceNote(product, accessState) {
+        if (accessState && cleanText(accessState.message)) {
+            return accessState.message;
+        }
+
         const signedIn = Boolean(getCurrentUserEmail());
 
         if (accessState && accessState.loading) {
@@ -219,7 +250,7 @@
             if (!signedIn) {
                 return "Log in from the popup to download this free product.";
             }
-            return "This is a free product. Download starts instantly.";
+            return "We will verify your free download access before the file is delivered.";
         }
 
         if (hasDownloadAccess(product)) {
@@ -233,17 +264,49 @@
         return "This is a paid product. Use Buy Now to continue.";
     }
 
-    function deriveInitialAccessState(product) {
-        if (isFreeDesign(product)) {
-            return createAccessState({
-                loading: false,
-                checked: true,
-                hasAccess: true,
-                reason: "free",
-                userEmail: getCurrentUserEmail()
-            });
+    function resolveAccessHeadline(product, accessState) {
+        if (accessState && accessState.loading) {
+            return "Checking your download access";
         }
 
+        if (accessState && accessState.premiumActive) {
+            return isFreeDesign(product)
+                ? "Premium access: unlimited free downloads"
+                : "Premium access with weekly premium allowance";
+        }
+
+        if (hasDownloadAccess(product)) {
+            return "Download unlocked for your account";
+        }
+
+        if (isFreeDesign(product)) {
+            return "Free member download rules apply";
+        }
+
+        return "Purchase or premium upgrade required";
+    }
+
+    function resolveAccessFailureMessage(error, product) {
+        const message = cleanText(error && error.message).toLowerCase();
+
+        if (message.includes("did not respond in time") || message.includes("timeout") || message.includes("aborted")) {
+            return isFreeDesign(product)
+                ? "Access check timed out. Tap Download to try again."
+                : "Access check timed out. Tap Download Options to try again.";
+        }
+
+        if (message.includes("not reachable") || message.includes("failed to fetch") || message.includes("network")) {
+            return isFreeDesign(product)
+                ? "Access service is unavailable. Tap Download to retry."
+                : "Access service is unavailable. Tap Download Options to retry.";
+        }
+
+        return isFreeDesign(product)
+            ? "Access could not be confirmed right now. Tap Download to retry."
+            : "Access could not be confirmed right now. Tap Download Options to retry.";
+    }
+
+    function deriveInitialAccessState(product) {
         if (hasDownloadAccess(product)) {
             return createAccessState({
                 loading: false,
@@ -251,6 +314,19 @@
                 hasAccess: true,
                 reason: "purchased",
                 userEmail: getCurrentUserEmail()
+            });
+        }
+
+        if (!getCurrentUserSession()) {
+            return createAccessState({
+                loading: false,
+                checked: true,
+                hasAccess: false,
+                reason: "login_required",
+                userEmail: "",
+                message: isFreeDesign(product)
+                    ? "Log in to download this free design."
+                    : "Log in first to review your access options."
             });
         }
 
@@ -265,14 +341,24 @@
 
     function applyAccessState(product, accessState) {
         const normalizedProduct = services.normalizeProduct(product);
-        const isFree = isFreeDesign(normalizedProduct);
-        const isPurchased = !isFree && Boolean(accessState && accessState.hasAccess);
+        const isPurchased = Boolean(
+            normalizedProduct.isPurchased === true ||
+            normalizedProduct.is_purchased === true ||
+            (accessState && accessState.reason === "purchased")
+        );
+        const hasAccess = Boolean(accessState && accessState.hasAccess);
 
         return services.normalizeProduct({
             ...normalizedProduct,
-            has_access: isFree || isPurchased,
+            has_access: hasAccess,
             isPurchased: isPurchased,
-            is_purchased: isPurchased
+            is_purchased: isPurchased,
+            premium_active: Boolean(accessState && accessState.premiumActive),
+            free_download_remaining: Number(accessState && accessState.freeRemaining || 0),
+            weekly_premium_remaining: Number(accessState && accessState.weeklyPremiumRemaining || 0),
+            access_message: cleanText(accessState && accessState.message),
+            can_buy: Boolean(accessState && accessState.canBuy),
+            can_upgrade: Boolean(accessState && accessState.canUpgrade)
         });
     }
 
@@ -283,6 +369,12 @@
             hasAccess: false,
             reason: "unknown",
             userEmail: "",
+            message: "",
+            freeRemaining: 0,
+            weeklyPremiumRemaining: 0,
+            premiumActive: false,
+            canBuy: false,
+            canUpgrade: false,
             ...(overrides || {})
         };
     }
@@ -331,7 +423,7 @@
         const features = [
             `${type} source file ready for creative work`,
             resolveAccessFeature(product),
-            product.protected_download_link || product.download_link ? "Secure delivery after access verification" : "Download link will be added soon",
+            product.download_enabled === true ? "Secure delivery after access verification" : "Download link will be added soon",
             `Category: ${type}`
         ];
 
@@ -343,6 +435,10 @@
     function resolveAccessFeature(product) {
         if (isFreeDesign(product)) {
             return "Free product with account-based download";
+        }
+
+        if (product.premium_active === true) {
+            return `Premium membership active with ${Number(product.weekly_premium_remaining || 0)} weekly premium downloads remaining`;
         }
 
         if (hasDownloadAccess(product)) {
@@ -650,21 +746,13 @@
 
     function hasDownloadAccess(product) {
         const item = services.normalizeProduct(product);
-        return item.is_free === true || item.has_access === true || item.isPurchased === true || item.is_purchased === true;
+        return item.has_access === true || item.isPurchased === true || item.is_purchased === true;
     }
 
     function resolveActionButtonState(product) {
         const signedIn = Boolean(getCurrentUserEmail());
 
         if (hasDownloadAccess(product)) {
-            if (isFreeDesign(product) && !signedIn) {
-                return {
-                    mode: "login-download",
-                    idleText: "Login to Download",
-                    busyText: "Opening..."
-                };
-            }
-
             return {
                 mode: "download",
                 idleText: "Download",
@@ -675,14 +763,14 @@
         if (!signedIn) {
             return {
                 mode: "login-buy",
-                idleText: "Login to Buy",
+                idleText: "Login to Continue",
                 busyText: "Opening..."
             };
         }
 
         return {
-            mode: "buy",
-            idleText: "Buy Now",
+            mode: "review-access",
+            idleText: "Download Options",
             busyText: "Opening..."
         };
     }

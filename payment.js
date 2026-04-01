@@ -4,11 +4,15 @@
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
-    const BACKEND_BASE_URL = resolveBackendBaseUrl();
+    const API_BASE = resolveBackendBaseUrl();
+    const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
     window.AjArtivoPayment = {
         startDownloadFlow: startDownloadFlow,
         buyNow: buyNow,
+        upgradeToPremium: upgradeToPremium,
+        fetchDownloadAccess: fetchDownloadAccess,
+        refreshAccountSummary: refreshAccountSummary,
         hasDownloadAccess: hasDownloadAccess,
         isSignedIn: isSignedIn,
         isPremiumDesign: isPremiumDesign,
@@ -18,6 +22,7 @@
 
     let downloadPopupState = null;
     let loginPopupState = null;
+    let accessPopupState = null;
 
     function resolveBackendBaseUrl() {
         const configuredUrl = cleanText(
@@ -51,104 +56,116 @@
             return;
         }
 
-        if (!hasDownloadAccess(item) && isPremiumDesign(item)) {
-            await buyNow(item, authContext);
-            return;
+        try {
+            const summary = await fetchDownloadAccess(item.id, authContext);
+            await openAccessPopup(item, summary, authContext);
+        } catch (error) {
+            console.error("[AJartivo Payment] access check failed", error);
+            alert(error && error.message ? error.message : "Unable to check download access right now.");
         }
-
-        await downloadFile(item, authContext);
     }
 
     async function buyNow(product, authOverride) {
         const item = services.normalizeProduct(product);
-
-        if (hasDownloadAccess(item)) {
-            const authContext = authOverride || await getAuthContext({ reason: "download" });
-            if (!authContext) {
-                return;
-            }
-
-            await downloadFile(item, authContext);
-            return;
-        }
-
         const authContext = authOverride || await getAuthContext({ reason: "buy" });
         if (!authContext) {
-            return;
+            return null;
         }
 
-        await openCheckout(item, authContext);
+        return openDesignCheckout(item, authContext);
     }
 
-    async function openCheckout(product, authContext) {
+    async function upgradeToPremium(authOverride) {
+        const authContext = authOverride || await getAuthContext({ reason: "buy" });
+        if (!authContext) {
+            return null;
+        }
+
+        return openPremiumCheckout(authContext);
+    }
+
+    async function fetchDownloadAccess(designId, authContext) {
+        const normalizedId = cleanText(designId);
+        if (!normalizedId) {
+            throw new Error("Design ID is required.");
+        }
+
+        return requestJson(`${API_BASE}/access/design/${encodeURIComponent(normalizedId)}`, {
+            method: "GET",
+            authContext: authContext
+        });
+    }
+
+    async function refreshAccountSummary() {
+        return services.refreshAccountSummary ? services.refreshAccountSummary() : services.getSession();
+    }
+
+    async function openDesignCheckout(product, authContext) {
         if (typeof window.Razorpay === "undefined") {
-            alert("Payment system failed to load.");
-            return;
+            throw new Error("Payment system failed to load.");
         }
 
         let order;
-        try {
-            order = await createOrder(product, authContext);
-        } catch (error) {
-            console.error("[AJartivo Payment] order creation failed", error);
-            alert(error && error.message ? error.message : "Unable to create payment order right now.");
-            return;
-        }
+        order = await createOrder(product, authContext);
 
         if (order && order.alreadyPurchased) {
             const unlockedProduct = markProductAsPurchased(product);
+            await refreshAccountSummary();
             emitPurchaseCompleted(unlockedProduct, authContext, order);
             await downloadFile(unlockedProduct, authContext);
-            return;
+            return order;
         }
 
-        const checkout = new window.Razorpay({
-            key: cleanText(order && order.key),
-            amount: Number(order && order.amount || 0),
-            currency: cleanText(order && order.currency) || "INR",
-            name: "AJartivo",
-            description: product.title || "Design Purchase",
-            order_id: cleanText(order && order.order_id),
-            handler: async function (response) {
-                try {
-                    const result = await verifyPayment({
-                        razorpay_order_id: response.razorpay_order_id,
-                        razorpay_payment_id: response.razorpay_payment_id,
-                        razorpay_signature: response.razorpay_signature,
-                        product_id: product.id
-                    }, authContext);
+        return new Promise(function (resolve, reject) {
+            const checkout = new window.Razorpay({
+                key: cleanText(order && order.key),
+                amount: Number(order && order.amount || 0),
+                currency: cleanText(order && order.currency) || "INR",
+                name: "AJartivo",
+                description: product.title || "Design Purchase",
+                order_id: cleanText(order && order.order_id),
+                handler: async function (response) {
+                    try {
+                        const result = await verifyPayment({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            product_id: product.id
+                        }, authContext);
 
-                    if (!result || result.success !== true) {
-                        throw new Error("Payment verification failed.");
+                        if (!result || result.success !== true) {
+                            throw new Error("Payment verification failed.");
+                        }
+
+                        const unlockedProduct = markProductAsPurchased(product);
+                        await refreshAccountSummary();
+                        emitPurchaseCompleted(unlockedProduct, authContext, result);
+                        await downloadFile(unlockedProduct, authContext);
+                        resolve(result);
+                    } catch (error) {
+                        reject(error);
                     }
-
-                    const unlockedProduct = markProductAsPurchased(product);
-                    emitPurchaseCompleted(unlockedProduct, authContext, result);
-                    await downloadFile(unlockedProduct, authContext);
-                } catch (error) {
-                    console.error("[AJartivo Payment] payment verification failed", error);
-                    alert(error && error.message ? error.message : "Payment was completed, but verification failed.");
+                },
+                prefill: buildPrefill(authContext),
+                notes: {
+                    product_id: cleanText(product && product.id),
+                    user_id: cleanText(authContext && authContext.id)
+                },
+                theme: {
+                    color: "#1e3a8a"
                 }
-            },
-            prefill: buildPrefill(authContext),
-            notes: {
-                product_id: cleanText(product && product.id),
-                user_id: cleanText(authContext && authContext.id)
-            },
-            theme: {
-                color: "#1e3a8a"
-            }
-        });
+            });
 
-        checkout.on("payment.failed", function (response) {
-            const reason = response && response.error && response.error.description
-                ? response.error.description
-                : "Payment failed. Please try again.";
-            console.error("[AJartivo Payment] checkout payment.failed", response);
-            alert(reason);
-        });
+            checkout.on("payment.failed", function (response) {
+                const reason = response && response.error && response.error.description
+                    ? response.error.description
+                    : "Payment failed. Please try again.";
+                console.error("[AJartivo Payment] checkout payment.failed", response);
+                reject(new Error(reason));
+            });
 
-        checkout.open();
+            checkout.open();
+        });
     }
 
     function buildPrefill(authContext) {
@@ -160,41 +177,154 @@
     }
 
     async function createOrder(product, authContext) {
-        return postJson("/create-order", {
-            product_id: cleanText(product && product.id)
-        }, authContext);
+        return requestJson("/create-order", {
+            method: "POST",
+            authContext: authContext,
+            payload: {
+                product_id: cleanText(product && product.id)
+            }
+        });
     }
 
     async function verifyPayment(payload, authContext) {
-        return postJson("/verify-payment", payload, authContext);
+        return requestJson("/verify-payment", {
+            method: "POST",
+            authContext: authContext,
+            payload: payload
+        });
     }
 
-    async function postJson(route, payload, authContext) {
-        const endpoint = `${BACKEND_BASE_URL}${route}`;
+    async function createPremiumOrder(authContext) {
+        return requestJson("/create-premium-order", {
+            method: "POST",
+            authContext: authContext,
+            payload: {}
+        });
+    }
+
+    async function verifyPremiumPayment(payload, authContext) {
+        return requestJson("/verify-premium-payment", {
+            method: "POST",
+            authContext: authContext,
+            payload: payload
+        });
+    }
+
+    async function requestJson(route, options) {
+        const settings = options || {};
+        const endpoint = isAbsoluteUrl(route) ? route : `${API_BASE}${route}`;
         let response;
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timeoutId = controller
+            ? window.setTimeout(function () {
+                controller.abort();
+            }, BACKEND_REQUEST_TIMEOUT_MS)
+            : 0;
 
         try {
             response = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    ...buildAuthHeaders(authContext),
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload || {})
+                method: cleanText(settings.method) || "GET",
+                headers: buildRequestHeaders(settings.authContext, settings.method),
+                signal: controller ? controller.signal : undefined,
+                body: cleanText(settings.method).toUpperCase() === "POST"
+                    ? JSON.stringify(settings.payload || {})
+                    : undefined
             });
         } catch (error) {
             throw mapPaymentRequestError(error, endpoint);
+        } finally {
+            if (timeoutId) {
+                window.clearTimeout(timeoutId);
+            }
         }
 
-        const data = await response.json().catch(function () {
-            return {};
+        const responseText = await response.text().catch(function () {
+            return "";
         });
+        const data = parseJsonResponse(responseText);
+
+        if (data === null && response.ok) {
+            throw new Error(`Backend returned an invalid JSON response from ${endpoint}.`);
+        }
 
         if (!response.ok) {
-            throw new Error(data.error || `Request failed. HTTP ${response.status}`);
+            const errorMessage = cleanText(
+                data && (
+                    data.error ||
+                    data.message ||
+                    data.details
+                )
+            );
+            const statusText = cleanText(response.statusText);
+            throw new Error(
+                errorMessage ||
+                (response.status === 404
+                    ? `API endpoint not found: ${endpoint}`
+                    : `Request failed. HTTP ${response.status}${statusText ? ` ${statusText}` : ""}`)
+            );
         }
 
         return data;
+    }
+
+    async function openPremiumCheckout(authContext) {
+        if (typeof window.Razorpay === "undefined") {
+            throw new Error("Payment system failed to load.");
+        }
+
+        const order = await createPremiumOrder(authContext);
+        if (order && order.alreadyPremium) {
+            await refreshAccountSummary();
+            emitAccountUpdated(order.account || null);
+            return order;
+        }
+
+        return new Promise(function (resolve, reject) {
+            const checkout = new window.Razorpay({
+                key: cleanText(order && order.key),
+                amount: Number(order && order.amount || 0),
+                currency: cleanText(order && order.currency) || "INR",
+                name: "AJartivo",
+                description: cleanText(order && order.plan_name) || "Premium Subscription",
+                order_id: cleanText(order && order.order_id),
+                handler: async function (response) {
+                    try {
+                        const result = await verifyPremiumPayment({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        }, authContext);
+
+                        if (!result || result.success !== true) {
+                            throw new Error("Premium verification failed.");
+                        }
+
+                        await refreshAccountSummary();
+                        emitAccountUpdated(result.account || null);
+                        resolve(result);
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                prefill: buildPrefill(authContext),
+                notes: {
+                    purchase_type: "premium_subscription",
+                    user_id: cleanText(authContext && authContext.id)
+                },
+                theme: {
+                    color: "#1e3a8a"
+                }
+            });
+
+            checkout.on("payment.failed", function (response) {
+                const reason = response && response.error && response.error.description
+                    ? response.error.description
+                    : "Premium payment failed. Please try again.";
+                reject(new Error(reason));
+            });
+
+            checkout.open();
+        });
     }
 
     async function getAuthContext(options) {
@@ -239,10 +369,20 @@
         return null;
     }
 
-    function buildAuthHeaders(authContext) {
-        return {
+    function buildRequestHeaders(authContext, method) {
+        const headers = {
             "Authorization": `Bearer ${cleanText(authContext && authContext.accessToken)}`
         };
+
+        if (cleanText(method).toUpperCase() === "POST") {
+            headers["Content-Type"] = "application/json";
+        }
+
+        return headers;
+    }
+
+    function buildAuthHeaders(authContext) {
+        return buildRequestHeaders(authContext, "GET");
     }
 
     function getCurrentSession() {
@@ -272,6 +412,10 @@
             ? "Sign in to continue with this purchase."
             : "Sign in to continue with this download.";
 
+        const accessBadge = reason === "buy" ? "Premium purchase access" : "Secure download access";
+        const benefitOne = reason === "buy" ? "Fast checkout" : "Instant downloads";
+        const benefitTwo = reason === "buy" ? "Verified payment" : "Secure access";
+        const benefitThree = "Member benefits";
         const wrapper = document.createElement("div");
         wrapper.className = "aj-login-modal";
         wrapper.hidden = true;
@@ -279,23 +423,48 @@
         wrapper.innerHTML = `
             <div class="aj-login-backdrop"></div>
             <div class="aj-login-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
-                <button type="button" class="aj-login-close" aria-label="Close">x</button>
-                <p class="aj-login-kicker">AJartivo Access</p>
-                <h3 class="aj-login-title">${escapeHtml(title)}</h3>
-                <p class="aj-login-subtitle">${escapeHtml(subtitle)}</p>
-                <p class="aj-login-error" hidden></p>
-                <label class="aj-login-field">
-                    <span>Email</span>
-                    <input type="email" class="aj-login-input aj-login-email" placeholder="Email address" autocomplete="email">
-                </label>
-                <label class="aj-login-field">
-                    <span>Password</span>
-                    <input type="password" class="aj-login-input aj-login-password" placeholder="Password" autocomplete="current-password">
-                </label>
-                <button type="button" class="aj-login-submit">Log In</button>
-                <div class="aj-login-actions">
-                    <a class="aj-login-link" href="/signup.html">Create account</a>
-                    <a class="aj-login-link" href="/login.html">Open full login page</a>
+                <div class="aj-login-glow aj-login-glow-one" aria-hidden="true"></div>
+                <div class="aj-login-glow aj-login-glow-two" aria-hidden="true"></div>
+                <button type="button" class="aj-login-close" aria-label="Close">&times;</button>
+                <div class="aj-login-hero">
+                    <div class="aj-login-head">
+                        <div class="aj-login-brand">
+                            <p class="aj-login-kicker">AJartivo Access</p>
+                            <span class="aj-login-badge">${escapeHtml(accessBadge)}</span>
+                        </div>
+                    </div>
+                    <div class="aj-login-copy">
+                        <h3 class="aj-login-title">${escapeHtml(title)}</h3>
+                        <p class="aj-login-subtitle">${escapeHtml(subtitle)}</p>
+                    </div>
+                    <div class="aj-login-perks" aria-hidden="true">
+                        <span>${escapeHtml(benefitOne)}</span>
+                        <span>${escapeHtml(benefitTwo)}</span>
+                        <span>${escapeHtml(benefitThree)}</span>
+                    </div>
+                    <div class="aj-login-trust" aria-hidden="true">
+                        <strong>Secure member sign in</strong>
+                        <span>Unlock your download access, order history, and premium benefits in one place.</span>
+                    </div>
+                </div>
+                <div class="aj-login-form-shell">
+                    <p class="aj-login-error" hidden></p>
+                    <label class="aj-login-field">
+                        <span>Email</span>
+                        <input type="email" class="aj-login-input aj-login-email" placeholder="Email address" autocomplete="email">
+                    </label>
+                    <label class="aj-login-field">
+                        <span>Password</span>
+                        <div class="aj-login-password-wrap">
+                            <input type="password" class="aj-login-input aj-login-password" placeholder="Password" autocomplete="current-password">
+                            <button type="button" class="aj-login-toggle" aria-label="Show password" aria-pressed="false">Show</button>
+                        </div>
+                    </label>
+                    <button type="button" class="aj-login-submit">Log In</button>
+                    <div class="aj-login-actions">
+                        <a class="aj-login-link" href="/signup.html">Create account</a>
+                        <a class="aj-login-link aj-login-link-strong" href="/login.html">Open full login page</a>
+                    </div>
                 </div>
             </div>
         `;
@@ -311,6 +480,8 @@
         const closeButton = wrapper.querySelector(".aj-login-close");
         const backdrop = wrapper.querySelector(".aj-login-backdrop");
         const errorNode = wrapper.querySelector(".aj-login-error");
+        const toggleButton = wrapper.querySelector(".aj-login-toggle");
+        const defaultSubmitText = submitButton ? submitButton.textContent : "Log In";
 
         loginPopupState = {
             root: wrapper,
@@ -373,7 +544,7 @@
                         console.error("[AJartivo Payment] login popup sign-in failed", error);
                         showError(mapLoginError(error));
                         submitButton.disabled = false;
-                        submitButton.textContent = "Log In";
+                        submitButton.textContent = defaultSubmitText;
                     }
                 };
 
@@ -393,6 +564,16 @@
 
                 if (submitButton) {
                     submitButton.addEventListener("click", submit);
+                }
+
+                if (toggleButton && passwordInput) {
+                    toggleButton.addEventListener("click", function () {
+                        const showPassword = passwordInput.type === "password";
+                        passwordInput.type = showPassword ? "text" : "password";
+                        toggleButton.textContent = showPassword ? "Hide" : "Show";
+                        toggleButton.setAttribute("aria-pressed", showPassword ? "true" : "false");
+                        toggleButton.setAttribute("aria-label", showPassword ? "Hide password" : "Show password");
+                    });
                 }
 
                 if (passwordInput) {
@@ -427,7 +608,7 @@
                 popupControls.setStatus("Preparing your secure download...");
             }
 
-            const response = await fetch(`${BACKEND_BASE_URL}/download/${encodeURIComponent(product.id)}`, {
+            const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
                 method: "GET",
                 headers: buildAuthHeaders(authContext)
             });
@@ -463,12 +644,13 @@
                 popupControls.setStatus(cleanText(error && error.message) || "Download failed.");
             }
             alert(error && error.message ? error.message : "Unable to download this file right now.");
+            throw error;
         }
     }
 
     function isPremiumDesign(product) {
         const item = services.normalizeProduct(product);
-        return item.is_free !== true && (item.is_paid === true || Number(item.price || 0) > 0);
+        return item.is_premium === true;
     }
 
     function hasDownloadAccess(product) {
@@ -609,8 +791,18 @@
         wrapper.innerHTML = `
             <div class="aj-download-backdrop"></div>
             <div class="aj-download-dialog" role="dialog" aria-modal="true" aria-label="Download status">
-                <button type="button" class="aj-download-close" aria-label="Close">x</button>
-                <p class="aj-download-kicker">Download status</p>
+                <div class="aj-download-topbar">
+                    <div class="aj-download-brand">
+                        <span class="aj-download-brand-mark" aria-hidden="true">AJ</span>
+                        <div class="aj-download-brand-copy">
+                            <strong>Ajartivo</strong>
+                            <span>Secure delivery</span>
+                        </div>
+                    </div>
+                    <span class="aj-download-badge">Download Status</span>
+                </div>
+                <button type="button" class="aj-download-close" aria-label="Close">&times;</button>
+                <p class="aj-download-kicker">Protected file access</p>
                 <h3 class="aj-download-title"></h3>
                 <p class="aj-download-file"></p>
                 <div class="aj-download-countdown-wrap">
@@ -669,6 +861,187 @@
         };
     }
 
+    async function openAccessPopup(product, summary, authContext) {
+        ensureAccessPopup();
+        if (!accessPopupState) return null;
+
+        const popup = accessPopupState;
+        popup.root.hidden = false;
+        popup.root.style.display = "grid";
+        document.body.classList.add("aj-access-open");
+
+        const render = function (state) {
+            const account = state && state.account ? state.account : {};
+            const access = state && state.access ? state.access : {};
+            const premiumActive = account.premium_active === true;
+            const freeRemaining = Number(account.free_download_remaining || 0);
+            const weeklyRemaining = Number(account.weekly_premium_remaining || 0);
+
+            popup.kicker.textContent = premiumActive ? "AJartivo Premium Access" : "AJartivo Secure Download";
+            popup.title.textContent = cleanText(product && product.title) || "AJartivo Design";
+            popup.message.textContent = cleanText(access.message) || "Review your account access before downloading.";
+            popup.freeStat.textContent = `You have ${freeRemaining} out of 5 free downloads remaining`;
+            popup.premiumStat.textContent = premiumActive
+                ? "Premium Active: Unlimited downloads"
+                : "Premium inactive: Upgrade to unlock premium benefits";
+            popup.weeklyStat.textContent = `You have ${weeklyRemaining} out of 2 premium downloads remaining this week`;
+
+            popup.downloadBtn.disabled = access.allowed !== true;
+            popup.downloadBtn.textContent = access.allowed === true ? "Download Now" : "Download Locked";
+            popup.upgradeBtn.disabled = premiumActive === true;
+            popup.upgradeBtn.textContent = premiumActive === true ? "Premium Active" : "Upgrade to Premium";
+            popup.buyBtn.disabled = access.can_buy !== true;
+        };
+
+        render(summary);
+
+        popup.downloadBtn.onclick = async function () {
+            if (!summary || !summary.access || summary.access.allowed !== true) {
+                return;
+            }
+
+            popup.downloadBtn.disabled = true;
+            popup.downloadBtn.textContent = "Preparing...";
+
+            try {
+                await downloadFile(product, authContext);
+                await refreshAccountSummary();
+                emitAccountUpdated();
+                closeAccessPopup();
+            } catch (error) {
+                console.error("[AJartivo Payment] secure download failed", error);
+                alert(error && error.message ? error.message : "Unable to download this file right now.");
+            } finally {
+                const refreshedSummary = await fetchDownloadAccess(product.id, authContext).catch(function () {
+                    return summary;
+                });
+                summary = refreshedSummary;
+                render(summary);
+            }
+        };
+
+        popup.upgradeBtn.onclick = async function () {
+            if (popup.upgradeBtn.disabled) {
+                return;
+            }
+
+            popup.upgradeBtn.disabled = true;
+            popup.upgradeBtn.textContent = "Opening...";
+
+            try {
+                await openPremiumCheckout(authContext);
+                await refreshAccountSummary();
+                summary = await fetchDownloadAccess(product.id, authContext);
+                render(summary);
+            } catch (error) {
+                console.error("[AJartivo Payment] premium checkout failed", error);
+                alert(error && error.message ? error.message : "Unable to start premium upgrade.");
+            } finally {
+                popup.upgradeBtn.disabled = summary && summary.account && summary.account.premium_active === true;
+                popup.upgradeBtn.textContent = popup.upgradeBtn.disabled ? "Premium Active" : "Upgrade to Premium";
+            }
+        };
+
+        popup.buyBtn.onclick = async function () {
+            if (popup.buyBtn.disabled) {
+                return;
+            }
+
+            popup.buyBtn.disabled = true;
+            popup.buyBtn.textContent = "Opening...";
+
+            try {
+                closeAccessPopup();
+                await openDesignCheckout(product, authContext);
+            } catch (error) {
+                console.error("[AJartivo Payment] design checkout failed", error);
+                alert(error && error.message ? error.message : "Unable to start the purchase flow.");
+            } finally {
+                popup.buyBtn.disabled = false;
+                popup.buyBtn.textContent = "Buy This Design";
+            }
+        };
+    }
+
+    function ensureAccessPopup() {
+        if (accessPopupState && accessPopupState.root) return;
+
+        ensureAccessPopupStyles();
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "aj-access-modal";
+        wrapper.hidden = true;
+        wrapper.style.display = "none";
+        wrapper.innerHTML = `
+            <div class="aj-access-backdrop"></div>
+            <div class="aj-access-dialog" role="dialog" aria-modal="true" aria-label="Download access">
+                <div class="aj-access-topbar">
+                    <div class="aj-access-brand">
+                        <span class="aj-access-brand-mark" aria-hidden="true">AJ</span>
+                        <div class="aj-access-brand-copy">
+                            <strong>Ajartivo</strong>
+                            <span>Secure access</span>
+                        </div>
+                    </div>
+                    <span class="aj-access-badge">Premium Download</span>
+                </div>
+                <button type="button" class="aj-access-close" aria-label="Close">&times;</button>
+                <p class="aj-access-kicker"></p>
+                <h3 class="aj-access-title"></h3>
+                <p class="aj-access-message"></p>
+                <div class="aj-access-metrics">
+                    <article class="aj-access-metric">
+                        <span>Free downloads</span>
+                        <strong class="aj-access-free-stat"></strong>
+                    </article>
+                    <article class="aj-access-metric">
+                        <span>Premium status</span>
+                        <strong class="aj-access-premium-stat"></strong>
+                    </article>
+                    <article class="aj-access-metric">
+                        <span>Weekly premium</span>
+                        <strong class="aj-access-weekly-stat"></strong>
+                    </article>
+                </div>
+                <div class="aj-access-actions">
+                    <button type="button" class="aj-access-primary">Download Now</button>
+                    <button type="button" class="aj-access-secondary">Upgrade to Premium</button>
+                    <button type="button" class="aj-access-secondary aj-access-buy">Buy This Design</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(wrapper);
+
+        const close = function () {
+            wrapper.hidden = true;
+            wrapper.style.display = "none";
+            document.body.classList.remove("aj-access-open");
+        };
+
+        wrapper.querySelector(".aj-access-backdrop").addEventListener("click", close);
+        wrapper.querySelector(".aj-access-close").addEventListener("click", close);
+
+        accessPopupState = {
+            root: wrapper,
+            kicker: wrapper.querySelector(".aj-access-kicker"),
+            title: wrapper.querySelector(".aj-access-title"),
+            message: wrapper.querySelector(".aj-access-message"),
+            freeStat: wrapper.querySelector(".aj-access-free-stat"),
+            premiumStat: wrapper.querySelector(".aj-access-premium-stat"),
+            weeklyStat: wrapper.querySelector(".aj-access-weekly-stat"),
+            downloadBtn: wrapper.querySelector(".aj-access-primary"),
+            upgradeBtn: wrapper.querySelector(".aj-access-secondary"),
+            buyBtn: wrapper.querySelector(".aj-access-buy"),
+            close: close
+        };
+    }
+
+    function closeAccessPopup() {
+        if (!accessPopupState || !accessPopupState.close) return;
+        accessPopupState.close();
+    }
+
     function ensureDownloadPopupStyles() {
         if (document.getElementById("ajDownloadPopupStyles")) return;
 
@@ -677,17 +1050,401 @@
         style.textContent = `
             body.aj-download-open { overflow: hidden; }
             .aj-download-modal { position: fixed; inset: 0; z-index: 7000; place-items: center; padding: 20px; }
-            .aj-download-backdrop { position: absolute; inset: 0; background: rgba(8, 15, 31, 0.66); backdrop-filter: blur(6px); }
-            .aj-download-dialog { position: relative; z-index: 1; width: min(92vw, 430px); padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #fffdf8 0%, #fff8ee 100%); border: 1px solid rgba(251, 191, 36, 0.22); box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28); display: grid; gap: 14px; text-align: center; }
-            .aj-download-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: none; border-radius: 50%; background: rgba(226, 232, 240, 0.92); color: #0f172a; cursor: pointer; font-size: 18px; font-weight: 700; }
-            .aj-download-kicker { margin: 0; color: #b45309; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-            .aj-download-title { margin: 0; color: #0f172a; font-size: 30px; line-height: 1.12; }
-            .aj-download-file { margin: 0; color: #64748b; word-break: break-word; font-size: 15px; }
-            .aj-download-countdown-wrap { display: grid; gap: 6px; justify-items: center; padding: 16px; border-radius: 22px; background: linear-gradient(180deg, #fff4d9, #fef3c7); color: #0f172a; border: 1px solid rgba(245, 158, 11, 0.18); }
-            .aj-download-countdown-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; }
-            .aj-download-countdown { font-size: 46px; line-height: 1; color: #111827; }
-            .aj-download-status { margin: 0; color: #334155; line-height: 1.65; font-size: 16px; }
-            .aj-download-retry { min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; cursor: pointer; font-weight: 800; }
+            .aj-download-backdrop {
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(circle at 20% 18%, rgba(96, 165, 250, 0.18), transparent 24%),
+                    radial-gradient(circle at 80% 14%, rgba(255, 255, 255, 0.12), transparent 20%),
+                    rgba(9, 16, 29, 0.78);
+                backdrop-filter: blur(14px);
+            }
+            .aj-download-dialog {
+                position: relative;
+                z-index: 1;
+                width: min(92vw, 460px);
+                padding: 22px;
+                border-radius: 30px;
+                background:
+                    radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 28%),
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 247, 252, 0.98) 100%);
+                border: 1px solid rgba(255, 255, 255, 0.82);
+                box-shadow: 0 38px 100px rgba(15, 23, 42, 0.38);
+                display: grid;
+                gap: 16px;
+                overflow: hidden;
+            }
+            .aj-download-dialog::before {
+                content: "";
+                position: absolute;
+                inset: 0 0 auto 0;
+                height: 5px;
+                background: linear-gradient(90deg, #1d4ed8, #60a5fa, #dbeafe);
+                opacity: 0.98;
+            }
+            .aj-download-topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding-right: 56px;
+            }
+            .aj-download-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .aj-download-brand-mark {
+                width: 42px;
+                height: 42px;
+                border-radius: 14px;
+                display: grid;
+                place-items: center;
+                background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+                color: #ffffff;
+                font-size: 13px;
+                font-weight: 900;
+                letter-spacing: 0.08em;
+                box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24);
+            }
+            .aj-download-brand-copy {
+                display: grid;
+                gap: 2px;
+            }
+            .aj-download-brand-copy strong {
+                color: #0f172a;
+                font-size: 15px;
+                line-height: 1.2;
+            }
+            .aj-download-brand-copy span {
+                color: #64748b;
+                font-size: 12px;
+                line-height: 1.2;
+            }
+            .aj-download-badge {
+                display: inline-flex;
+                align-items: center;
+                min-height: 34px;
+                padding: 0 14px;
+                border-radius: 999px;
+                background: rgba(15, 23, 42, 0.05);
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                color: #334155;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+            .aj-download-close {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                width: 42px;
+                height: 42px;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.88);
+                color: #0f172a;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+                font-weight: 500;
+                box-shadow: 0 12px 24px rgba(15, 23, 42, 0.10);
+            }
+            .aj-download-kicker { margin: 4px 0 0; color: #2563eb; font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; }
+            .aj-download-title { margin: 0; color: #0f172a; font-size: 34px; line-height: 1.02; letter-spacing: -0.03em; }
+            .aj-download-file {
+                margin: 0;
+                color: #64748b;
+                word-break: break-word;
+                font-size: 14px;
+                line-height: 1.6;
+                padding-bottom: 2px;
+                border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+            }
+            .aj-download-countdown-wrap {
+                display: grid;
+                gap: 8px;
+                justify-items: center;
+                padding: 22px 20px;
+                border-radius: 24px;
+                background: linear-gradient(180deg, rgba(238, 245, 255, 0.98), rgba(248, 250, 252, 0.98));
+                color: #0f172a;
+                border: 1px solid rgba(191, 219, 254, 0.8);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+            }
+            .aj-download-countdown-label { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #2563eb; }
+            .aj-download-countdown { font-size: 52px; line-height: 1; color: #0f172a; text-shadow: 0 12px 28px rgba(96, 165, 250, 0.18); }
+            .aj-download-status { margin: 0; color: #334155; line-height: 1.7; font-size: 15px; }
+            .aj-download-retry {
+                min-height: 56px;
+                border: none;
+                border-radius: 18px;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 36%),
+                    linear-gradient(135deg, #0f172a, #1e3a8a 55%, #2563eb);
+                color: #fff;
+                cursor: pointer;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+                box-shadow: 0 20px 36px rgba(30, 58, 138, 0.28);
+                transition: transform .2s ease, box-shadow .2s ease;
+            }
+            .aj-download-retry:hover { transform: translateY(-1px); box-shadow: 0 24px 42px rgba(30, 58, 138, 0.32); }
+            @media (max-width: 560px) {
+                .aj-download-modal { padding: 14px; align-items: end; }
+                .aj-download-dialog { width: min(100vw - 12px, 480px); border-radius: 28px 28px 24px 24px; padding: 18px; }
+                .aj-download-topbar { align-items: flex-start; flex-direction: column; padding-right: 54px; }
+                .aj-download-title { font-size: 30px; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function ensureAccessPopupStyles() {
+        if (document.getElementById("ajAccessPopupStyles")) return;
+
+        const style = document.createElement("style");
+        style.id = "ajAccessPopupStyles";
+        style.textContent = `
+            body.aj-access-open { overflow: hidden; }
+            .aj-access-modal { position: fixed; inset: 0; z-index: 7200; place-items: center; padding: 20px; }
+            .aj-access-backdrop {
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.18), transparent 24%),
+                    radial-gradient(circle at 78% 14%, rgba(255, 255, 255, 0.12), transparent 20%),
+                    rgba(9, 16, 29, 0.80);
+                backdrop-filter: blur(14px);
+            }
+            .aj-access-dialog {
+                position: relative;
+                z-index: 1;
+                width: min(94vw, 660px);
+                padding: 22px;
+                border-radius: 32px;
+                display: grid;
+                gap: 18px;
+                background:
+                    radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 28%),
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(244, 247, 252, 0.98) 100%);
+                box-shadow: 0 38px 110px rgba(15, 23, 42, 0.40);
+                border: 1px solid rgba(255, 255, 255, 0.84);
+                overflow: hidden;
+            }
+            .aj-access-dialog::before {
+                content: "";
+                position: absolute;
+                inset: 0 0 auto 0;
+                height: 5px;
+                background: linear-gradient(90deg, #1d4ed8, #60a5fa, #dbeafe);
+                opacity: 0.98;
+            }
+            .aj-access-topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding-right: 56px;
+            }
+            .aj-access-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .aj-access-brand-mark {
+                width: 44px;
+                height: 44px;
+                border-radius: 15px;
+                display: grid;
+                place-items: center;
+                background: linear-gradient(135deg, #0f172a, #1e3a8a 58%, #3b82f6);
+                color: #ffffff;
+                font-size: 13px;
+                font-weight: 900;
+                letter-spacing: 0.08em;
+                box-shadow: 0 14px 28px rgba(30, 58, 138, 0.26);
+            }
+            .aj-access-brand-copy {
+                display: grid;
+                gap: 2px;
+            }
+            .aj-access-brand-copy strong {
+                color: #0f172a;
+                font-size: 15px;
+                line-height: 1.2;
+            }
+            .aj-access-brand-copy span {
+                color: #64748b;
+                font-size: 12px;
+                line-height: 1.2;
+            }
+            .aj-access-badge {
+                display: inline-flex;
+                align-items: center;
+                min-height: 34px;
+                padding: 0 14px;
+                border-radius: 999px;
+                background: rgba(15, 23, 42, 0.05);
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                color: #334155;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+            .aj-access-close {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                width: 42px;
+                height: 42px;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.88);
+                color: #0f172a;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+                font-weight: 500;
+                box-shadow: 0 12px 24px rgba(15, 23, 42, 0.10);
+            }
+            .aj-access-kicker { margin: 2px 0 0; color: #2563eb; font-size: 11px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; }
+            .aj-access-title { margin: 0; color: #0f172a; font-size: clamp(32px, 5vw, 40px); line-height: 1.02; letter-spacing: -0.04em; max-width: 520px; }
+            .aj-access-message { margin: 0; color: #475569; font-size: 15px; line-height: 1.8; max-width: 560px; }
+            .aj-access-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+            .aj-access-metric {
+                padding: 18px;
+                border-radius: 24px;
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 252, 0.95));
+                border: 1px solid rgba(226, 232, 240, 0.92);
+                display: grid;
+                gap: 10px;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+            }
+            .aj-access-metric span { color: #2563eb; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 900; }
+            .aj-access-metric strong { color: #0f172a; font-size: 18px; line-height: 1.55; }
+            .aj-access-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                padding: 14px;
+                border-radius: 24px;
+                background:
+                    radial-gradient(circle at top right, rgba(96, 165, 250, 0.10), transparent 28%),
+                    linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(255, 255, 255, 0.72));
+                border: 1px solid rgba(191, 219, 254, 0.36);
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                    0 18px 32px rgba(148, 163, 184, 0.10);
+            }
+            .aj-access-primary,
+            .aj-access-secondary {
+                position: relative;
+                overflow: hidden;
+                min-height: 56px;
+                padding: 0 20px;
+                border: none;
+                border-radius: 18px;
+                font-weight: 800;
+                font-size: 15px;
+                cursor: pointer;
+                letter-spacing: 0.01em;
+                isolation: isolate;
+                transition: transform .24s ease, box-shadow .24s ease, filter .24s ease, border-color .24s ease;
+                animation: ajAccessActionRise .55s ease both;
+            }
+            .aj-access-primary::before,
+            .aj-access-secondary::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(120deg, transparent 22%, rgba(255, 255, 255, 0.22) 46%, transparent 70%);
+                transform: translateX(-140%);
+                animation: ajAccessSheen 4.6s ease-in-out infinite;
+                pointer-events: none;
+                z-index: -1;
+            }
+            .aj-access-primary {
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 38%),
+                    linear-gradient(135deg, #0b1220, #162447 52%, #2563eb 100%);
+                color: #fff;
+                border: 1px solid rgba(96, 165, 250, 0.16);
+                box-shadow:
+                    0 18px 32px rgba(15, 23, 42, 0.28),
+                    0 0 0 1px rgba(96, 165, 250, 0.06) inset;
+            }
+            .aj-access-secondary {
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 36%),
+                    linear-gradient(135deg, #eff6ff, #dbeafe 52%, #c7d2fe);
+                color: #0f172a;
+                border: 1px solid rgba(96, 165, 250, 0.22);
+                box-shadow:
+                    0 16px 28px rgba(59, 130, 246, 0.14),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+            }
+            .aj-access-buy {
+                grid-column: 1 / -1;
+                min-height: 58px;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 36%),
+                    linear-gradient(135deg, #1e293b, #334155 55%, #475569);
+                color: #f8fafc;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                box-shadow:
+                    0 16px 30px rgba(15, 23, 42, 0.22),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            }
+            .aj-access-primary:hover,
+            .aj-access-secondary:hover {
+                transform: translateY(-2px) scale(1.01);
+                filter: brightness(1.03);
+            }
+            .aj-access-primary:hover {
+                box-shadow:
+                    0 24px 42px rgba(15, 23, 42, 0.32),
+                    0 0 24px rgba(59, 130, 246, 0.18);
+            }
+            .aj-access-buy:hover {
+                transform: translateY(-2px);
+                box-shadow:
+                    0 22px 36px rgba(15, 23, 42, 0.28),
+                    0 0 20px rgba(148, 163, 184, 0.12);
+            }
+            .aj-access-primary:disabled,
+            .aj-access-secondary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; transform: none; animation: none; }
+            .aj-access-primary:disabled::before,
+            .aj-access-secondary:disabled::before { animation: none; }
+            .aj-access-buy { animation-delay: .08s; }
+            @keyframes ajAccessActionRise {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            @keyframes ajAccessSheen {
+                0%, 18% {
+                    transform: translateX(-140%);
+                }
+                30%, 100% {
+                    transform: translateX(140%);
+                }
+            }
+            @media (max-width: 680px) {
+                .aj-access-modal { padding: 14px; align-items: end; }
+                .aj-access-dialog { width: min(100vw - 12px, 680px); padding: 18px; border-radius: 28px 28px 24px 24px; }
+                .aj-access-topbar { align-items: flex-start; flex-direction: column; padding-right: 54px; }
+                .aj-access-metrics,
+                .aj-access-actions { grid-template-columns: 1fr; }
+                .aj-access-buy { grid-column: auto; }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -712,6 +1469,16 @@
                 product: product || null
             }
         }));
+
+        emitAccountUpdated();
+    }
+
+    function emitAccountUpdated(account) {
+        window.dispatchEvent(new CustomEvent("ajartivo:account-updated", {
+            detail: {
+                account: account || (services.getAccountSummary ? services.getAccountSummary() : null)
+            }
+        }));
     }
 
     function ensureLoginPopupStyles() {
@@ -721,20 +1488,347 @@
         style.id = "ajLoginPopupStyles";
         style.textContent = `
             body.aj-login-open { overflow: hidden; }
-            .aj-login-modal { position: fixed; inset: 0; z-index: 7100; place-items: center; padding: 20px; }
-            .aj-login-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.58); backdrop-filter: blur(6px); }
-            .aj-login-dialog { position: relative; z-index: 1; width: min(92vw, 440px); display: grid; gap: 14px; padding: 28px; border-radius: 28px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24); }
-            .aj-login-close { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border: none; border-radius: 50%; background: #e2e8f0; color: #0f172a; cursor: pointer; font-size: 18px; font-weight: 700; }
-            .aj-login-kicker { margin: 0; color: #2563eb; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-            .aj-login-title { margin: 0; color: #0f172a; font-size: 30px; line-height: 1.1; }
-            .aj-login-subtitle { margin: 0; color: #475569; font-size: 15px; line-height: 1.6; }
-            .aj-login-error { margin: 0; min-height: 20px; color: #dc2626; font-size: 14px; }
-            .aj-login-field { display: grid; gap: 8px; color: #0f172a; font-size: 14px; font-weight: 600; }
-            .aj-login-input { min-height: 48px; width: 100%; border: 1px solid #cbd5e1; border-radius: 16px; padding: 0 14px; font: inherit; color: #0f172a; background: #fff; }
-            .aj-login-submit { min-height: 50px; border: none; border-radius: 16px; background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; font-weight: 800; cursor: pointer; }
-            .aj-login-submit:disabled { opacity: 0.7; cursor: wait; }
-            .aj-login-actions { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-            .aj-login-link { color: #1d4ed8; text-decoration: none; font-weight: 700; }
+            .aj-login-modal { position: fixed; inset: 0; z-index: 7100; place-items: center; padding: 24px; }
+            .aj-login-backdrop {
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.22), transparent 28%),
+                    radial-gradient(circle at 82% 20%, rgba(255, 255, 255, 0.14), transparent 24%),
+                    rgba(9, 16, 29, 0.76);
+                backdrop-filter: blur(14px);
+            }
+            .aj-login-dialog {
+                position: relative;
+                z-index: 1;
+                width: min(92vw, 500px);
+                display: grid;
+                gap: 20px;
+                padding: 24px;
+                border-radius: 34px;
+                background:
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.94)),
+                    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+                border: 1px solid rgba(255, 255, 255, 0.82);
+                box-shadow:
+                    0 36px 100px rgba(15, 23, 42, 0.34),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+                overflow: hidden;
+            }
+            .aj-login-dialog::before {
+                content: "";
+                position: absolute;
+                inset: 0 0 auto 0;
+                height: 6px;
+                background: linear-gradient(90deg, #0f172a, #2563eb, #93c5fd);
+                opacity: 0.95;
+            }
+            .aj-login-glow {
+                position: absolute;
+                border-radius: 50%;
+                pointer-events: none;
+                filter: blur(10px);
+                opacity: 0.7;
+            }
+            .aj-login-glow-one {
+                top: -50px;
+                right: -36px;
+                width: 160px;
+                height: 160px;
+                background: radial-gradient(circle, rgba(96, 165, 250, 0.28), transparent 70%);
+            }
+            .aj-login-glow-two {
+                left: -50px;
+                bottom: -56px;
+                width: 180px;
+                height: 180px;
+                background: radial-gradient(circle, rgba(226, 232, 240, 0.58), transparent 72%);
+            }
+            .aj-login-close {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                width: 42px;
+                height: 42px;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.84);
+                color: #0f172a;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+                font-weight: 500;
+                box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+                transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+            }
+            .aj-login-close:hover {
+                transform: translateY(-1px);
+                background: #ffffff;
+                box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
+            }
+            .aj-login-head,
+            .aj-login-hero,
+            .aj-login-form-shell,
+            .aj-login-trust,
+            .aj-login-copy,
+            .aj-login-field,
+            .aj-login-actions,
+            .aj-login-error,
+            .aj-login-submit,
+            .aj-login-perks {
+                position: relative;
+                z-index: 1;
+            }
+            .aj-login-hero {
+                display: grid;
+                gap: 16px;
+                padding: 18px 18px 20px;
+                border-radius: 26px;
+                background:
+                    radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 34%),
+                    radial-gradient(circle at bottom left, rgba(226, 232, 240, 0.78), transparent 30%),
+                    linear-gradient(180deg, rgba(244, 248, 255, 0.95), rgba(255, 255, 255, 0.88));
+                border: 1px solid rgba(226, 232, 240, 0.82);
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                    0 16px 36px rgba(148, 163, 184, 0.12);
+            }
+            .aj-login-brand {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding-right: 60px;
+            }
+            .aj-login-kicker {
+                margin: 0;
+                color: #2563eb;
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: 0.16em;
+                text-transform: uppercase;
+            }
+            .aj-login-badge {
+                display: inline-flex;
+                align-items: center;
+                min-height: 32px;
+                padding: 0 14px;
+                border-radius: 999px;
+                background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.92));
+                color: #1d4ed8;
+                border: 1px solid rgba(96, 165, 250, 0.22);
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+            .aj-login-copy {
+                display: grid;
+                gap: 10px;
+            }
+            .aj-login-title {
+                margin: 0;
+                color: #0f172a;
+                font-size: clamp(30px, 5.4vw, 38px);
+                line-height: 1.02;
+                letter-spacing: -0.04em;
+                max-width: 260px;
+            }
+            .aj-login-subtitle {
+                margin: 0;
+                color: #475569;
+                font-size: 15px;
+                line-height: 1.75;
+                max-width: 360px;
+            }
+            .aj-login-perks {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .aj-login-perks span {
+                display: inline-flex;
+                align-items: center;
+                min-height: 34px;
+                padding: 0 14px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.72);
+                color: #334155;
+                border: 1px solid rgba(226, 232, 240, 0.92);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+                font-size: 12px;
+                font-weight: 700;
+            }
+            .aj-login-trust {
+                display: grid;
+                gap: 6px;
+                padding: 16px 18px;
+                border-radius: 20px;
+                background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(29, 78, 216, 0.92));
+                color: #ffffff;
+                box-shadow: 0 18px 34px rgba(15, 23, 42, 0.20);
+            }
+            .aj-login-trust strong {
+                font-size: 14px;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+            }
+            .aj-login-trust span {
+                color: rgba(255, 255, 255, 0.74);
+                font-size: 13px;
+                line-height: 1.6;
+            }
+            .aj-login-form-shell {
+                display: grid;
+                gap: 16px;
+                padding: 20px;
+                border-radius: 26px;
+                background: rgba(255, 255, 255, 0.78);
+                border: 1px solid rgba(226, 232, 240, 0.9);
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                    0 18px 34px rgba(148, 163, 184, 0.10);
+            }
+            .aj-login-error {
+                margin: 0;
+                min-height: 22px;
+                padding: 10px 14px;
+                border-radius: 16px;
+                background: rgba(254, 242, 242, 0.96);
+                border: 1px solid rgba(248, 113, 113, 0.18);
+                color: #dc2626;
+                font-size: 13px;
+                line-height: 1.5;
+            }
+            .aj-login-error[hidden] {
+                display: none;
+            }
+            .aj-login-field {
+                display: grid;
+                gap: 9px;
+                color: #0f172a;
+                font-size: 13px;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+            }
+            .aj-login-password-wrap {
+                position: relative;
+            }
+            .aj-login-input {
+                min-height: 54px;
+                width: 100%;
+                border: 1px solid rgba(148, 163, 184, 0.24);
+                border-radius: 18px;
+                padding: 0 16px;
+                font: inherit;
+                color: #0f172a;
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.98));
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+                transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            }
+            .aj-login-input:focus {
+                outline: none;
+                border-color: rgba(37, 99, 235, 0.44);
+                background: #ffffff;
+                box-shadow:
+                    0 0 0 4px rgba(37, 99, 235, 0.10),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+            }
+            .aj-login-input::placeholder {
+                color: #94a3b8;
+            }
+            .aj-login-password-wrap .aj-login-input {
+                padding-right: 84px;
+            }
+            .aj-login-toggle {
+                position: absolute;
+                top: 50%;
+                right: 10px;
+                transform: translateY(-50%);
+                min-width: 62px;
+                height: 38px;
+                border: none;
+                border-radius: 12px;
+                background: rgba(226, 232, 240, 0.8);
+                color: #1e293b;
+                font-size: 12px;
+                font-weight: 800;
+                cursor: pointer;
+                transition: background 0.2s ease, color 0.2s ease;
+            }
+            .aj-login-toggle:hover {
+                background: rgba(191, 219, 254, 0.9);
+                color: #1d4ed8;
+            }
+            .aj-login-submit {
+                min-height: 58px;
+                border: none;
+                border-radius: 20px;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 38%),
+                    linear-gradient(135deg, #1d4ed8, #2563eb 48%, #60a5fa);
+                color: #fff;
+                font-size: 15px;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+                cursor: pointer;
+                box-shadow: 0 20px 34px rgba(37, 99, 235, 0.24);
+                transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+            }
+            .aj-login-submit:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 26px 42px rgba(37, 99, 235, 0.30);
+                filter: brightness(1.02);
+            }
+            .aj-login-submit:disabled {
+                opacity: 0.76;
+                cursor: wait;
+                transform: none;
+            }
+            .aj-login-actions {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                padding-top: 2px;
+            }
+            .aj-login-link {
+                color: #1d4ed8;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 700;
+                transition: color 0.2s ease, opacity 0.2s ease;
+            }
+            .aj-login-link:hover {
+                color: #0f172a;
+            }
+            .aj-login-link-strong {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 42px;
+                padding: 0 16px;
+                border-radius: 999px;
+                background: rgba(15, 23, 42, 0.05);
+                color: #0f172a;
+            }
+            .aj-login-link-strong:hover {
+                background: rgba(15, 23, 42, 0.08);
+                color: #0f172a;
+            }
+            @media (max-width: 560px) {
+                .aj-login-modal { padding: 16px; }
+                .aj-login-dialog { width: min(100vw - 16px, 500px); padding: 18px; border-radius: 28px; gap: 16px; }
+                .aj-login-hero,
+                .aj-login-form-shell { padding: 18px 16px; border-radius: 22px; }
+                .aj-login-brand { align-items: flex-start; flex-direction: column; padding-right: 56px; }
+                .aj-login-title { max-width: none; font-size: 32px; }
+                .aj-login-subtitle { max-width: none; }
+                .aj-login-actions { flex-direction: column; align-items: stretch; }
+                .aj-login-link,
+                .aj-login-link-strong { justify-content: center; text-align: center; }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -760,11 +1854,32 @@
     function mapPaymentRequestError(error, endpoint) {
         const message = cleanText(error && error.message).toLowerCase();
 
+        if ((error && error.name === "AbortError") || message.includes("aborted") || message.includes("timeout")) {
+            return new Error(`Payment backend did not respond in time at ${endpoint}. Please try again.`);
+        }
+
         if (message.includes("failed to fetch") || message.includes("network")) {
-            return new Error(`Payment backend is not reachable at ${endpoint}. Start the backend server and try again.`);
+            return new Error(`Payment backend is not reachable at ${endpoint}. Please verify the backend is running and accessible.`);
         }
 
         return error instanceof Error ? error : new Error("Payment request failed.");
+    }
+
+    function isAbsoluteUrl(value) {
+        return /^https?:\/\//i.test(cleanText(value));
+    }
+
+    function parseJsonResponse(value) {
+        const responseText = cleanText(value);
+        if (!responseText) {
+            return {};
+        }
+
+        try {
+            return JSON.parse(responseText);
+        } catch (error) {
+            return null;
+        }
     }
 
     function escapeHtml(value) {

@@ -21,6 +21,7 @@
 
         <section class="card">
             <h2>Create Account</h2>
+            <p class="signup-note">Fill your details and submit. We will send a verification OTP to your email before your account goes live.</p>
 
             <form id="signupForm">
                 <div class="input-box">
@@ -34,6 +35,16 @@
                 </div>
 
                 <div class="input-box">
+                    <input type="text" id="address">
+                    <label for="address">Address</label>
+                </div>
+
+                <div class="input-box">
+                    <input type="tel" id="mobileNumber" inputmode="tel" autocomplete="tel">
+                    <label for="mobileNumber">Mobile Number</label>
+                </div>
+
+                <div class="input-box">
                     <input type="password" id="password" required>
                     <label for="password">Password</label>
                 </div>
@@ -41,6 +52,8 @@
                 <button type="submit" class="signup-btn">
                     Create Account
                 </button>
+
+                <p id="signupMessage" class="auth-message" hidden></p>
             </form>
 
             <div class="divider">

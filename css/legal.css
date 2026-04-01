@@ -1,0 +1,130 @@
+body.legal-page {
+    margin: 0;
+    background:
+        radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 22%),
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 24%),
+        #f8fafc;
+    color: #0f172a;
+}
+
+.legal-shell {
+    width: min(1120px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 42px 0 72px;
+    display: grid;
+    gap: 26px;
+}
+
+.legal-hero,
+.legal-card {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.legal-hero {
+    padding: 34px;
+    background:
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 20%),
+        linear-gradient(180deg, #fffef8 0%, #ffffff 100%);
+}
+
+.legal-kicker {
+    margin: 0 0 10px;
+    color: #b45309;
+    letter-spacing: 0.12em;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.legal-hero h1,
+.legal-card h2,
+.legal-card h3 {
+    margin: 0;
+}
+
+.legal-hero h1 {
+    font-size: clamp(34px, 5vw, 52px);
+    line-height: 1.05;
+}
+
+.legal-hero p,
+.legal-card p,
+.legal-card li {
+    color: #475569;
+    line-height: 1.8;
+    font-size: 16px;
+}
+
+.legal-grid {
+    display: grid;
+    gap: 22px;
+}
+
+.legal-card {
+    padding: 28px;
+}
+
+.legal-card ul {
+    margin: 14px 0 0;
+    padding-left: 20px;
+}
+
+.legal-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.legal-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #fff7ed;
+    border: 1px solid rgba(245, 158, 11, 0.16);
+    color: #9a3412;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.legal-contact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.legal-contact-card {
+    padding: 22px;
+    border-radius: 22px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.legal-contact-card strong {
+    display: block;
+    margin-bottom: 10px;
+    color: #111827;
+    font-size: 18px;
+}
+
+.legal-link-list {
+    display: grid;
+    gap: 12px;
+}
+
+.legal-link-list a {
+    color: #1d4ed8;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+@media (max-width: 860px) {
+    .legal-contact-grid {
+        grid-template-columns: 1fr;
+    }
+}

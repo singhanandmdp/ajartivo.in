@@ -70,7 +70,11 @@
       <div id="userMenu" class="dropdown" style="display:none;">
         <a class="profile-trigger" id="profileTrigger" href="#">
           <img id="headerAvatar" src="/images/default-user.png" alt="">
-          <span id="userName">User</span>
+          <span class="profile-trigger-copy">
+            <strong id="userName">User</strong>
+            <small id="headerPlanBadge">Free Member</small>
+          </span>
+          <span class="profile-trigger-chevron" aria-hidden="true">></span>
         </a>
 
         <div class="dropdown-menu profile-panel">
@@ -85,20 +89,35 @@
                 <span id="profileInitial" class="profile-initial">U</span>
                 <span id="profileVerifiedText" class="profile-verified">Verified user</span>
               </div>
+              <div class="profile-plan-row">
+                <span id="profilePlanBadge" class="profile-plan-badge">Free Member</span>
+                <span id="profileExpiryText" class="profile-plan-note">Upgrade to unlock premium benefits</span>
+              </div>
             </div>
           </div>
 
+          <div class="profile-stats">
+            <article class="profile-stat-card">
+              <span>Free left</span>
+              <strong id="profileFreeCounter">5</strong>
+            </article>
+            <article class="profile-stat-card">
+              <span>Premium week</span>
+              <strong id="profileWeeklyCounter">2</strong>
+            </article>
+          </div>
+
           <div class="profile-actions">
-            <a href="/pages/profile.html" class="upgrade-btn premium-upgrade-btn">
-              <span>Get a plan</span>
+            <a href="/dashboard.html" class="upgrade-btn premium-upgrade-btn">
+              <span id="profileUpgradeCtaText">Upgrade to Premium</span>
             </a>
           </div>
 
           <div class="profile-menu">
-            <a href="/pages/profile.html" class="profile-menu-item">Profile</a>
-            <a href="/pages/profile.html" class="profile-menu-item">Plan &amp; billing</a>
-            <a href="/pages/profile.html" class="profile-menu-item">Settings</a>
-            <a href="/pages/profile.html" class="profile-menu-item">My collections</a>
+            <a href="/dashboard.html" class="profile-menu-item">Profile</a>
+            <a href="/dashboard.html" class="profile-menu-item">Plan &amp; billing</a>
+            <a href="/dashboard.html" class="profile-menu-item">Settings</a>
+            <a href="/dashboard.html" class="profile-menu-item">My collections</a>
             <a href="/pages/search.html?q=custom%20design" class="profile-menu-item">Custom Design</a>
             <a href="#" class="profile-menu-item">Help center</a>
           </div>

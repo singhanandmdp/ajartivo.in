@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJartivo Email OTP Login</title>
+    <meta name="description" content="Secure email OTP login for AJartivo using Supabase authentication.">
+    <style>
+        :root {
+            --bg-1: #081120;
+            --bg-2: #10213b;
+            --panel: rgba(255, 255, 255, 0.12);
+            --panel-border: rgba(255, 255, 255, 0.18);
+            --text: #f8fbff;
+            --muted: #b6c6da;
+            --primary: #4f8cff;
+            --primary-strong: #2563eb;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #f59e0b;
+            --shadow: 0 24px 80px rgba(2, 8, 23, 0.38);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 15% 18%, rgba(79, 140, 255, 0.30), transparent 24%),
+                radial-gradient(circle at 82% 14%, rgba(56, 189, 248, 0.24), transparent 20%),
+                radial-gradient(circle at 76% 82%, rgba(249, 115, 22, 0.22), transparent 24%),
+                linear-gradient(135deg, var(--bg-1), var(--bg-2));
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .shell {
+            width: min(100%, 1080px);
+            display: grid;
+            grid-template-columns: 1.08fr 0.92fr;
+            gap: 28px;
+            align-items: center;
+        }
+
+        .hero {
+            display: grid;
+            gap: 20px;
+            padding: 24px 12px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: fit-content;
+            min-height: 36px;
+            padding: 0 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(40px, 6vw, 68px);
+            line-height: 0.98;
+            letter-spacing: -0.05em;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 560px;
+            color: var(--muted);
+            font-size: 18px;
+            line-height: 1.8;
+        }
+
+        .hero-points {
+            display: grid;
+            gap: 14px;
+            margin-top: 12px;
+        }
+
+        .hero-point {
+            padding: 18px 20px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+        }
+
+        .hero-point strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 17px;
+        }
+
+        .hero-point span {
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        .card {
+            position: relative;
+            overflow: hidden;
+            padding: 34px;
+            border-radius: 32px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(20px);
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 28%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            pointer-events: none;
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 18px;
+        }
+
+        .brand {
+            display: grid;
+            gap: 8px;
+        }
+
+        .brand-kicker {
+            margin: 0;
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .brand h2 {
+            margin: 0;
+            font-size: 34px;
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+        }
+
+        .brand p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        .field {
+            display: grid;
+            gap: 9px;
+        }
+
+        .field label {
+            font-size: 13px;
+            color: #dbeafe;
+            font-weight: 700;
+        }
+
+        .field input {
+            width: 100%;
+            min-height: 56px;
+            padding: 0 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text);
+            font: inherit;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .field input::placeholder {
+            color: #9fb2ca;
+        }
+
+        .field input:focus {
+            border-color: rgba(96, 165, 250, 0.85);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .otp-row {
+            display: none;
+            gap: 14px;
+        }
+
+        .otp-row.visible {
+            display: grid;
+        }
+
+        .otp-input {
+            text-align: center;
+            letter-spacing: 0.42em;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .actions {
+            display: grid;
+            gap: 12px;
+        }
+
+        .button {
+            min-height: 54px;
+            border: none;
+            border-radius: 18px;
+            padding: 0 18px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+        }
+
+        .button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: brightness(1.03);
+        }
+
+        .button:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+            color: #fff;
+            box-shadow: 0 18px 34px rgba(37, 99, 235, 0.28);
+        }
+
+        .button-secondary {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .status {
+            min-height: 24px;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .status.success {
+            color: #bbf7d0;
+        }
+
+        .status.error {
+            color: #fecaca;
+        }
+
+        .status.info {
+            color: #dbeafe;
+        }
+
+        .session-box {
+            display: none;
+            gap: 12px;
+            padding: 18px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+
+        .session-box.visible {
+            display: grid;
+        }
+
+        .session-box strong {
+            font-size: 18px;
+        }
+
+        .session-box span {
+            color: var(--muted);
+            word-break: break-word;
+        }
+
+        .tiny-note {
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        @media (max-width: 900px) {
+            .shell {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                padding: 4px 0;
+            }
+
+            .card {
+                padding: 24px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            body {
+                padding: 14px;
+            }
+
+            .hero h1 {
+                font-size: 40px;
+            }
+
+            .hero p {
+                font-size: 16px;
+            }
+
+            .card {
+                padding: 20px;
+                border-radius: 26px;
+            }
+
+            .brand h2 {
+                font-size: 28px;
+            }
+
+            .otp-input {
+                font-size: 22px;
+                letter-spacing: 0.32em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <section class="hero">
+            <span class="hero-badge">AJartivo Secure Access</span>
+            <h1>Email OTP login that feels clean and fast.</h1>
+            <p>Send a 6-digit code to your email, verify it in seconds, and keep the session active with Supabase auth.</p>
+
+            <div class="hero-points">
+                <article class="hero-point">
+                    <strong>Passwordless sign in</strong>
+                    <span>Users just enter their email, receive an OTP, and log in without remembering a password.</span>
+                </article>
+                <article class="hero-point">
+                    <strong>Supabase session persistence</strong>
+                    <span>Once verified, the session is stored automatically and restored on page load.</span>
+                </article>
+                <article class="hero-point">
+                    <strong>Responsive and production-ready</strong>
+                    <span>Modern glass UI, clear loading states, proper errors, and a simple redirect flow for AJartivo.</span>
+                </article>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-content">
+                <div class="brand">
+                    <p class="brand-kicker">Email OTP Authentication</p>
+                    <h2>Login to AJartivo</h2>
+                    <p>Enter your email, receive a 6-digit OTP, then verify it to sign in.</p>
+                </div>
+
+                <div class="field">
+                    <label for="emailInput">Email address</label>
+                    <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="email">
+                </div>
+
+                <div class="actions">
+                    <button id="sendOtpBtn" class="button button-primary" type="button">Send OTP</button>
+                </div>
+
+                <div id="otpSection" class="otp-row">
+                    <div class="field">
+                        <label for="otpInput">Enter 6-digit OTP</label>
+                        <input
+                            id="otpInput"
+                            class="otp-input"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            maxlength="6"
+                            placeholder="000000"
+                        >
+                    </div>
+                    <div class="actions">
+                        <button id="verifyOtpBtn" class="button button-primary" type="button">Verify OTP</button>
+                        <button id="resendOtpBtn" class="button button-secondary" type="button">Resend OTP</button>
+                    </div>
+                </div>
+
+                <p id="statusMessage" class="status info"></p>
+
+                <div id="sessionBox" class="session-box">
+                    <strong id="sessionTitle">You are logged in</strong>
+                    <span id="sessionEmail">user@example.com</span>
+                    <div class="actions">
+                        <button id="goDashboardBtn" class="button button-primary" type="button">Go to Dashboard</button>
+                        <button id="logoutBtn" class="button button-secondary" type="button">Logout</button>
+                    </div>
+                </div>
+
+                <p class="tiny-note">
+                    Important: in Supabase email templates, use <code>{{ .Token }}</code> instead of <code>{{ .ConfirmationURL }}</code> if you want a 6-digit OTP email instead of a magic link.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "https://hlmyjnslyijgdrfuktun.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_VZYzXaf0npSI8sdhgsIFjQ_1i-SMZY6";
+        const DASHBOARD_URL = `${window.location.origin}/dashboard.html`;
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            }
+        });
+
+        const state = {
+            email: "",
+            otpSent: false,
+            sending: false,
+            verifying: false
+        };
+
+        const emailInput = document.getElementById("emailInput");
+        const otpInput = document.getElementById("otpInput");
+        const otpSection = document.getElementById("otpSection");
+        const sendOtpBtn = document.getElementById("sendOtpBtn");
+        const verifyOtpBtn = document.getElementById("verifyOtpBtn");
+        const resendOtpBtn = document.getElementById("resendOtpBtn");
+        const statusMessage = document.getElementById("statusMessage");
+        const sessionBox = document.getElementById("sessionBox");
+        const sessionEmail = document.getElementById("sessionEmail");
+        const goDashboardBtn = document.getElementById("goDashboardBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        init();
+
+        async function init() {
+            bindEvents();
+
+            const { data } = await supabaseClient.auth.getSession();
+            const session = data && data.session ? data.session : null;
+
+            if (session && session.user) {
+                handleLoggedInSession(session);
+            } else {
+                setStatus("Enter your email to receive an OTP.", "info");
+            }
+
+            supabaseClient.auth.onAuthStateChange(function (_event, sessionValue) {
+                if (sessionValue && sessionValue.user) {
+                    handleLoggedInSession(sessionValue);
+                }
+            });
+        }
+
+        function bindEvents() {
+            sendOtpBtn.addEventListener("click", function () {
+                sendOtp();
+            });
+
+            verifyOtpBtn.addEventListener("click", function () {
+                verifyOtp();
+            });
+
+            resendOtpBtn.addEventListener("click", function () {
+                sendOtp(true);
+            });
+
+            emailInput.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendOtp();
+                }
+            });
+
+            otpInput.addEventListener("input", function () {
+                otpInput.value = otpInput.value.replace(/\D/g, "").slice(0, 6);
+            });
+
+            otpInput.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    verifyOtp();
+                }
+            });
+
+            goDashboardBtn.addEventListener("click", function () {
+                window.location.href = DASHBOARD_URL;
+            });
+
+            logoutBtn.addEventListener("click", async function () {
+                logoutBtn.disabled = true;
+                logoutBtn.textContent = "Logging out...";
+
+                try {
+                    await supabaseClient.auth.signOut();
+                    sessionBox.classList.remove("visible");
+                    state.otpSent = false;
+                    emailInput.disabled = false;
+                    otpSection.classList.remove("visible");
+                    otpInput.value = "";
+                    setStatus("You have been logged out.", "info");
+                } catch (error) {
+                    setStatus(error.message || "Logout failed.", "error");
+                } finally {
+                    logoutBtn.disabled = false;
+                    logoutBtn.textContent = "Logout";
+                }
+            });
+        }
+
+        async function sendOtp(isResend) {
+            const email = emailInput.value.trim().toLowerCase();
+            if (!isValidEmail(email)) {
+                setStatus("Please enter a valid email address.", "error");
+                emailInput.focus();
+                return;
+            }
+
+            if (state.sending) return;
+
+            state.sending = true;
+            state.email = email;
+            sendOtpBtn.disabled = true;
+            resendOtpBtn.disabled = true;
+            sendOtpBtn.textContent = isResend ? "Resending..." : "Sending...";
+            if (isResend) {
+                resendOtpBtn.textContent = "Resending...";
+            }
+
+            setStatus(isResend ? "Resending OTP..." : "Sending OTP...", "info");
+
+            try {
+                const { error } = await supabaseClient.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        shouldCreateUser: true
+                    }
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                state.otpSent = true;
+                otpSection.classList.add("visible");
+                emailInput.disabled = true;
+                otpInput.value = "";
+                setStatus(`OTP sent to ${email}. Please check your inbox.`, "success");
+                window.setTimeout(function () {
+                    otpInput.focus();
+                }, 80);
+            } catch (error) {
+                setStatus(resolveOtpError(error, "send"), "error");
+            } finally {
+                state.sending = false;
+                sendOtpBtn.disabled = false;
+                resendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = "Send OTP";
+                resendOtpBtn.textContent = "Resend OTP";
+            }
+        }
+
+        async function verifyOtp() {
+            const otp = otpInput.value.trim();
+            if (!state.email || !state.otpSent) {
+                setStatus("Please request an OTP first.", "error");
+                return;
+            }
+
+            if (!/^\d{6}$/.test(otp)) {
+                setStatus("Please enter a valid 6-digit OTP.", "error");
+                otpInput.focus();
+                return;
+            }
+
+            if (state.verifying) return;
+
+            state.verifying = true;
+            verifyOtpBtn.disabled = true;
+            resendOtpBtn.disabled = true;
+            verifyOtpBtn.textContent = "Verifying...";
+            setStatus("Verifying OTP...", "info");
+
+            try {
+                const { data, error } = await supabaseClient.auth.verifyOtp({
+                    email: state.email,
+                    token: otp,
+                    type: "email"
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data || !data.session) {
+                    throw new Error("Session not created after OTP verification.");
+                }
+
+                handleLoggedInSession(data.session);
+                setStatus("OTP verified successfully. Redirecting to dashboard...", "success");
+
+                window.setTimeout(function () {
+                    window.location.href = DASHBOARD_URL;
+                }, 900);
+            } catch (error) {
+                setStatus(resolveOtpError(error, "verify"), "error");
+                otpInput.focus();
+                otpInput.select();
+            } finally {
+                state.verifying = false;
+                verifyOtpBtn.disabled = false;
+                resendOtpBtn.disabled = false;
+                verifyOtpBtn.textContent = "Verify OTP";
+            }
+        }
+
+        function handleLoggedInSession(session) {
+            const email = session && session.user && session.user.email ? session.user.email : state.email;
+            if (email) {
+                state.email = email;
+                emailInput.value = email;
+                sessionEmail.textContent = email;
+            }
+
+            sessionBox.classList.add("visible");
+            otpSection.classList.remove("visible");
+            emailInput.disabled = true;
+            state.otpSent = false;
+        }
+
+        function resolveOtpError(error, mode) {
+            const message = String(error && error.message || "").toLowerCase();
+
+            if (message.includes("expired")) {
+                return "OTP expired. Please request a new OTP.";
+            }
+
+            if (message.includes("invalid")) {
+                return "Wrong OTP. Please enter the correct 6-digit code.";
+            }
+
+            if (message.includes("rate limit")) {
+                return "Too many attempts. Please wait a moment and try again.";
+            }
+
+            if (message.includes("email not confirmed")) {
+                return "Email could not be verified. Please request a fresh OTP.";
+            }
+
+            if (message.includes("failed to fetch") || message.includes("network")) {
+                return "Network error. Please check your connection and try again.";
+            }
+
+            return mode === "send"
+                ? (error.message || "Failed to send OTP.")
+                : (error.message || "Failed to verify OTP.");
+        }
+
+        function setStatus(message, type) {
+            statusMessage.textContent = message || "";
+            statusMessage.className = `status ${type || "info"}`;
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "");
+        }
+    </script>
+</body>
+</html>

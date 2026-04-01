@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - AJartivo</title>
+    <meta name="description" content="Read the AJartivo Privacy Policy covering account data, download security, payments, and customer support information handling.">
+    <link rel="canonical" href="https://ajartivo.in/privacy.html">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/legal.css">
+</head>
+
+<body class="legal-page">
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="legal-shell">
+        <section class="legal-hero">
+            <p class="legal-kicker">AJartivo Policies</p>
+            <h1>Privacy Policy</h1>
+            <p>AJartivo collects only the information necessary to operate a secure digital marketplace, manage subscriptions, verify payments, protect downloads, and improve customer support.</p>
+        </section>
+
+        <section class="legal-grid">
+            <article class="legal-card">
+                <h2>Information We Collect</h2>
+                <ul>
+                    <li>Account information such as email address and authenticated user ID.</li>
+                    <li>Purchase and subscription records required for download access control.</li>
+                    <li>Download activity used for entitlement tracking, fraud prevention, and support.</li>
+                    <li>Basic device, browser, and IP-related metadata collected for security and service diagnostics.</li>
+                </ul>
+            </article>
+
+            <article class="legal-card">
+                <h2>How We Use Your Data</h2>
+                <ul>
+                    <li>To authenticate users and secure digital asset delivery.</li>
+                    <li>To track free and premium download limits correctly.</li>
+                    <li>To verify successful payments and activate premium subscriptions.</li>
+                    <li>To investigate fraud, abuse, refund requests, and account issues.</li>
+                    <li>To respond to support requests and improve product reliability.</li>
+                </ul>
+            </article>
+
+            <article class="legal-card">
+                <h2>Security</h2>
+                <p>AJartivo does not expose the Supabase service role key to the frontend and does not provide public direct asset URLs for protected files. Access-sensitive operations are processed through secure backend routes.</p>
+            </article>
+
+            <article class="legal-card">
+                <h2>Third-Party Services</h2>
+                <p>AJartivo may use trusted third-party services such as Supabase for authentication and storage-related data operations, and Razorpay for secure payment processing. Payment card details are handled by the payment provider and are not stored directly by AJartivo.</p>
+            </article>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/supabase-config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/payment.js"></script>
+    <script src="/js/script.js"></script>
+</body>
+
+</html>
