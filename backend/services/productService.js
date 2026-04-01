@@ -114,13 +114,9 @@ async function sendProtectedFile(res, product) {
     res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
 
     if (isHttpUrl(downloadLink)) {
-        const remoteResponse = await fetch(downloadLink);
-        if (!remoteResponse.ok) {
-            throw createHttpError(502, "Remote file download failed.");
-        }
-
-        const contentType = cleanText(remoteResponse.headers.get("content-type")) || "application/octet-stream";
-        const arrayBuffer = await remoteResponse.arrayBuffer();
+        const remoteFile = await fetchRemoteDownloadFile(downloadLink);
+        const contentType = cleanText(remoteFile.response.headers.get("content-type")) || "application/octet-stream";
+        const arrayBuffer = await remoteFile.response.arrayBuffer();
         res.setHeader("Content-Type", contentType);
         res.status(200).send(Buffer.from(arrayBuffer));
         return;
@@ -177,6 +173,96 @@ function isMissingRelationError(error) {
     const message = cleanText(error && (error.message || error.details)).toLowerCase();
 
     return code === "42P01" || (message.includes("relation") && message.includes("does not exist"));
+}
+
+async function fetchRemoteDownloadFile(downloadLink) {
+    const candidates = buildRemoteDownloadCandidates(downloadLink);
+    let lastResponse = null;
+
+    for (const candidate of candidates) {
+        const response = await fetch(candidate.url, {
+            redirect: "follow",
+            headers: {
+                "Accept": "*/*",
+                "User-Agent": "AJartivo-Download-Proxy/1.0"
+            }
+        });
+
+        if (!response.ok) {
+            lastResponse = response;
+            continue;
+        }
+
+        const contentType = cleanText(response.headers.get("content-type")).toLowerCase();
+        if (candidate.expectBinary !== true || !contentType.includes("text/html")) {
+            return {
+                url: candidate.url,
+                response: response
+            };
+        }
+
+        lastResponse = response;
+    }
+
+    if (lastResponse) {
+        throw createHttpError(502, `Remote file download failed with status ${lastResponse.status}.`);
+    }
+
+    throw createHttpError(502, "Remote file download failed.");
+}
+
+function buildRemoteDownloadCandidates(downloadLink) {
+    const normalizedUrl = cleanText(downloadLink);
+    const driveFileId = extractGoogleDriveFileId(normalizedUrl);
+
+    if (driveFileId) {
+        return [
+            {
+                url: `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveFileId)}&export=download&confirm=t`,
+                expectBinary: true
+            },
+            {
+                url: `https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveFileId)}`,
+                expectBinary: true
+            },
+            {
+                url: normalizedUrl,
+                expectBinary: true
+            }
+        ];
+    }
+
+    if (/dropbox\.com/i.test(normalizedUrl)) {
+        const dropboxDirectUrl = normalizedUrl.includes("?")
+            ? normalizedUrl.replace(/[?&]dl=\d+/i, "").concat(normalizedUrl.match(/[?&]/) ? "&dl=1" : "?dl=1")
+            : `${normalizedUrl}?dl=1`;
+
+        return [
+            { url: dropboxDirectUrl, expectBinary: true },
+            { url: normalizedUrl, expectBinary: true }
+        ];
+    }
+
+    return [{ url: normalizedUrl, expectBinary: false }];
+}
+
+function extractGoogleDriveFileId(value) {
+    const normalizedValue = cleanText(value);
+    if (!/drive\.google\.com|drive\.usercontent\.google\.com/i.test(normalizedValue)) {
+        return "";
+    }
+
+    const filePathMatch = normalizedValue.match(/\/file\/d\/([^/?#]+)/i);
+    if (filePathMatch && filePathMatch[1]) {
+        return cleanText(filePathMatch[1]);
+    }
+
+    try {
+        const parsedUrl = new URL(normalizedValue);
+        return cleanText(parsedUrl.searchParams.get("id"));
+    } catch (_error) {
+        return "";
+    }
 }
 
 module.exports = {
