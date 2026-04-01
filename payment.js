@@ -248,6 +248,21 @@
         });
         const data = parseJsonResponse(responseText);
 
+        if (
+            response.status === 401 &&
+            settings.authContext &&
+            settings._authRetry !== true
+        ) {
+            const refreshedAuthContext = await refreshAuthContext(settings.authContext);
+            if (refreshedAuthContext) {
+                return requestJson(route, {
+                    ...settings,
+                    authContext: refreshedAuthContext,
+                    _authRetry: true
+                });
+            }
+        }
+
         if (data === null && response.ok) {
             throw new Error(`Backend returned an invalid JSON response from ${endpoint}.`);
         }
@@ -333,6 +348,12 @@
     }
 
     async function getAuthContext(options) {
+        if (services.refreshSession) {
+            await services.refreshSession().catch(function () {
+                return null;
+            });
+        }
+
         let authSession = await readAuthSession();
 
         if (!authSession) {
@@ -363,7 +384,7 @@
 
     async function readAuthSession() {
         if (services.getAuthSession) {
-            return services.getAuthSession();
+            return services.getAuthSession({ sync: true });
         }
 
         if (services.client && services.client.auth && typeof services.client.auth.getSession === "function") {
@@ -372,6 +393,42 @@
         }
 
         return null;
+    }
+
+    async function refreshAuthContext(authContext) {
+        let refreshedSession = null;
+
+        if (
+            services.client &&
+            services.client.auth &&
+            typeof services.client.auth.refreshSession === "function"
+        ) {
+            const refreshResult = await services.client.auth.refreshSession().catch(function () {
+                return null;
+            });
+            refreshedSession = refreshResult && refreshResult.data ? refreshResult.data.session : null;
+        }
+
+        if (!refreshedSession && services.getAuthSession) {
+            refreshedSession = await services.getAuthSession({ sync: true }).catch(function () {
+                return null;
+            });
+        }
+
+        if (!refreshedSession || !refreshedSession.user || !cleanText(refreshedSession.access_token)) {
+            return null;
+        }
+
+        return {
+            id: cleanText(refreshedSession.user.id) || cleanText(authContext && authContext.id),
+            email: cleanText(refreshedSession.user.email).toLowerCase() || cleanText(authContext && authContext.email).toLowerCase(),
+            name: cleanText(
+                refreshedSession.user.user_metadata &&
+                (refreshedSession.user.user_metadata.full_name || refreshedSession.user.user_metadata.name)
+            ) || cleanText(authContext && authContext.name),
+            accessToken: cleanText(refreshedSession.access_token),
+            sessionUser: services.getSession ? services.getSession() : null
+        };
     }
 
     function buildRequestHeaders(authContext, method) {
