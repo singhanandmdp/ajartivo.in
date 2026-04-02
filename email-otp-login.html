@@ -432,6 +432,9 @@
         const SUPABASE_URL = "https://hlmyjnslyijgdrfuktun.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_VZYzXaf0npSI8sdhgsIFjQ_1i-SMZY6";
         const HOME_URL = `${window.location.origin}/index.html`;
+        const TEMPORARY_USER_DATA_RESET_VERSION = "20260403-new-user-experience";
+        const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
+        const TEMPORARY_USER_DATA_KEYS = ["ajartivo_session", "ajartivo_wishlist", "ajartivo_download_history"];
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
@@ -463,6 +466,7 @@
         init();
 
         async function init() {
+            await applyTemporaryUserDataReset();
             bindEvents();
 
             const { data } = await supabaseClient.auth.getSession();
@@ -479,6 +483,69 @@
                     handleLoggedInSession(sessionValue);
                 }
             });
+        }
+
+        async function applyTemporaryUserDataReset() {
+            const currentVersion = readStorageText(USER_DATA_RESET_MARKER_KEY);
+            if (currentVersion === TEMPORARY_USER_DATA_RESET_VERSION) {
+                return;
+            }
+
+            try {
+                await supabaseClient.auth.signOut({ scope: "local" });
+            } catch (error) {
+                console.warn("Supabase sign-out skipped during OTP reset:", error);
+            }
+
+            TEMPORARY_USER_DATA_KEYS.forEach(removeStorageItem);
+            clearSupabaseAuthStorage();
+            writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
+        }
+
+        function clearSupabaseAuthStorage() {
+            try {
+                const keysToRemove = [];
+                for (let index = 0; index < localStorage.length; index += 1) {
+                    const key = String(localStorage.key(index) || "").trim();
+                    if (/^sb-.*auth-token$/i.test(key)) {
+                        keysToRemove.push(key);
+                    }
+                }
+
+                keysToRemove.forEach(removeStorageItem);
+            } catch (error) {
+                console.warn("Supabase auth storage cleanup failed:", error);
+            }
+        }
+
+        function removeStorageItem(key) {
+            const storageKey = String(key || "").trim();
+            if (!storageKey) {
+                return;
+            }
+
+            try {
+                localStorage.removeItem(storageKey);
+            } catch (error) {
+                console.warn("Local storage remove failed:", error);
+            }
+        }
+
+        function readStorageText(key) {
+            try {
+                return String(localStorage.getItem(key) || "").trim();
+            } catch (error) {
+                console.warn("Local storage read failed:", error);
+                return "";
+            }
+        }
+
+        function writeStorageText(key, value) {
+            try {
+                localStorage.setItem(key, String(value || "").trim());
+            } catch (error) {
+                console.warn("Local storage write failed:", error);
+            }
         }
 
         function bindEvents() {

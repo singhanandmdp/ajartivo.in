@@ -4,6 +4,9 @@
     const SESSION_KEY = "ajartivo_session";
     const WISHLIST_KEY = "ajartivo_wishlist";
     const DOWNLOAD_HISTORY_KEY = "ajartivo_download_history";
+    const TEMPORARY_USER_DATA_RESET_VERSION = "20260403-new-user-experience";
+    const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
+    const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
     let productsChannel = null;
@@ -48,14 +51,20 @@
         removeWishlistItem: removeWishlistItem,
         isWishlisted: isWishlisted,
         addDownloadHistoryItem: addDownloadHistoryItem,
+        resetStoredUserData: resetStoredUserData,
         subscribeToProductChanges: subscribeToProductChanges
     };
 
-    hydrateSession();
-    subscribeToProductChanges();
-    supabase.auth.onAuthStateChange(function (_event, session) {
-        syncSessionFromAuth(session);
-    });
+    initializeApp();
+
+    async function initializeApp() {
+        await applyTemporaryUserDataReset();
+        await hydrateSession();
+        subscribeToProductChanges();
+        supabase.auth.onAuthStateChange(function (_event, session) {
+            syncSessionFromAuth(session);
+        });
+    }
 
     async function fetchProducts() {
         let result = await supabase.from("products").select("*");
@@ -131,7 +140,7 @@
         const product = record || {};
         const normalizedId = String(product.id || "").trim();
         const title = cleanText(product.title) || "Untitled Design";
-        const image = cleanText(product.image || product.preview_url || product.previewUrl) || "/images/preview1.jpg";
+        const image = cleanText(product.image || product.image_url || product.preview_url || product.previewUrl) || "/images/preview1.jpg";
         const category = cleanText(product.category).toUpperCase();
         const createdAt = cleanText(product.created_at) || new Date(0).toISOString();
         const price = Number(product.price || 0);
@@ -141,7 +150,7 @@
         const isPaid = isPremium === true || normalizedPrice > 0;
         const isPurchased = product.isPurchased === true || product.is_purchased === true;
         const hasAccess = product.has_access === true || isPurchased;
-        const rawDownloadLink = cleanText(product.download_link || product.downloadUrl || product.download);
+        const rawDownloadLink = cleanText(product.download_link || product.file_url || product.downloadUrl || product.download);
         const hasDownloadAsset = Boolean(rawDownloadLink);
         const publicDownloadLink = "";
         const previewImages = collectProductImages(product, image);
@@ -152,6 +161,7 @@
             title: title,
             name: title,
             image: image,
+            image_url: cleanText(product.image_url || image),
             category: category,
             type: category,
             format: category,
@@ -168,6 +178,7 @@
             accessType: hasAccess ? "UNLOCKED" : isFree ? "FREE" : "PREMIUM",
             download_enabled: hasDownloadAsset,
             download_link: publicDownloadLink,
+            file_url: cleanText(product.file_url || product.download_link || product.downloadUrl || product.download),
             downloadLink: publicDownloadLink,
             downloadUrl: publicDownloadLink,
             fileUrl: publicDownloadLink,
@@ -253,7 +264,7 @@
     }
 
     function clearSession() {
-        localStorage.removeItem(SESSION_KEY);
+        removeStorageItem(SESSION_KEY);
     }
 
     async function signIn(email, password) {
@@ -275,7 +286,6 @@
         const email = cleanText(options && options.email).toLowerCase();
         const password = cleanText(options && options.password);
         const address = cleanText(options && options.address);
-        const mobileNumber = cleanText(options && options.mobileNumber);
         const names = buildNameParts(options, email);
         const { data, error } = await supabase.auth.signUp({
             email: email,
@@ -286,8 +296,7 @@
                     name: names.fullName,
                     first_name: names.firstName,
                     last_name: names.lastName,
-                    address: address,
-                    mobile_number: mobileNumber
+                    address: address
                 }
             }
         });
@@ -341,9 +350,12 @@
             email: email,
             first_name: names.firstName,
             last_name: names.lastName,
-            address: address,
-            mobile_number: mobileNumber
+            address: address
         };
+
+        if (mobileNumber) {
+            profilePayload.mobile_number = mobileNumber;
+        }
 
         const { error: profileError } = await supabase
             .from("profiles")
@@ -364,7 +376,7 @@
                 first_name: names.firstName,
                 last_name: names.lastName,
                 address: address,
-                mobile_number: mobileNumber
+                ...(mobileNumber ? { mobile_number: mobileNumber } : {})
             }
         });
 
@@ -575,6 +587,86 @@
 
     function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    async function applyTemporaryUserDataReset() {
+        const currentVersion = readStorageText(USER_DATA_RESET_MARKER_KEY);
+        if (currentVersion === TEMPORARY_USER_DATA_RESET_VERSION) {
+            return;
+        }
+
+        await resetStoredUserData();
+        writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
+    }
+
+    async function resetStoredUserData() {
+        let hadSession = Boolean(getSession());
+
+        try {
+            const authResult = await supabase.auth.getSession();
+            hadSession = hadSession || Boolean(authResult && authResult.data && authResult.data.session);
+        } catch (error) {
+            console.warn("Supabase auth session check failed during reset:", error);
+        }
+
+        try {
+            await supabase.auth.signOut({ scope: "local" });
+        } catch (error) {
+            console.warn("Supabase sign-out skipped during temporary reset:", error);
+        }
+
+        TEMPORARY_USER_DATA_KEYS.forEach(removeStorageItem);
+        clearSupabaseAuthStorage();
+
+        if (hadSession) {
+            dispatchSessionChange(null);
+        }
+    }
+
+    function clearSupabaseAuthStorage() {
+        try {
+            const keysToRemove = [];
+            for (let index = 0; index < localStorage.length; index += 1) {
+                const key = cleanText(localStorage.key(index));
+                if (/^sb-.*auth-token$/i.test(key)) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            keysToRemove.forEach(removeStorageItem);
+        } catch (error) {
+            console.warn("Supabase auth storage cleanup failed:", error);
+        }
+    }
+
+    function removeStorageItem(key) {
+        const storageKey = cleanText(key);
+        if (!storageKey) {
+            return;
+        }
+
+        try {
+            localStorage.removeItem(storageKey);
+        } catch (error) {
+            console.error("Local storage remove failed:", error);
+        }
+    }
+
+    function readStorageText(key) {
+        try {
+            return cleanText(localStorage.getItem(key));
+        } catch (error) {
+            console.error("Local storage read failed:", error);
+            return "";
+        }
+    }
+
+    function writeStorageText(key, value) {
+        try {
+            localStorage.setItem(key, cleanText(value));
+        } catch (error) {
+            console.error("Local storage write failed:", error);
+        }
     }
 
     function buildNameParts(source, fallbackEmail) {

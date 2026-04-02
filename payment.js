@@ -63,6 +63,12 @@
 
         try {
             const summary = await fetchDownloadAccess(item.id, authContext);
+            if (summary && summary.access && summary.access.allowed === true) {
+                await downloadFile(item, authContext);
+                await refreshAccountSummary();
+                emitAccountUpdated();
+                return;
+            }
             await openAccessPopup(item, summary, authContext);
         } catch (error) {
             console.error("[AJartivo Payment] access check failed", error);
@@ -511,18 +517,8 @@
                 </div>
                 <div class="aj-login-form-shell">
                     <p class="aj-login-error" hidden></p>
-                    <label class="aj-login-field">
-                        <span>Email</span>
-                        <input type="email" class="aj-login-input aj-login-email" placeholder="Email address" autocomplete="email">
-                    </label>
-                    <label class="aj-login-field">
-                        <span>Password</span>
-                        <div class="aj-login-password-wrap">
-                            <input type="password" class="aj-login-input aj-login-password" placeholder="Password" autocomplete="current-password">
-                            <button type="button" class="aj-login-toggle" aria-label="Show password" aria-pressed="false">Show</button>
-                        </div>
-                    </label>
-                    <button type="button" class="aj-login-submit">Log In</button>
+                    <p class="aj-login-helper">Google sign-in is required before any download or purchase action.</p>
+                    <button type="button" class="aj-login-submit aj-login-google">Continue with Google</button>
                     <div class="aj-login-actions">
                         <a class="aj-login-link" href="/signup.html">Create account</a>
                         <a class="aj-login-link aj-login-link-strong" href="/login.html">Open full login page</a>
@@ -536,14 +532,12 @@
         wrapper.style.display = "grid";
         document.body.classList.add("aj-login-open");
 
-        const emailInput = wrapper.querySelector(".aj-login-email");
-        const passwordInput = wrapper.querySelector(".aj-login-password");
         const submitButton = wrapper.querySelector(".aj-login-submit");
         const closeButton = wrapper.querySelector(".aj-login-close");
         const backdrop = wrapper.querySelector(".aj-login-backdrop");
         const errorNode = wrapper.querySelector(".aj-login-error");
-        const toggleButton = wrapper.querySelector(".aj-login-toggle");
-        const defaultSubmitText = submitButton ? submitButton.textContent : "Log In";
+        const defaultSubmitText = submitButton ? submitButton.textContent : "Continue with Google";
+        const redirectTo = window.location.href;
 
         loginPopupState = {
             root: wrapper,
@@ -575,33 +569,15 @@
                 };
 
                 const submit = async function () {
-                    const email = cleanText(emailInput && emailInput.value).toLowerCase();
-                    const password = cleanText(passwordInput && passwordInput.value);
-
-                    if (!isValidEmail(email)) {
-                        showError("Enter a valid email address.");
-                        return;
-                    }
-
-                    if (!password) {
-                        showError("Enter your password.");
-                        return;
-                    }
-
                     submitButton.disabled = true;
-                    submitButton.textContent = "Logging in...";
+                    submitButton.textContent = "Redirecting...";
                     showError("");
 
                     try {
-                        const session = services.signIn
-                            ? await services.signIn(email, password)
-                            : null;
-
-                        if (!session || !cleanText(session.email)) {
-                            throw new Error("Login was successful, but session could not be loaded.");
+                        if (!services.signInWithOAuth) {
+                            throw new Error("Google login is not available right now.");
                         }
-
-                        finish(session);
+                        await services.signInWithOAuth("google", redirectTo);
                     } catch (error) {
                         console.error("[AJartivo Payment] login popup sign-in failed", error);
                         showError(mapLoginError(error));
@@ -628,26 +604,8 @@
                     submitButton.addEventListener("click", submit);
                 }
 
-                if (toggleButton && passwordInput) {
-                    toggleButton.addEventListener("click", function () {
-                        const showPassword = passwordInput.type === "password";
-                        passwordInput.type = showPassword ? "text" : "password";
-                        toggleButton.textContent = showPassword ? "Hide" : "Show";
-                        toggleButton.setAttribute("aria-pressed", showPassword ? "true" : "false");
-                        toggleButton.setAttribute("aria-label", showPassword ? "Hide password" : "Show password");
-                    });
-                }
-
-                if (passwordInput) {
-                    passwordInput.addEventListener("keydown", function (event) {
-                        if (event.key === "Enter") {
-                            submit();
-                        }
-                    });
-                }
-
-                if (emailInput) {
-                    emailInput.focus();
+                if (submitButton) {
+                    submitButton.focus();
                 }
             })
         };
@@ -657,57 +615,82 @@
 
     async function downloadFile(product, authContext) {
         const fileName = buildDownloadFileName(product, "");
-        const popupControls = showDownloadPopup({
-            title: cleanText(product.title) || "Preparing your file",
-            fileName: fileName,
-            onRetry: async function () {
-                await attemptDownload();
+        return new Promise(function (resolve) {
+            let resolvedOnce = false;
+
+            const popupControls = showDownloadPopup({
+                title: cleanText(product.title) || "Preparing your file",
+                fileName: fileName,
+                waitSeconds: 8,
+                onClose: function () {
+                    if (!resolvedOnce) {
+                        resolve(null);
+                    }
+                },
+                onDownload: attemptDownload
+            });
+
+            async function attemptDownload() {
+                if (popupControls) {
+                    popupControls.setStatus("Preparing your secure download...");
+                    popupControls.setAction({
+                        disabled: true,
+                        label: "Preparing..."
+                    });
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
+                        method: "GET",
+                        headers: buildAuthHeaders(authContext)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(await readErrorMessage(response, "Unable to download this file."));
+                    }
+
+                    const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
+                    const blob = await response.blob();
+                    const objectUrl = URL.createObjectURL(blob);
+
+                    triggerBrowserDownload(objectUrl, resolvedFileName);
+                    services.addDownloadHistoryItem({
+                        ...product,
+                        download_link: resolvedFileName
+                    });
+
+                    window.setTimeout(function () {
+                        URL.revokeObjectURL(objectUrl);
+                    }, 30000);
+
+                    if (popupControls) {
+                        popupControls.setStatus("Download started. If it does not begin, use Download Again.");
+                        popupControls.setAction({
+                            disabled: false,
+                            label: "Download Again"
+                        });
+                    }
+
+                    if (!resolvedOnce) {
+                        resolvedOnce = true;
+                        resolve({
+                            started: true,
+                            fileName: resolvedFileName
+                        });
+                    }
+                } catch (error) {
+                    console.error("[AJartivo Payment] secure download failed", error);
+                    if (popupControls) {
+                        popupControls.setStatus(cleanText(error && error.message) || "Download failed.");
+                        popupControls.setAction({
+                            disabled: false,
+                            label: "Try Again"
+                        });
+                    }
+                    alert(error && error.message ? error.message : "Unable to download this file right now.");
+                }
             }
         });
-
-        async function attemptDownload() {
-            if (popupControls) {
-                popupControls.setStatus("Preparing your secure download...");
-            }
-
-            const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
-                method: "GET",
-                headers: buildAuthHeaders(authContext)
-            });
-
-            if (!response.ok) {
-                throw new Error(await readErrorMessage(response, "Unable to download this file."));
-            }
-
-            const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-
-            triggerBrowserDownload(objectUrl, resolvedFileName);
-            services.addDownloadHistoryItem({
-                ...product,
-                download_link: resolvedFileName
-            });
-
-            window.setTimeout(function () {
-                URL.revokeObjectURL(objectUrl);
-            }, 30000);
-
-            if (popupControls) {
-                popupControls.setStatus("Download started. If it does not begin, use Download again.");
-            }
-        }
-
-        try {
-            await attemptDownload();
-        } catch (error) {
-            console.error("[AJartivo Payment] secure download failed", error);
-            if (popupControls) {
-                popupControls.setStatus(cleanText(error && error.message) || "Download failed.");
-            }
-            alert(error && error.message ? error.message : "Unable to download this file right now.");
-            throw error;
-        }
     }
 
     function isPremiumDesign(product) {
@@ -808,40 +791,55 @@
 
         const title = cleanText(options && options.title) || "Preparing download";
         const fileName = cleanText(options && options.fileName) || "aj-file";
-        const onRetry = options && typeof options.onRetry === "function" ? options.onRetry : function () {};
+        const waitSeconds = normalizeCountdown(options && options.waitSeconds, 8);
+        const onClose = options && typeof options.onClose === "function" ? options.onClose : function () {};
+        const onDownload = options && typeof options.onDownload === "function" ? options.onDownload : function () {};
 
         downloadPopupState.title.textContent = title;
         downloadPopupState.file.textContent = fileName;
-        downloadPopupState.status.textContent = "We are preparing your file.";
-        downloadPopupState.countdown.textContent = "12";
+        downloadPopupState.status.textContent = `Please wait ${waitSeconds} seconds before starting the secure download.`;
+        downloadPopupState.countdown.textContent = String(waitSeconds);
+        downloadPopupState.onClose = onClose;
         downloadPopupState.root.hidden = false;
         downloadPopupState.root.style.display = "grid";
         document.body.classList.add("aj-download-open");
+        downloadPopupState.action.disabled = true;
+        downloadPopupState.action.textContent = `Download in ${waitSeconds}s`;
 
         if (downloadPopupState.timerId) {
             window.clearInterval(downloadPopupState.timerId);
         }
 
-        let remaining = 12;
+        let remaining = waitSeconds;
         downloadPopupState.timerId = window.setInterval(function () {
             remaining -= 1;
             if (remaining <= 0) {
                 remaining = 0;
                 window.clearInterval(downloadPopupState.timerId);
                 downloadPopupState.timerId = null;
-                downloadPopupState.status.textContent = "If your file has not started yet, use Download again.";
+                downloadPopupState.status.textContent = "Your download is ready. Click Download Now.";
+                downloadPopupState.action.disabled = false;
+                downloadPopupState.action.textContent = "Download Now";
             }
             downloadPopupState.countdown.textContent = String(remaining);
         }, 1000);
 
-        downloadPopupState.retry.onclick = async function () {
-            downloadPopupState.status.textContent = "Trying the download again...";
-            await onRetry();
+        downloadPopupState.action.onclick = async function () {
+            if (downloadPopupState.action.disabled) {
+                return;
+            }
+
+            await onDownload();
         };
 
         return {
             setStatus: function (message) {
                 downloadPopupState.status.textContent = cleanText(message) || "We are preparing your file.";
+            },
+            setAction: function (settings) {
+                const nextSettings = settings || {};
+                downloadPopupState.action.disabled = nextSettings.disabled === true;
+                downloadPopupState.action.textContent = cleanText(nextSettings.label) || "Download Now";
             }
         };
     }
@@ -873,11 +871,11 @@
                 <h3 class="aj-download-title"></h3>
                 <p class="aj-download-file"></p>
                 <div class="aj-download-countdown-wrap">
-                    <span class="aj-download-countdown-label">Retry timer</span>
-                    <strong class="aj-download-countdown">12</strong>
+                    <span class="aj-download-countdown-label">Secure timer</span>
+                    <strong class="aj-download-countdown">8</strong>
                 </div>
                 <p class="aj-download-status">We are preparing your file.</p>
-                <button type="button" class="aj-download-retry">Download again</button>
+                <button type="button" class="aj-download-retry" disabled>Download in 8s</button>
             </div>
         `;
 
@@ -894,6 +892,11 @@
             if (downloadPopupState && downloadPopupState.timerId) {
                 window.clearInterval(downloadPopupState.timerId);
                 downloadPopupState.timerId = null;
+            }
+            if (downloadPopupState && typeof downloadPopupState.onClose === "function") {
+                const onClose = downloadPopupState.onClose;
+                downloadPopupState.onClose = null;
+                onClose();
             }
         };
 
@@ -923,9 +926,19 @@
             file: wrapper.querySelector(".aj-download-file"),
             countdown: wrapper.querySelector(".aj-download-countdown"),
             status: wrapper.querySelector(".aj-download-status"),
-            retry: wrapper.querySelector(".aj-download-retry"),
-            timerId: null
+            action: wrapper.querySelector(".aj-download-retry"),
+            timerId: null,
+            onClose: null
         };
+    }
+
+    function normalizeCountdown(value, fallbackValue) {
+        const parsedValue = Number(value);
+        if (Number.isFinite(parsedValue) && parsedValue >= 5 && parsedValue <= 10) {
+            return parsedValue;
+        }
+
+        return fallbackValue;
     }
 
     async function openAccessPopup(product, summary, authContext) {
@@ -954,10 +967,14 @@
             popup.weeklyStat.textContent = `You have ${weeklyRemaining} out of 2 premium downloads remaining this week`;
 
             popup.downloadBtn.disabled = access.allowed !== true;
-            popup.downloadBtn.textContent = access.allowed === true ? "Download Now" : "Download Locked";
+            popup.downloadBtn.hidden = access.allowed !== true;
+            popup.downloadBtn.textContent = "Download";
             popup.upgradeBtn.disabled = premiumActive === true;
+            popup.upgradeBtn.hidden = access.can_upgrade !== true;
             popup.upgradeBtn.textContent = premiumActive === true ? "Premium Active" : "Upgrade to Premium";
             popup.buyBtn.disabled = access.can_buy !== true;
+            popup.buyBtn.hidden = access.can_buy !== true;
+            popup.buyBtn.textContent = "Buy Now";
         };
 
         render(summary);
@@ -1770,6 +1787,12 @@
             .aj-login-error[hidden] {
                 display: none;
             }
+            .aj-login-helper {
+                margin: 0;
+                color: #475569;
+                font-size: 14px;
+                line-height: 1.7;
+            }
             .aj-login-field {
                 display: grid;
                 gap: 9px;
@@ -1852,6 +1875,11 @@
                 cursor: wait;
                 transform: none;
             }
+            .aj-login-google {
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 38%),
+                    linear-gradient(135deg, #0f172a, #1d4ed8 56%, #60a5fa);
+            }
             .aj-login-actions {
                 display: flex;
                 justify-content: space-between;
@@ -1903,12 +1931,8 @@
     function mapLoginError(error) {
         const message = cleanText(error && (error.message || error.error_description || error.code)).toLowerCase();
 
-        if (message.includes("invalid login credentials")) {
-            return "Incorrect email or password.";
-        }
-
-        if (message.includes("email not confirmed")) {
-            return "Please verify your email before logging in.";
+        if (message.includes("popup") || message.includes("oauth") || message.includes("provider")) {
+            return "Google login could not be started. Please try again.";
         }
 
         if (message.includes("failed to fetch") || message.includes("network")) {

@@ -1,18 +1,25 @@
 (function () {
     const services = window.AjArtivoSupabase;
     if (!services) return;
+    const supabase = services.client;
 
     let currentSession = null;
+    let currentProfile = null;
     let formsBound = false;
 
     init();
 
     async function init() {
-        const user = await services.refreshSession();
-        if (!user) return;
+        const authUser = await getLoggedInUser();
+        if (!authUser) {
+            window.location.href = "/login.html";
+            return;
+        }
 
-        currentSession = user;
-        renderPage(user);
+        currentProfile = await loadProfileIdentity(authUser);
+        const user = services.refreshSession ? await services.refreshSession() : null;
+        currentSession = buildDisplaySession(user, authUser);
+        renderPage(currentSession);
         bindEvents();
         loadWishlist();
         loadDownloadHistory();
@@ -36,16 +43,16 @@
             const session = services.getSession();
             if (!session) return;
 
-            currentSession = session;
-            renderPage(session);
+            currentSession = buildDisplaySession(session, null);
+            renderPage(currentSession);
         });
 
         window.addEventListener("ajartivo:account-updated", function () {
             const session = services.getSession();
             if (!session) return;
 
-            currentSession = session;
-            renderPage(session);
+            currentSession = buildDisplaySession(session, null);
+            renderPage(currentSession);
         });
 
         formsBound = true;
@@ -57,19 +64,102 @@
         populateProfileForm(session);
     }
 
+    async function getLoggedInUser() {
+        if (!supabase || !supabase.auth || typeof supabase.auth.getUser !== "function") {
+            return null;
+        }
+
+        const authResult = await supabase.auth.getUser();
+        return authResult && authResult.data ? authResult.data.user : null;
+    }
+
+    async function loadProfileIdentity(user) {
+        if (!user || !cleanText(user.id)) {
+            return null;
+        }
+
+        try {
+            const { data: profile, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            if (error) {
+                throw error;
+            }
+
+            if (!profile) {
+                const { error: insertError } = await supabase
+                    .from("profiles")
+                    .insert([
+                        {
+                            id: user.id,
+                            email: cleanText(user.email).toLowerCase(),
+                            name: "User"
+                        }
+                    ]);
+
+                if (insertError) {
+                    throw insertError;
+                }
+            }
+
+            const { data: finalProfile, error: finalProfileError } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", user.id)
+                .single();
+
+            if (finalProfileError) {
+                throw finalProfileError;
+            }
+
+            return finalProfile;
+        } catch (error) {
+            console.error("Profile identity load failed:", error);
+            return null;
+        }
+    }
+
+    function buildDisplaySession(session, authUser) {
+        const baseSession = session || {};
+        const profile = currentProfile || {};
+        const profileName = cleanText(profile.name || profile.full_name);
+        const sessionName = cleanText(baseSession.fullName || baseSession.name);
+        const authName = cleanText(authUser && authUser.user_metadata && (authUser.user_metadata.full_name || authUser.user_metadata.name));
+        const displayName = sessionName || profileName || authName || "User";
+        const nameParts = splitName(displayName);
+
+        return {
+            ...baseSession,
+            name: sessionName || displayName,
+            fullName: sessionName || displayName,
+            firstName: cleanText(baseSession.firstName) || cleanText(profile.first_name) || nameParts.firstName,
+            lastName: cleanText(baseSession.lastName) || cleanText(profile.last_name) || nameParts.lastName,
+            address: cleanText(baseSession.address) || cleanText(profile.address),
+            mobileNumber: cleanText(baseSession.mobileNumber) || cleanText(profile.mobile_number),
+            email: cleanText(baseSession.email) || cleanText(profile.email) || cleanText(authUser && authUser.email),
+            createdAt: cleanText(baseSession.createdAt) || cleanText(authUser && authUser.created_at) || new Date().toISOString()
+        };
+    }
+
     function renderProfile(session) {
-        const fullName = session.fullName || session.name || "Creative Member";
+        const fullName = cleanText(session.fullName || session.name) || cleanText(currentProfile && (currentProfile.name || currentProfile.full_name)) || "User";
         const firstName = session.firstName || splitName(fullName).firstName || "Creative";
         const lastName = session.lastName || splitName(fullName).lastName;
-        const address = cleanText(session.address);
-        const mobileNumber = cleanText(session.mobileNumber);
+        const address = cleanText(session.address || currentProfile && currentProfile.address);
+        const mobileNumber = cleanText(session.mobileNumber || currentProfile && currentProfile.mobile_number);
         const firstLetter = firstName.trim().charAt(0).toUpperCase() || "A";
         const avatar = createProfileAvatar(firstLetter);
         const memberSince = formatDate(session.createdAt);
+        const email = cleanText(session.email || currentProfile && currentProfile.email) || "member@ajartivo.local";
 
         setText("profileName", fullName);
-        setText("profileEmail", session.email || "member@ajartivo.local");
-        setValue("profileEmailField", session.email || "member@ajartivo.local");
+        setText("profileEmail", email);
+        setText("user-name", fullName);
+        setText("user-email", email);
+        setValue("profileEmailField", email);
 
         const profilePill = document.querySelector(".profile-pill");
         if (profilePill) {
@@ -102,7 +192,7 @@
                 </article>
                 <article class="profile-info-box">
                     <span>Email</span>
-                    <strong>${escapeHtml(session.email || "member@ajartivo.local")}</strong>
+                    <strong>${escapeHtml(email)}</strong>
                 </article>
                 <article class="profile-info-box">
                     <span>Login Mode</span>
@@ -119,15 +209,15 @@
     function populateProfileForm(session) {
         const fullName = session.fullName || session.name || "";
         const nameParts = {
-            firstName: session.firstName || splitName(fullName).firstName,
-            lastName: session.lastName || splitName(fullName).lastName
+            firstName: session.firstName || cleanText(currentProfile && currentProfile.first_name) || splitName(fullName).firstName,
+            lastName: session.lastName || cleanText(currentProfile && currentProfile.last_name) || splitName(fullName).lastName
         };
 
         setValue("profileFirstName", nameParts.firstName);
         setValue("profileLastName", nameParts.lastName);
-        setValue("profileAddress", session.address || "");
-        setValue("profileMobileNumber", session.mobileNumber || "");
-        setValue("profileEmailField", session.email || "");
+        setValue("profileAddress", session.address || cleanText(currentProfile && currentProfile.address));
+        setValue("profileMobileNumber", session.mobileNumber || cleanText(currentProfile && currentProfile.mobile_number));
+        setValue("profileEmailField", session.email || cleanText(currentProfile && currentProfile.email));
     }
 
     async function handleProfileSave(event) {
@@ -154,7 +244,16 @@
                 mobileNumber: mobileNumber
             });
 
-            currentSession = updatedSession || services.getSession();
+            currentSession = buildDisplaySession(updatedSession || services.getSession(), null);
+            currentProfile = {
+                ...(currentProfile || {}),
+                name: cleanText(currentSession.fullName || currentSession.name) || "User",
+                email: cleanText(currentSession.email),
+                first_name: firstName,
+                last_name: lastName,
+                address: address,
+                ...(mobileNumber ? { mobile_number: mobileNumber } : {})
+            };
             if (currentSession) {
                 renderPage(currentSession);
             }

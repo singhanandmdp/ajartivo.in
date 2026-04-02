@@ -70,6 +70,7 @@
 
         if (path.endsWith(LOGIN_PATH)) {
             if (session) {
+                await ensureProfileExists(authResult.data.session.user);
                 redirectAfterLogin(readNextPath() || DEFAULT_NEXT);
             }
             return;
@@ -122,9 +123,38 @@
             setInlineMessage(messageNode, "Checking your account...");
 
             try {
-                await services.signIn(email, password);
+                const { data: { user }, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    alert(error.message);
+                    return;
+                }
+
+                if (!user) {
+                    alert("Login user not found.");
+                    return;
+                }
+
+                const { error: insertError } = await supabase
+                    .from("profiles")
+                    .upsert([
+                        {
+                            id: user.id,
+                            email: user.email
+                        }
+                    ]);
+
+                console.log("PROFILE UPSERT ERROR:", insertError);
+
+                if (services.refreshSession) {
+                    await services.refreshSession();
+                }
+
                 setInlineMessage(messageNode, "Login successful. Redirecting...", "success");
-                redirectAfterLogin(readNextPath() || DEFAULT_NEXT);
+                window.location.href = "/dashboard.html";
             } catch (error) {
                 setInlineMessage(messageNode, mapLoginError(error), "error");
             } finally {
@@ -147,7 +177,6 @@
             const fullName = cleanText(document.getElementById("fullname") && document.getElementById("fullname").value);
             const email = cleanText(document.getElementById("email") && document.getElementById("email").value).toLowerCase();
             const address = cleanText(document.getElementById("address") && document.getElementById("address").value);
-            const mobileNumber = cleanText(document.getElementById("mobileNumber") && document.getElementById("mobileNumber").value);
             const password = cleanText(document.getElementById("password") && document.getElementById("password").value);
             const submitBtn = signupForm.querySelector('button[type="submit"]');
             const originalText = submitBtn ? submitBtn.textContent : "";
@@ -174,15 +203,30 @@
             setInlineMessage(messageNode, "Creating your account and sending OTP...");
 
             try {
-                const result = await services.signUp({
-                    fullName: fullName,
+                const { data, error } = await supabase.auth.signUp({
                     email: email,
-                    address: address,
-                    mobileNumber: mobileNumber,
-                    password: password
+                    password: password,
+                    options: {
+                        data: {
+                            full_name: fullName,
+                            name: fullName,
+                            address: address
+                        }
+                    }
                 });
+                const user = data ? data.user : null;
+                const session = data ? data.session : null;
 
-                if (result && result.requiresEmailVerification) {
+                if (error) {
+                    alert(error.message);
+                    return;
+                }
+
+                if (user) {
+                    await ensureProfileExists(user, fullName || "User");
+                }
+
+                if (!session) {
                     setInlineMessage(messageNode, `OTP sent to ${email}. Enter the 6-digit code to verify your account.`, "success");
                     openModal({
                         reason: "signup",
@@ -194,6 +238,10 @@
                         preSent: true
                     });
                     return;
+                }
+
+                if (services.refreshSession) {
+                    await services.refreshSession();
                 }
 
                 redirectAfterLogin(DEFAULT_NEXT);
@@ -583,6 +631,8 @@
 
             if (error) throw error;
 
+            await ensureProfileExists(data && data.session && data.session.user);
+
             const session = services.refreshSession
                 ? await services.refreshSession()
                 : data && data.session
@@ -720,6 +770,58 @@
 
     function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    async function ensureProfileExists(user, fallbackName) {
+        const authUser = user || null;
+        if (!authUser || !cleanText(authUser.id)) {
+            return null;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .maybeSingle();
+
+        if (profileError) {
+            throw profileError;
+        }
+
+        if (!profile) {
+            const { error: insertError } = await supabase
+                .from("profiles")
+                .insert([
+                    {
+                        id: authUser.id,
+                        email: cleanText(authUser.email).toLowerCase(),
+                        name: resolveProfileName(authUser, fallbackName)
+                    }
+                ]);
+
+            if (insertError) {
+                throw insertError;
+            }
+        }
+
+        const { data: finalProfile, error: finalProfileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .single();
+
+        if (finalProfileError) {
+            throw finalProfileError;
+        }
+
+        return finalProfile;
+    }
+
+    function resolveProfileName(user, fallbackName) {
+        const metadata = user && user.user_metadata ? user.user_metadata : {};
+        return cleanText(fallbackName)
+            || cleanText(metadata.full_name || metadata.name)
+            || "User";
     }
 
     function ensureModalStyles() {

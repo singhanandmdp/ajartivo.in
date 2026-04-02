@@ -248,9 +248,9 @@
 
         if (isFreeDesign(product)) {
             if (!signedIn) {
-                return "Log in from the popup to download this free product.";
+                return "Login is required before any download starts.";
             }
-            return "We will verify your free download access before the file is delivered.";
+            return "Your free file will open in a secure download modal.";
         }
 
         if (hasDownloadAccess(product)) {
@@ -258,10 +258,10 @@
         }
 
         if (!signedIn) {
-            return "Log in first, then use Buy Now to continue.";
+            return "Login is required before any download starts.";
         }
 
-        return "This is a paid product. Use Buy Now to continue.";
+        return "This paid design requires purchase before download.";
     }
 
     function resolveAccessHeadline(product, accessState) {
@@ -280,10 +280,10 @@
         }
 
         if (isFreeDesign(product)) {
-            return "Free member download rules apply";
+            return "Logged-in users can download this file";
         }
 
-        return "Purchase or premium upgrade required";
+        return "Purchase required before download";
     }
 
     function resolveAccessFailureMessage(error, product) {
@@ -541,7 +541,11 @@
             button.textContent = activeState.busyText;
 
             try {
-                await window.AjArtivoPayment.startDownloadFlow(activeProduct);
+                if (activeState.mode === "buy-now" && typeof window.AjArtivoPayment.buyNow === "function") {
+                    await window.AjArtivoPayment.buyNow(activeProduct);
+                } else {
+                    await window.AjArtivoPayment.startDownloadFlow(activeProduct);
+                }
             } catch (error) {
                 console.error("Download failed:", error);
                 alert("Unable to start the download right now.");
@@ -770,15 +774,15 @@
 
         if (!signedIn) {
             return {
-                mode: "login-buy",
-                idleText: "Login to Continue",
+                mode: "login-download",
+                idleText: "Login to Download",
                 busyText: "Opening..."
             };
         }
 
         return {
-            mode: "review-access",
-            idleText: "Download Options",
+            mode: "buy-now",
+            idleText: "Buy Now",
             busyText: "Opening..."
         };
     }
