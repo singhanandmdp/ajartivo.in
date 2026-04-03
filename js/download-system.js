@@ -1,5 +1,8 @@
 (function () {
     const services = window.AjArtivoSupabase;
+    const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
+        ? window.AjArtivoResolveUrl
+        : function (path) { return path; };
     if (!services) return;
 
     const productTitle = document.getElementById("productTitle");
@@ -10,6 +13,7 @@
     let currentProduct = null;
     let refreshTimerId = null;
     let accessRequestId = 0;
+    let currentAccessPromise = null;
     let currentAccessState = createAccessState();
 
     initPage();
@@ -127,6 +131,7 @@
         setText("galleryDownloads", String(Number(product.downloads || 0)));
 
         renderFeatures(product, type);
+        renderGalleryCaption(product, type);
         renderThumbnails(getProductImages(product), title);
         updateAccessUi(product, deriveInitialAccessState(product));
     }
@@ -145,7 +150,8 @@
         });
         updateAccessUi(normalizedProduct, currentAccessState);
 
-        const resolvedAccess = await resolveProductAccess(normalizedProduct);
+        currentAccessPromise = resolveProductAccess(normalizedProduct);
+        const resolvedAccess = await currentAccessPromise;
         if (requestId !== accessRequestId) {
             return currentProduct;
         }
@@ -153,6 +159,7 @@
         currentAccessState = resolvedAccess;
         currentProduct = applyAccessState(normalizedProduct, resolvedAccess);
         updateAccessUi(currentProduct, resolvedAccess);
+        currentAccessPromise = null;
         return currentProduct;
     }
 
@@ -232,6 +239,7 @@
         setText("weeklyPremiumRemaining", `${Number(accessState && accessState.weeklyPremiumRemaining || 0)} / 2 remaining`);
         setText("downloadAccessStatus", resolveAccessHeadline(normalizedProduct, accessState));
         renderFeatures(normalizedProduct, type);
+        renderGalleryCaption(normalizedProduct, type, accessState);
         bindActionButton(normalizedProduct, accessState);
     }
 
@@ -242,15 +250,11 @@
 
         const signedIn = Boolean(getCurrentUserEmail());
 
-        if (accessState && accessState.loading) {
-            return "Checking your purchase access...";
-        }
-
         if (isFreeDesign(product)) {
             if (!signedIn) {
                 return "Login is required before any download starts.";
             }
-            return "Your free file will open in a secure download modal.";
+            return "Your free file is ready for secure instant download.";
         }
 
         if (hasDownloadAccess(product)) {
@@ -261,14 +265,10 @@
             return "Login is required before any download starts.";
         }
 
-        return "This paid design requires purchase before download.";
+        return "Secure access is being handled automatically for this design.";
     }
 
     function resolveAccessHeadline(product, accessState) {
-        if (accessState && accessState.loading) {
-            return "Checking your download access";
-        }
-
         if (accessState && accessState.premiumActive) {
             return isFreeDesign(product)
                 ? "Premium access: unlimited free downloads"
@@ -283,7 +283,7 @@
             return "Logged-in users can download this file";
         }
 
-        return "Purchase required before download";
+        return "Premium design with secure account-based access";
     }
 
     function resolveAccessFailureMessage(error, product) {
@@ -397,7 +397,7 @@
                 const title = escapeHtml(product.title);
                 const image = escapeHtml(product.image || "/images/preview1.jpg");
                 const badge = getProductBadge(product);
-                const productUrl = `/product.html?id=${encodeURIComponent(product.id)}`;
+                const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(product.id)}`);
 
                 return `
                     <article class="design-card homepage-design-card">
@@ -432,6 +432,28 @@
         }).join("");
     }
 
+    function renderGalleryCaption(product, type, accessState) {
+        const tagRow = document.getElementById("productGalleryTags");
+        const note = document.getElementById("productGalleryNote");
+        if (!tagRow || !note) return;
+
+        const tags = [
+            type,
+            isFreeDesign(product) ? "Free Access" : hasDownloadAccess(product) ? "Unlocked" : "Premium",
+            product.download_enabled === true ? "Instant Download" : "Coming Soon"
+        ];
+
+        tagRow.innerHTML = tags.map(function (tag) {
+            return `<span class="product-gallery-tag">${escapeHtml(tag)}</span>`;
+        }).join("");
+
+        const fallback = isFreeDesign(product)
+            ? "Simple creative file with quick login-based download access."
+            : "Premium creative file with secure access and quick delivery.";
+        const message = cleanText(product && product.description) || cleanText(accessState && accessState.message) || fallback;
+        note.textContent = shortenText(message, 92);
+    }
+
     function resolveAccessFeature(product) {
         if (isFreeDesign(product)) {
             return "Free product with account-based download";
@@ -450,13 +472,21 @@
 
     function renderThumbnails(images, title) {
         const row = document.getElementById("thumbnailRow");
-        const previewImages = Array.isArray(images) && images.length ? images : ["/images/preview1.jpg"];
+        const previewImages = Array.isArray(images) && images.length
+            ? Array.from(new Set(images.map((image) => cleanText(image)).filter(Boolean)))
+            : ["/images/preview1.jpg"];
         const primaryImage = previewImages[0];
         setMainPreviewImage(primaryImage, title);
 
         if (!row) return;
 
-        row.hidden = previewImages.length <= 1;
+        if (previewImages.length <= 1) {
+            row.hidden = true;
+            row.innerHTML = "";
+            return;
+        }
+
+        row.hidden = false;
         row.innerHTML = previewImages.map((image, index) => `
             <button class="thumbnail-btn${index === 0 ? " active" : ""}" type="button" data-preview="${escapeHtml(image)}" aria-label="Show preview ${index + 1}">
                 <img src="${escapeHtml(image)}" alt="${escapeHtml(title)} thumbnail ${index + 1}" loading="lazy" decoding="async">
@@ -529,13 +559,25 @@
         const currentItem = services.normalizeProduct(product);
         const buttonState = resolveActionButtonState(currentItem);
 
-        button.disabled = Boolean(accessState && accessState.loading);
-        button.textContent = accessState && accessState.loading ? "Checking..." : buttonState.idleText;
+        button.disabled = false;
+        button.textContent = buttonState.idleText;
         button.dataset.mode = buttonState.mode;
+        button.setAttribute("aria-busy", accessState && accessState.loading ? "true" : "false");
 
         button.onclick = async function () {
-            const activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : currentItem;
-            const activeState = resolveActionButtonState(activeProduct);
+            let activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : currentItem;
+            let activeState = resolveActionButtonState(activeProduct);
+
+            if (currentAccessPromise) {
+                try {
+                    await currentAccessPromise;
+                } catch (_error) {
+                    // Fall through to the standard action flow and let it handle any retry path.
+                }
+
+                activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : activeProduct;
+                activeState = resolveActionButtonState(activeProduct);
+            }
 
             button.disabled = true;
             button.textContent = activeState.busyText;
@@ -556,6 +598,7 @@
                 button.disabled = false;
                 button.textContent = refreshedState.idleText;
                 button.dataset.mode = refreshedState.mode;
+                button.setAttribute("aria-busy", currentAccessPromise ? "true" : "false");
             }
         };
     }
@@ -639,37 +682,141 @@
 
     function initPreviewZoom() {
         const previewBox = document.getElementById("previewTrigger");
+        const previewStage = previewBox ? previewBox.querySelector(".preview-stage") : null;
         const image = document.getElementById("mainImage");
-        if (!previewBox || !image) return;
+        if (!previewBox || !previewStage || !image) return;
+
+        const zoomScale = 2;
+        let zoomed = false;
+        let dragging = false;
+        let dragMoved = false;
+        let offsetX = 0;
+        let offsetY = 0;
+        let startX = 0;
+        let startY = 0;
+        let startOffsetX = 0;
+        let startOffsetY = 0;
+
+        applyTransform(1, 0, 0);
 
         previewBox.addEventListener("mousemove", function (event) {
-            if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+            if (zoomed || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
 
-            const rect = previewBox.getBoundingClientRect();
+            const rect = previewStage.getBoundingClientRect();
             const x = ((event.clientX - rect.left) / rect.width) * 100;
             const y = ((event.clientY - rect.top) / rect.height) * 100;
             image.style.transformOrigin = `${x}% ${y}%`;
-            image.style.transform = "scale(1.85)";
+            image.style.transform = "translate3d(0, 0, 0) scale(1.08)";
         });
 
         previewBox.addEventListener("mouseleave", function () {
+            if (zoomed) return;
             image.style.transformOrigin = "center center";
-            image.style.transform = "scale(1)";
+            image.style.transform = "translate3d(0, 0, 0) scale(1)";
         });
+
+        previewStage.addEventListener("pointerdown", function (event) {
+            if (!zoomed) return;
+
+            dragging = true;
+            dragMoved = false;
+            startX = event.clientX;
+            startY = event.clientY;
+            startOffsetX = offsetX;
+            startOffsetY = offsetY;
+            previewBox.classList.add("is-dragging");
+            previewStage.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+
+        previewStage.addEventListener("pointermove", function (event) {
+            if (dragging && zoomed) {
+                const rect = previewStage.getBoundingClientRect();
+                const nextX = startOffsetX + (event.clientX - startX);
+                const nextY = startOffsetY + (event.clientY - startY);
+                const clamped = clampOffsets(nextX, nextY, rect, zoomScale);
+
+                offsetX = clamped.x;
+                offsetY = clamped.y;
+                dragMoved = true;
+                applyTransform(zoomScale, offsetX, offsetY);
+                return;
+            }
+
+            if (zoomed) {
+                return;
+            }
+
+            if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+            const rect = previewStage.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 100;
+            const y = ((event.clientY - rect.top) / rect.height) * 100;
+            image.style.transformOrigin = `${x}% ${y}%`;
+            image.style.transform = "translate3d(0, 0, 0) scale(1.08)";
+        });
+
+        previewStage.addEventListener("pointerup", function (event) {
+            if (dragging) {
+                dragging = false;
+                previewBox.classList.remove("is-dragging");
+                if (previewStage.hasPointerCapture(event.pointerId)) {
+                    previewStage.releasePointerCapture(event.pointerId);
+                }
+            }
+        });
+
+        previewStage.addEventListener("pointercancel", function (event) {
+            if (dragging) {
+                dragging = false;
+                previewBox.classList.remove("is-dragging");
+                if (previewStage.hasPointerCapture(event.pointerId)) {
+                    previewStage.releasePointerCapture(event.pointerId);
+                }
+            }
+        });
+
+        previewBox.addEventListener("click", function (event) {
+            if (dragMoved) {
+                dragMoved = false;
+                event.preventDefault();
+                return;
+            }
+
+            zoomed = !zoomed;
+            previewBox.classList.toggle("is-zoomed", zoomed);
+            image.style.transformOrigin = "center center";
+
+            if (!zoomed) {
+                offsetX = 0;
+                offsetY = 0;
+                applyTransform(1, 0, 0);
+                return;
+            }
+
+            applyTransform(zoomScale, offsetX, offsetY);
+        });
+
+        function applyTransform(scale, x, y) {
+            image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+        }
+
+        function clampOffsets(x, y, rect, scale) {
+            const maxX = Math.max(0, ((scale - 1) * rect.width) / 2);
+            const maxY = Math.max(0, ((scale - 1) * rect.height) / 2);
+
+            return {
+                x: Math.min(maxX, Math.max(-maxX, x)),
+                y: Math.min(maxY, Math.max(-maxY, y))
+            };
+        }
     }
 
     function initLightbox() {
-        const previewBox = document.getElementById("previewTrigger");
         const lightbox = document.getElementById("productLightbox");
         const closeButton = document.getElementById("lightboxClose");
 
-        if (!previewBox || !lightbox || !closeButton) return;
-
-        previewBox.addEventListener("click", function () {
-            if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-            lightbox.hidden = false;
-            document.body.style.overflow = "hidden";
-        });
+        if (!lightbox || !closeButton) return;
 
         closeButton.addEventListener("click", closeLightbox);
         lightbox.addEventListener("click", function (event) {
@@ -735,11 +882,11 @@
         const hasDesktopHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
         if (previewHint) {
-            previewHint.textContent = hasDesktopHover ? "Hover to zoom with precision" : "Tap to open full preview";
+            previewHint.textContent = hasDesktopHover ? "Click to zoom, drag to explore" : "Tap to zoom, drag to explore";
         }
 
         if (zoomPill) {
-            zoomPill.textContent = hasDesktopHover ? "Hover zoom on desktop" : "Tap zoom on mobile";
+            zoomPill.textContent = hasDesktopHover ? "2x zoom with drag inside frame" : "Tap zoom with drag inside frame";
         }
     }
 
@@ -819,5 +966,14 @@
 
     function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    function shortenText(value, limit) {
+        const text = cleanText(value).replace(/\s+/g, " ");
+        if (!text || text.length <= limit) {
+            return text;
+        }
+
+        return `${text.slice(0, Math.max(0, limit - 3)).trim()}...`;
     }
 })();

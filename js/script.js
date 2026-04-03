@@ -14,6 +14,107 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+function getSiteBasePath() {
+    const scriptElement = document.querySelector('script[src*="js/script.js"]');
+    const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
+
+    if (scriptSrc) {
+        const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
+        return resolvedScriptUrl.pathname.replace(/\/js\/script\.js$/i, "");
+    }
+
+    const path = window.location.pathname;
+    const pagesIndex = path.indexOf("/pages/");
+    if (pagesIndex >= 0) {
+        return path.slice(0, pagesIndex);
+    }
+
+    const lastSlashIndex = path.lastIndexOf("/");
+    return lastSlashIndex > 0 ? path.slice(0, lastSlashIndex) : "";
+}
+
+function resolveSiteUrl(path) {
+    if (!path) return window.location.href;
+    if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
+
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const basePath = getSiteBasePath();
+    return `${basePath}${normalizedPath}`;
+}
+
+window.AjArtivoResolveUrl = resolveSiteUrl;
+
+function rewriteRootRelativeUrls(container) {
+    if (!container) return;
+
+    container.querySelectorAll("[href], [src]").forEach((element) => {
+        ["href", "src"].forEach((attributeName) => {
+            const value = element.getAttribute(attributeName);
+            if (!value || !value.startsWith("/")) return;
+
+            element.setAttribute(attributeName, resolveSiteUrl(value));
+        });
+    });
+}
+
+function normalizeAppAnchorHref(value) {
+    if (!value || !value.startsWith("/")) return value;
+
+    const guardedPrefixes = [
+        "/product.html",
+        "/login.html",
+        "/signup.html",
+        "/dashboard.html",
+        "/pages/",
+        "/about/",
+        "/terms.html",
+        "/privacy.html",
+        "/icons/",
+        "/images/",
+        "/css/",
+        "/js/",
+        "/payment.js"
+    ];
+
+    const shouldRewrite = guardedPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}?`) || value.startsWith(`${prefix}#`) || value.startsWith(`${prefix}/`));
+    return shouldRewrite ? resolveSiteUrl(value) : value;
+}
+
+function rewriteDocumentAppLinks() {
+    document.querySelectorAll("a[href], img[src], link[href], script[src]").forEach((element) => {
+        if (element.hasAttribute("href")) {
+            const href = element.getAttribute("href");
+            const rewrittenHref = normalizeAppAnchorHref(href);
+            if (rewrittenHref && rewrittenHref !== href) {
+                element.setAttribute("href", rewrittenHref);
+            }
+        }
+
+        if (element.hasAttribute("src")) {
+            const src = element.getAttribute("src");
+            const rewrittenSrc = normalizeAppAnchorHref(src);
+            if (rewrittenSrc && rewrittenSrc !== src) {
+                element.setAttribute("src", rewrittenSrc);
+            }
+        }
+    });
+}
+
+document.addEventListener("click", (event) => {
+    const anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (!anchor) return;
+
+    const href = anchor.getAttribute("href");
+    const rewrittenHref = normalizeAppAnchorHref(href);
+    if (!rewrittenHref || rewrittenHref === href) return;
+
+    event.preventDefault();
+    anchor.setAttribute("href", rewrittenHref);
+    window.location.href = rewrittenHref;
+}, true);
+
+rewriteDocumentAppLinks();
+
 window.addEventListener("ajartivo:session-changed", () => {
     initAuthUI();
 });
@@ -33,7 +134,7 @@ function initQuickCategoryNavigation() {
         if (!category) return;
 
         const goToCategory = () => {
-            window.location.href = `/pages/search.html?category=${encodeURIComponent(category)}`;
+            window.location.href = resolveSiteUrl(`/pages/search.html?category=${encodeURIComponent(category)}`);
         };
 
         card.setAttribute("role", "button");
@@ -52,7 +153,8 @@ function initQuickCategoryNavigation() {
 }
 
 function ensureStylesheet(href) {
-    const absoluteHref = new URL(href, window.location.origin).href;
+    const resolvedHref = resolveSiteUrl(href);
+    const absoluteHref = new URL(resolvedHref, window.location.origin).href;
     const existing = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
         .some((link) => link.href === absoluteHref);
 
@@ -60,7 +162,7 @@ function ensureStylesheet(href) {
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href;
+    link.href = resolvedHref;
     document.head.appendChild(link);
 }
 
@@ -68,10 +170,11 @@ function loadHeader() {
     const container = document.getElementById("site-header");
     if (!container) return;
 
-    fetch("/pages/header.html")
+    fetch(resolveSiteUrl("/pages/header.html"))
         .then((res) => res.text())
         .then((data) => {
             container.innerHTML = data;
+            rewriteRootRelativeUrls(container);
             initSearch();
             initMobileHeaderSearch();
             initHeaderVoiceSearch();
@@ -88,10 +191,11 @@ function loadFooter() {
 
     ensureStylesheet("/css/style.css");
 
-    fetch("/pages/footer.html")
+    fetch(resolveSiteUrl("/pages/footer.html"))
         .then((res) => res.text())
         .then((data) => {
             container.innerHTML = data;
+            rewriteRootRelativeUrls(container);
         })
         .catch((err) => console.log("Footer load error:", err));
 }
@@ -102,10 +206,11 @@ function loadSidebar() {
 
     ensureStylesheet("/css/sidebar.css");
 
-    fetch("/pages/sidebar.html")
+    fetch(resolveSiteUrl("/pages/sidebar.html"))
         .then((res) => res.text())
         .then((data) => {
             sidebar.innerHTML = data;
+            rewriteRootRelativeUrls(sidebar);
             initSidebarMenu();
             if ("requestIdleCallback" in window) {
                 window.requestIdleCallback(() => updateSidebarDesignCounts(), { timeout: 1500 });
@@ -162,12 +267,12 @@ function searchDesign(inputId) {
     const query = input.value.trim();
     if (!query) return;
 
-    window.location.href = "/pages/search.html?q=" + encodeURIComponent(query);
+    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
 }
 
 function quickSearch(query) {
     if (!query) return;
-    window.location.href = "/pages/search.html?q=" + encodeURIComponent(query);
+    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
 }
 
 function initSearch() {
@@ -404,7 +509,7 @@ function renderSearchDesignCards(container, designs) {
         const title = escapeText(design.title || design.name || "Untitled Design");
         const badge = getDesignBadge(design);
         const image = escapeText(design.image || "/images/trending1.jpg");
-        const productUrl = `/product.html?id=${encodeURIComponent(design.id)}`;
+        const productUrl = resolveSiteUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
 
         return `
             <article class="design-card homepage-design-card">
@@ -448,7 +553,7 @@ function bindSearchFilterControls(state) {
         clearFiltersBtn.addEventListener("click", () => {
             const params = new URLSearchParams(window.location.search);
             ["category", "price", "sort", "ai", "orientation", "color", "page"].forEach((key) => params.delete(key));
-            window.location.href = "/pages/search.html" + (params.toString() ? `?${params.toString()}` : "");
+            window.location.href = resolveSiteUrl("/pages/search.html" + (params.toString() ? `?${params.toString()}` : ""));
         });
         clearFiltersBtn.dataset.bound = "true";
     }
@@ -480,7 +585,7 @@ function applySearchFilterSelection() {
     setParam("color", colorFilter ? colorFilter.value : "");
     params.delete("page");
 
-    window.location.href = "/pages/search.html?" + params.toString();
+    window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
 }
 
 function renderSearchPagination(pageCount, currentPage, container) {
@@ -525,7 +630,7 @@ function renderSearchPagination(pageCount, currentPage, container) {
             const nextPage = Number(button.dataset.page || 1);
             const params = new URLSearchParams(window.location.search);
             params.set("page", String(nextPage));
-            window.location.href = "/pages/search.html?" + params.toString();
+            window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
         });
     });
 }
@@ -1161,7 +1266,7 @@ function initAuthUI() {
             memberBox.classList.add("logged-in");
             memberBox.innerHTML = `
                 <div class="member-account-row">
-                    <a href="/dashboard.html" class="member-user">
+                    <a href="${resolveSiteUrl("/dashboard.html")}" class="member-user">
                         <div class="member-avatar-letter">${firstLetter}</div>
                         <div class="member-user-text">
                             <strong>${firstName}</strong>
@@ -1188,8 +1293,8 @@ function initAuthUI() {
                 <h5>Member Access</h5>
                 <p>Login to manage your saved products.</p>
             </div>
-            <a href="/login.html" class="member-login-btn">
-                <img src="/icons/login.svg" class="icon-svg" alt="Login">
+            <a href="${resolveSiteUrl("/login.html")}" class="member-login-btn">
+                <img src="${resolveSiteUrl("/icons/login.svg")}" class="icon-svg" alt="Login">
                 Login
             </a>
         `;

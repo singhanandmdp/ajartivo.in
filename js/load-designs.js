@@ -1,5 +1,8 @@
 (function () {
     const services = window.AjArtivoSupabase;
+    const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
+        ? window.AjArtivoResolveUrl
+        : function (path) { return path; };
     if (!services) return;
 
     const trendingGrid = document.getElementById("trendingGrid");
@@ -66,7 +69,7 @@
         container.innerHTML = products.map(function (product) {
             const title = escapeHtml(product.title);
             const image = escapeHtml(product.image || "/images/preview1.jpg");
-            const productUrl = `/product.html?id=${encodeURIComponent(product.id)}`;
+            const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(product.id)}`);
             const badge = getProductBadge(product);
 
             return `

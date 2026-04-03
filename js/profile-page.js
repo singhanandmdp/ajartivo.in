@@ -1,5 +1,8 @@
 (function () {
     const services = window.AjArtivoSupabase;
+    const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
+        ? window.AjArtivoResolveUrl
+        : function (path) { return path; };
     if (!services) return;
     const supabase = services.client;
 
@@ -12,7 +15,7 @@
     async function init() {
         const authUser = await getLoggedInUser();
         if (!authUser) {
-            window.location.href = "/login.html";
+            window.location.href = resolveUrl("/login.html");
             return;
         }
 
@@ -332,7 +335,7 @@
             const title = escapeHtml(item.title || "Untitled Design");
             const image = escapeHtml(item.image || "/images/preview1.jpg");
             const price = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
-            const productUrl = `/product.html?id=${encodeURIComponent(item.id || "")}`;
+            const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`);
 
             return `
                 <article class="profile-media-card">
@@ -383,7 +386,7 @@
                         <span>${item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free"}</span>
                         <small>${dateText}</small>
                         <div class="profile-media-actions">
-                            <a href="/product.html?id=${encodeURIComponent(item.id || "")}" class="profile-inline-btn">View Product</a>
+                            <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Product</a>
                             <button type="button" class="profile-inline-btn" data-download-history="${escapeHtml(item.id || "")}">Download Again</button>
                         </div>
                     </div>
@@ -399,7 +402,7 @@
                 });
 
                 if (!item || !window.AjArtivoPayment || typeof window.AjArtivoPayment.startDownloadFlow !== "function") {
-                    window.location.href = `/product.html?id=${encodeURIComponent(productId || "")}`;
+                    window.location.href = resolveUrl(`/product.html?id=${encodeURIComponent(productId || "")}`);
                     return;
                 }
 

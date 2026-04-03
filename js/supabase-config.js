@@ -154,6 +154,7 @@
         const hasDownloadAsset = Boolean(rawDownloadLink);
         const publicDownloadLink = "";
         const previewImages = collectProductImages(product, image);
+        const tags = collectProductTags(product, title);
 
         return {
             ...product,
@@ -185,6 +186,7 @@
             protected_download_link: "",
             protectedDownloadLink: "",
             description: cleanText(product.description) || `${title} ready for instant access.`,
+            tags: tags,
             downloads: Number(product.downloads || 0) || 0,
             views: Number(product.views || 0) || 0,
             previewImages: previewImages,
@@ -717,6 +719,28 @@
             .filter(function (image, index, list) {
                 return list.indexOf(image) === index;
             });
+    }
+
+    function collectProductTags(product, fallbackTitle) {
+        const rawTags = Array.isArray(product && product.tags)
+            ? product.tags
+            : typeof (product && product.tags) === "string"
+            ? product.tags.split(",")
+            : [];
+
+        const tags = rawTags
+            .map(cleanText)
+            .filter(Boolean)
+            .filter(function (tag, index, list) {
+                return list.indexOf(tag) === index;
+            });
+
+        if (tags.length) {
+            return tags;
+        }
+
+        const fallback = cleanText(fallbackTitle);
+        return fallback ? [fallback] : [];
     }
 
     async function readSingleProduct(tableName, productId) {

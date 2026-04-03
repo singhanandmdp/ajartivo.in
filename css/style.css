@@ -2615,27 +2615,63 @@ textarea {
     position: relative;
     width: 100%;
     max-width: 100%;
-    min-height: auto;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    overflow: visible;
-    box-shadow: none;
+    padding: 22px;
+    background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 48%),
+        linear-gradient(180deg, rgba(12, 25, 43, 0.92), rgba(9, 19, 34, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 34px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 28px 50px rgba(2, 6, 23, 0.3);
     cursor: zoom-in;
     appearance: none;
 }
 
-.preview-skeleton {
+.preview-stage,
+.preview-skeleton,
+.preview-pattern,
+.preview-badge,
+.preview-hint {
     position: absolute;
+}
+
+.preview-stage {
+    position: relative;
+    inset: auto;
+    display: block;
+    border-radius: 30px 30px 72px 30px;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(226, 232, 240, 0.88)),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    touch-action: none;
+}
+
+.preview-skeleton {
     inset: 0;
-    border-radius: 16px;
+    border-radius: inherit;
     background: linear-gradient(110deg, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.25) 38%, rgba(255, 255, 255, 0.08) 58%);
     background-size: 220% 100%;
     animation: previewShimmer 1.2s linear infinite;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.24s ease;
+    z-index: 2;
+}
+
+.preview-pattern {
+    inset: 0;
+    border-radius: inherit;
+    background-color: #eef2f7;
+    background-image:
+        linear-gradient(45deg, rgba(148, 163, 184, 0.18) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(148, 163, 184, 0.18) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.18) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.18) 75%);
+    background-size: 28px 28px;
+    background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+    opacity: 0.72;
 }
 
 .preview-box.is-loading .preview-skeleton {
@@ -2647,19 +2683,68 @@ textarea {
 }
 
 .preview-box img {
+    position: relative;
+    inset: auto;
     width: 100%;
     height: auto;
-    max-height: 78vh;
-    object-fit: contain;
+    max-height: none;
+    object-fit: cover;
     display: block;
     opacity: 1;
-    transition: transform 0.24s ease, opacity 0.24s ease;
+    transition: transform 0.28s ease, opacity 0.24s ease;
     transform-origin: center center;
+    transform: translate3d(0, 0, 0) scale(1);
+    border-radius: 30px 30px 72px 30px;
+    z-index: 3;
+}
+
+.preview-box.is-zoomed {
+    cursor: grab;
+}
+
+.preview-box.is-zoomed .preview-stage {
+    cursor: grab;
+}
+
+.preview-box.is-zoomed.is-dragging,
+.preview-box.is-zoomed.is-dragging .preview-stage {
+    cursor: grabbing;
 }
 
 .preview-badge,
 .preview-hint {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    z-index: 4;
+}
+
+.preview-badge {
+    top: 38px;
+    left: 38px;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.preview-hint {
+    right: 38px;
+    bottom: 38px;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .thumbnail-btn {
@@ -2687,6 +2772,42 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-top: 14px;
+}
+
+.product-gallery-caption {
+    margin-top: 14px;
+    padding: 14px 16px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.product-gallery-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.product-gallery-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.product-gallery-note {
+    margin: 10px 0 0;
+    color: rgba(226, 232, 240, 0.88);
+    font-size: 13px;
+    line-height: 1.6;
 }
 
 .gallery-meta-card {
@@ -3269,8 +3390,23 @@ textarea {
     }
 
     .preview-box {
-        min-height: 280px;
-        border-radius: 24px;
+        padding: 16px;
+        border-radius: 28px;
+    }
+
+    .preview-stage,
+    .preview-box img {
+        border-radius: 24px 24px 52px 24px;
+    }
+
+    .preview-badge {
+        top: 28px;
+        left: 28px;
+    }
+
+    .preview-hint {
+        right: 28px;
+        bottom: 28px;
     }
 
     .product-gallery-head,
@@ -3300,6 +3436,10 @@ textarea {
 
     .product-gallery-meta {
         grid-template-columns: 1fr;
+    }
+
+    .product-gallery-caption {
+        padding: 14px;
     }
 
     .product-lightbox {

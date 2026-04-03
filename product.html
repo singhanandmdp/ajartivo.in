@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birthday Banner - AJartivo</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
@@ -29,10 +29,13 @@
 
             <div class="product-gallery">
                 <button class="preview-box is-loading" id="previewTrigger" type="button" aria-label="Open image preview">
-                    <span class="preview-skeleton" aria-hidden="true"></span>
-                    <img id="mainImage" src="images/preview1.jpg" alt="Product Preview" loading="lazy" decoding="async">
-                    <span class="preview-badge">Professional zoom</span>
-                    <span class="preview-hint">Click to inspect details</span>
+                    <span class="preview-stage">
+                        <span class="preview-skeleton"></span>
+                        <span class="preview-pattern"></span>
+                        <img id="mainImage" src="images/preview1.jpg" alt="Product Preview" loading="lazy" decoding="async">
+                    </span>
+                    <span class="preview-badge">Studio frame</span>
+                    <span class="preview-hint">Click for full preview</span>
                 </button>
 
                 <div class="thumbnail-row" id="thumbnailRow" hidden></div>
@@ -54,6 +57,15 @@
                         <span>Downloads</span>
                         <strong id="galleryDownloads">0</strong>
                     </article>
+                </div>
+
+                <div class="product-gallery-caption" id="productGalleryCaption">
+                    <div class="product-gallery-tags" id="productGalleryTags">
+                        <span class="product-gallery-tag">PSD</span>
+                        <span class="product-gallery-tag">Instant</span>
+                        <span class="product-gallery-tag">Ready</span>
+                    </div>
+                    <p class="product-gallery-note" id="productGalleryNote">Clean creative asset with fast preview and simple download access.</p>
                 </div>
             </div>
         </section>
@@ -84,25 +96,6 @@
                         <p>Custom design feature is being prepared. We will add the exact workflow later, but the request area is now ready on this page.</p>
                         <button class="custom-design-btn" id="customDesignBtn" type="button">Request Custom Design</button>
                     </div>
-                </div>
-
-                <div class="product-access-board">
-                    <article class="product-access-card">
-                        <span class="product-access-label">Membership</span>
-                        <strong id="membershipBadge">Free Member</strong>
-                    </article>
-                    <article class="product-access-card">
-                        <span class="product-access-label">Free Downloads</span>
-                        <strong id="freeDownloadRemaining">0 / 5 remaining</strong>
-                    </article>
-                    <article class="product-access-card">
-                        <span class="product-access-label">Weekly Premium</span>
-                        <strong id="weeklyPremiumRemaining">0 / 2 remaining</strong>
-                    </article>
-                    <article class="product-access-card product-access-card-wide">
-                        <span class="product-access-label">Access Status</span>
-                        <strong id="downloadAccessStatus">Checking your download access</strong>
-                    </article>
                 </div>
 
                 <div class="product-feature-board">
@@ -144,7 +137,7 @@
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/js/supabase-config.js?v=20260402-4"></script>
+    <script src="js/supabase-config.js?v=20260402-4"></script>
     <script src="js/auth.js?v=20260402-4"></script>
     <script src="payment.js?v=20260402-4"></script>
     <script src="js/script.js?v=20260402-4"></script>

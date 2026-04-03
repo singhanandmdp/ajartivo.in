@@ -24,6 +24,14 @@
     let loginPopupState = null;
     let accessPopupState = null;
 
+    function resolveFrontendUrl(path) {
+        if (typeof window.AjArtivoResolveUrl === "function") {
+            return window.AjArtivoResolveUrl(path);
+        }
+
+        return path;
+    }
+
     function resolveBackendBaseUrl() {
         const configuredUrl = cleanText(
             window.AJARTIVO_BACKEND_URL ||
@@ -520,8 +528,8 @@
                     <p class="aj-login-helper">Google sign-in is required before any download or purchase action.</p>
                     <button type="button" class="aj-login-submit aj-login-google">Continue with Google</button>
                     <div class="aj-login-actions">
-                        <a class="aj-login-link" href="/signup.html">Create account</a>
-                        <a class="aj-login-link aj-login-link-strong" href="/login.html">Open full login page</a>
+                        <a class="aj-login-link" href="${resolveFrontendUrl("/signup.html")}">Create account</a>
+                        <a class="aj-login-link aj-login-link-strong" href="${resolveFrontendUrl("/login.html")}">Open full login page</a>
                     </div>
                 </div>
             </div>
@@ -617,6 +625,8 @@
         const fileName = buildDownloadFileName(product, "");
         return new Promise(function (resolve) {
             let resolvedOnce = false;
+            let preparedDownload = null;
+            let preparePromise = null;
 
             const popupControls = showDownloadPopup({
                 title: cleanText(product.title) || "Preparing your file",
@@ -630,37 +640,27 @@
                 onDownload: attemptDownload
             });
 
+            preparePromise = prepareDownload();
+
             async function attemptDownload() {
                 if (popupControls) {
-                    popupControls.setStatus("Preparing your secure download...");
+                    popupControls.setStatus("Starting your secure download...");
                     popupControls.setAction({
                         disabled: true,
-                        label: "Preparing..."
+                        label: "Starting..."
                     });
                 }
 
                 try {
-                    const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
-                        method: "GET",
-                        headers: buildAuthHeaders(authContext)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(await readErrorMessage(response, "Unable to download this file."));
-                    }
-
-                    const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
-                    const blob = await response.blob();
-                    const objectUrl = URL.createObjectURL(blob);
-
-                    triggerBrowserDownload(objectUrl, resolvedFileName);
+                    const downloadAsset = await ensurePreparedDownload();
+                    triggerBrowserDownload(downloadAsset.objectUrl, downloadAsset.fileName);
                     services.addDownloadHistoryItem({
                         ...product,
-                        download_link: resolvedFileName
+                        download_link: downloadAsset.fileName
                     });
 
                     window.setTimeout(function () {
-                        URL.revokeObjectURL(objectUrl);
+                        URL.revokeObjectURL(downloadAsset.objectUrl);
                     }, 30000);
 
                     if (popupControls) {
@@ -675,11 +675,13 @@
                         resolvedOnce = true;
                         resolve({
                             started: true,
-                            fileName: resolvedFileName
+                            fileName: downloadAsset.fileName
                         });
                     }
                 } catch (error) {
                     console.error("[AJartivo Payment] secure download failed", error);
+                    preparedDownload = null;
+                    preparePromise = null;
                     if (popupControls) {
                         popupControls.setStatus(cleanText(error && error.message) || "Download failed.");
                         popupControls.setAction({
@@ -689,6 +691,39 @@
                     }
                     alert(error && error.message ? error.message : "Unable to download this file right now.");
                 }
+            }
+
+            async function ensurePreparedDownload() {
+                if (preparedDownload) {
+                    return preparedDownload;
+                }
+
+                if (!preparePromise) {
+                    preparePromise = prepareDownload();
+                }
+
+                preparedDownload = await preparePromise;
+                return preparedDownload;
+            }
+
+            async function prepareDownload() {
+                const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
+                    method: "GET",
+                    headers: buildAuthHeaders(authContext)
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, "Unable to download this file."));
+                }
+
+                const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+
+                return {
+                    fileName: resolvedFileName,
+                    objectUrl: objectUrl
+                };
             }
         });
     }
@@ -794,17 +829,27 @@
         const waitSeconds = normalizeCountdown(options && options.waitSeconds, 8);
         const onClose = options && typeof options.onClose === "function" ? options.onClose : function () {};
         const onDownload = options && typeof options.onDownload === "function" ? options.onDownload : function () {};
+        let downloadStarted = false;
+
+        async function startDownload() {
+            if (downloadStarted || downloadPopupState.action.disabled) {
+                return;
+            }
+
+            downloadStarted = true;
+            await onDownload();
+        }
 
         downloadPopupState.title.textContent = title;
         downloadPopupState.file.textContent = fileName;
-        downloadPopupState.status.textContent = `Please wait ${waitSeconds} seconds before starting the secure download.`;
+        downloadPopupState.status.textContent = `We are preparing your secure download. It will start automatically within ${waitSeconds} seconds.`;
         downloadPopupState.countdown.textContent = String(waitSeconds);
         downloadPopupState.onClose = onClose;
         downloadPopupState.root.hidden = false;
         downloadPopupState.root.style.display = "grid";
         document.body.classList.add("aj-download-open");
         downloadPopupState.action.disabled = true;
-        downloadPopupState.action.textContent = `Download in ${waitSeconds}s`;
+        downloadPopupState.action.textContent = `Preparing ${waitSeconds}s`;
 
         if (downloadPopupState.timerId) {
             window.clearInterval(downloadPopupState.timerId);
@@ -817,9 +862,12 @@
                 remaining = 0;
                 window.clearInterval(downloadPopupState.timerId);
                 downloadPopupState.timerId = null;
-                downloadPopupState.status.textContent = "Your download is ready. Click Download Now.";
+                downloadPopupState.status.textContent = "Your secure download is starting now.";
                 downloadPopupState.action.disabled = false;
-                downloadPopupState.action.textContent = "Download Now";
+                downloadPopupState.action.textContent = "Starting...";
+                startDownload();
+            } else {
+                downloadPopupState.action.textContent = `Preparing ${remaining}s`;
             }
             downloadPopupState.countdown.textContent = String(remaining);
         }, 1000);
@@ -829,7 +877,7 @@
                 return;
             }
 
-            await onDownload();
+            await startDownload();
         };
 
         return {
@@ -840,6 +888,9 @@
                 const nextSettings = settings || {};
                 downloadPopupState.action.disabled = nextSettings.disabled === true;
                 downloadPopupState.action.textContent = cleanText(nextSettings.label) || "Download Now";
+                if (downloadPopupState.action.disabled !== true) {
+                    downloadStarted = false;
+                }
             }
         };
     }

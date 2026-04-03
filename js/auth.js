@@ -3,8 +3,8 @@
     if (!services || !services.client || !services.client.auth) return;
 
     const supabase = services.client;
-    const HOME_PATH = "/index.html";
-    const LOGIN_PATH = "/login.html";
+    const HOME_PATH = resolveAppPath("/index.html");
+    const LOGIN_PATH = resolveAppPath("/login.html");
     const DEFAULT_NEXT = HOME_PATH;
     const RESEND_SECONDS = 60;
 
@@ -26,6 +26,43 @@
     };
 
     init();
+
+    function getAppBasePath() {
+        const scriptElement = document.currentScript || document.querySelector('script[src*="js/auth.js"]');
+        const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
+
+        if (scriptSrc) {
+            const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
+            return resolvedScriptUrl.pathname.replace(/\/js\/auth\.js(?:\?.*)?$/i, "");
+        }
+
+        const path = window.location.pathname;
+        const pagesIndex = path.indexOf("/pages/");
+        if (pagesIndex >= 0) {
+            return path.slice(0, pagesIndex);
+        }
+
+        const profileIndex = path.indexOf("/profile/");
+        if (profileIndex >= 0) {
+            return path.slice(0, profileIndex);
+        }
+
+        const aboutIndex = path.indexOf("/about/");
+        if (aboutIndex >= 0) {
+            return path.slice(0, aboutIndex);
+        }
+
+        const lastSlashIndex = path.lastIndexOf("/");
+        return lastSlashIndex > 0 ? path.slice(0, lastSlashIndex) : "";
+    }
+
+    function resolveAppPath(path) {
+        if (!path) return window.location.pathname;
+        if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
+
+        const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+        return `${getAppBasePath()}${normalizedPath}`;
+    }
 
     function init() {
         bindLogin();
@@ -154,7 +191,7 @@
                 }
 
                 setInlineMessage(messageNode, "Login successful. Redirecting...", "success");
-                window.location.href = "/dashboard.html";
+                window.location.href = resolveAppPath("/dashboard.html");
             } catch (error) {
                 setInlineMessage(messageNode, mapLoginError(error), "error");
             } finally {
@@ -715,7 +752,34 @@
 
     function sanitizeNext(value) {
         const next = cleanText(value || DEFAULT_NEXT);
-        return next.startsWith("/") ? next : DEFAULT_NEXT;
+
+        if (!next) {
+            return DEFAULT_NEXT;
+        }
+
+        if (/^(?:[a-z]+:)?\/\//i.test(next)) {
+            try {
+                const parsed = new URL(next, window.location.origin);
+                if (parsed.origin !== window.location.origin) {
+                    return DEFAULT_NEXT;
+                }
+
+                return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            } catch (error) {
+                return DEFAULT_NEXT;
+            }
+        }
+
+        if (!next.startsWith("/")) {
+            return DEFAULT_NEXT;
+        }
+
+        const appBasePath = getAppBasePath();
+        if (appBasePath && (next === appBasePath || next.startsWith(`${appBasePath}/`))) {
+            return next;
+        }
+
+        return resolveAppPath(next);
     }
 
     function setMessage(message, tone) {
