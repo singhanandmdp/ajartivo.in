@@ -67,17 +67,17 @@
     }
 
     async function fetchProducts() {
-        let result = await supabase.from("products").select("*");
+        let result = await supabase.from("designs").select("*");
 
         if (result.error || !Array.isArray(result.data) || !result.data.length) {
-            const fallback = await supabase.from("designs").select("*");
+            const fallback = await supabase.from("products").select("*");
             if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length) {
                 result = fallback;
             }
         }
 
         if (result.error) {
-            console.error("Supabase products fetch failed:", result.error);
+            console.error("Supabase designs fetch failed:", result.error);
             return [];
         }
 
@@ -91,10 +91,10 @@
             return null;
         }
 
-        let result = await readSingleProduct("products", productId);
+        let result = await readSingleProduct("designs", productId);
 
         if (!result.data && !result.error) {
-            result = await readSingleProduct("designs", productId);
+            result = await readSingleProduct("products", productId);
         }
 
         if (result.error) {
@@ -791,17 +791,17 @@
             .channel("ajartivo-products-live")
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "products" },
+                { event: "*", schema: "public", table: "designs" },
                 dispatchProductChange
             )
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "designs" },
+                { event: "*", schema: "public", table: "products" },
                 dispatchProductChange
             )
             .subscribe(function (status) {
                 if (status === "CHANNEL_ERROR") {
-                    console.error("Supabase realtime subscription failed for products.");
+                    console.error("Supabase realtime subscription failed for designs.");
                 }
             });
 
