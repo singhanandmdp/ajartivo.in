@@ -463,6 +463,7 @@
     <script>
         (function () {
             const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
+            const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
 
             const form = document.getElementById("paymentForm");
             const amountInput = document.getElementById("amount");
@@ -619,7 +620,12 @@
                     return configured.replace(/\/+$/, "");
                 }
 
-                return LOCAL_BACKEND_BASE_URL;
+                const hostname = (window.location && window.location.hostname || "").trim().toLowerCase();
+                if (hostname === "localhost" || hostname === "127.0.0.1") {
+                    return LOCAL_BACKEND_BASE_URL;
+                }
+
+                return LIVE_BACKEND_BASE_URL;
             }
 
             async function postJson(route, payload, backendBaseUrl) {

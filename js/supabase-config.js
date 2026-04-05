@@ -8,7 +8,8 @@
     const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-    const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
+    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const BASE_URL = resolveBackendBaseUrl();
     let designsChannel = null;
 
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
@@ -492,7 +493,7 @@
         }
 
         try {
-            const response = await fetch(`${resolveBackendBaseUrl()}/account/summary`, {
+            const response = await fetch(`${BASE_URL}/account/summary`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${cleanText(session.access_token)}`

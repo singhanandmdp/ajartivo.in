@@ -3,8 +3,8 @@
     if (!services) return;
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-    const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
-    const API_BASE = resolveBackendBaseUrl();
+    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const BASE_URL = resolveBackendBaseUrl();
     const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
     window.AjArtivoPayment = {
@@ -109,7 +109,7 @@
             throw new Error("Design ID is required.");
         }
 
-        return requestJson(`${API_BASE}/access/design/${encodeURIComponent(normalizedId)}`, {
+        return requestJson(`${BASE_URL}/access/design/${encodeURIComponent(normalizedId)}`, {
             method: "GET",
             authContext: authContext
         });
@@ -231,7 +231,7 @@
 
     async function requestJson(route, options) {
         const settings = options || {};
-        const endpoint = isAbsoluteUrl(route) ? route : `${API_BASE}${route}`;
+        const endpoint = isAbsoluteUrl(route) ? route : `${BASE_URL}${route}`;
         let response;
         const controller = typeof AbortController === "function" ? new AbortController() : null;
         const timeoutId = controller
@@ -707,7 +707,7 @@
             }
 
             async function prepareDownload() {
-                const response = await fetch(`${API_BASE}/download/${encodeURIComponent(product.id)}`, {
+                const response = await fetch(`${BASE_URL}/download/${encodeURIComponent(product.id)}`, {
                     method: "GET",
                     headers: buildAuthHeaders(authContext)
                 });
