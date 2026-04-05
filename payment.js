@@ -12,7 +12,6 @@
         buyNow: buyNow,
         upgradeToPremium: upgradeToPremium,
         fetchDownloadAccess: fetchDownloadAccess,
-        primeDownload: primeDownload,
         refreshAccountSummary: refreshAccountSummary,
         hasDownloadAccess: hasDownloadAccess,
         isSignedIn: isSignedIn,
@@ -24,7 +23,6 @@
     let downloadPopupState = null;
     let loginPopupState = null;
     let accessPopupState = null;
-    const downloadPreparationCache = new Map();
 
     function resolveFrontendUrl(path) {
         if (typeof window.AjArtivoResolveUrl === "function") {
@@ -119,24 +117,6 @@
 
     async function refreshAccountSummary() {
         return services.refreshAccountSummary ? services.refreshAccountSummary() : services.getSession();
-    }
-
-    async function primeDownload(product) {
-        const item = services.normalizeDesign(product);
-        if (!item.id) {
-            return null;
-        }
-
-        const authContext = await getSilentAuthContext();
-        if (!authContext) {
-            return null;
-        }
-
-        if (!isFreeDownload(item) && !hasDownloadAccess(item)) {
-            return null;
-        }
-
-        return ensureDownloadPrepared(item, authContext);
     }
 
     async function openDesignCheckout(product, authContext) {
@@ -429,32 +409,6 @@
         return null;
     }
 
-    async function getSilentAuthContext() {
-        if (services.refreshSession) {
-            await services.refreshSession().catch(function () {
-                return null;
-            });
-        }
-
-        const authSession = await readAuthSession().catch(function () {
-            return null;
-        });
-        if (!authSession || !authSession.user || !cleanText(authSession.access_token)) {
-            return null;
-        }
-
-        return {
-            id: cleanText(authSession.user.id),
-            email: cleanText(authSession.user.email).toLowerCase(),
-            name: cleanText(
-                authSession.user.user_metadata &&
-                (authSession.user.user_metadata.full_name || authSession.user.user_metadata.name)
-            ),
-            accessToken: cleanText(authSession.access_token),
-            sessionUser: services.getSession ? services.getSession() : null
-        };
-    }
-
     async function refreshAuthContext(authContext) {
         let refreshedSession = null;
 
@@ -671,7 +625,8 @@
         const fileName = buildDownloadFileName(product, "");
         return new Promise(function (resolve) {
             let resolvedOnce = false;
-            const preparePromise = ensureDownloadPrepared(product, authContext);
+            let preparedDownload = null;
+            let preparePromise = null;
 
             const popupControls = showDownloadPopup({
                 title: cleanText(product.title) || "Preparing your file",
@@ -685,13 +640,7 @@
                 onDownload: attemptDownload
             });
 
-            preparePromise.then(function () {
-                if (popupControls) {
-                    popupControls.markReady();
-                }
-            }).catch(function () {
-                return null;
-            });
+            preparePromise = prepareDownload();
 
             async function attemptDownload() {
                 if (popupControls) {
@@ -745,59 +694,38 @@
             }
 
             async function ensurePreparedDownload() {
-                return preparePromise;
+                if (preparedDownload) {
+                    return preparedDownload;
+                }
+
+                if (!preparePromise) {
+                    preparePromise = prepareDownload();
+                }
+
+                preparedDownload = await preparePromise;
+                return preparedDownload;
+            }
+
+            async function prepareDownload() {
+                const response = await fetch(`${BASE_URL}/download/${encodeURIComponent(product.id)}`, {
+                    method: "GET",
+                    headers: buildAuthHeaders(authContext)
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readErrorMessage(response, "Unable to download this file."));
+                }
+
+                const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+
+                return {
+                    fileName: resolvedFileName,
+                    objectUrl: objectUrl
+                };
             }
         });
-    }
-
-    function getDownloadPreparationKey(product, authContext) {
-        return `${cleanText(product && product.id)}::${cleanText(authContext && authContext.email).toLowerCase()}`;
-    }
-
-    async function ensureDownloadPrepared(product, authContext) {
-        const key = getDownloadPreparationKey(product, authContext);
-        if (!key || key === "::") {
-            throw new Error("Download preparation could not start.");
-        }
-
-        const existing = downloadPreparationCache.get(key);
-        if (existing && existing.promise) {
-            return existing.promise;
-        }
-
-        const nextPromise = prepareDownloadAsset(product, authContext)
-            .then(function (asset) {
-                downloadPreparationCache.set(key, { promise: Promise.resolve(asset), asset: asset });
-                return asset;
-            })
-            .catch(function (error) {
-                downloadPreparationCache.delete(key);
-                throw error;
-            });
-
-        downloadPreparationCache.set(key, { promise: nextPromise, asset: null });
-        return nextPromise;
-    }
-
-    async function prepareDownloadAsset(product, authContext) {
-        const fileName = buildDownloadFileName(product, "");
-        const response = await fetch(`${BASE_URL}/download/${encodeURIComponent(product.id)}`, {
-            method: "GET",
-            headers: buildAuthHeaders(authContext)
-        });
-
-        if (!response.ok) {
-            throw new Error(await readErrorMessage(response, "Unable to download this file."));
-        }
-
-        const resolvedFileName = parseFileNameFromDisposition(response.headers.get("Content-Disposition")) || fileName;
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-
-        return {
-            fileName: resolvedFileName,
-            objectUrl: objectUrl
-        };
     }
 
     function isPremiumDesign(product) {
@@ -902,10 +830,9 @@
         const onClose = options && typeof options.onClose === "function" ? options.onClose : function () {};
         const onDownload = options && typeof options.onDownload === "function" ? options.onDownload : function () {};
         let downloadStarted = false;
-        let readyToStart = false;
 
         async function startDownload() {
-            if (downloadStarted) {
+            if (downloadStarted || downloadPopupState.action.disabled) {
                 return;
             }
 
@@ -931,7 +858,7 @@
         let remaining = waitSeconds;
         downloadPopupState.timerId = window.setInterval(function () {
             remaining -= 1;
-            if (remaining <= 0 || readyToStart === true) {
+            if (remaining <= 0) {
                 remaining = 0;
                 window.clearInterval(downloadPopupState.timerId);
                 downloadPopupState.timerId = null;
@@ -964,20 +891,6 @@
                 if (downloadPopupState.action.disabled !== true) {
                     downloadStarted = false;
                 }
-            },
-            markReady: function () {
-                readyToStart = true;
-                downloadPopupState.status.textContent = "Your file is ready. Starting download...";
-                downloadPopupState.action.disabled = false;
-                downloadPopupState.action.textContent = "Starting...";
-                if (downloadPopupState.timerId) {
-                    window.clearInterval(downloadPopupState.timerId);
-                    downloadPopupState.timerId = null;
-                }
-                downloadPopupState.countdown.textContent = "0";
-                window.setTimeout(function () {
-                    startDownload();
-                }, 180);
             }
         };
     }

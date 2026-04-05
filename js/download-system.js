@@ -15,7 +15,6 @@
     let accessRequestId = 0;
     let currentAccessPromise = null;
     let currentAccessState = createAccessState();
-    let productWarmupPromise = null;
 
     initPage();
     bindLiveRefresh();
@@ -43,7 +42,6 @@
 
             currentDesign = services.normalizeDesign(currentDesign);
             renderDesign(currentDesign);
-            bindActionButton(currentDesign, deriveInitialAccessState(currentDesign));
 
             await Promise.all([
                 loadRelatedDesigns(currentDesign.id),
@@ -161,32 +159,8 @@
         currentAccessState = resolvedAccess;
         currentDesign = applyAccessState(normalizedProduct, resolvedAccess);
         updateAccessUi(currentDesign, resolvedAccess);
-        warmProductDownload(currentDesign);
         currentAccessPromise = null;
         return currentDesign;
-    }
-
-    function warmProductDownload(product) {
-        if (!product || !product.id) {
-            return;
-        }
-
-        const normalizedProduct = services.normalizeDesign(product);
-        const signedIn = Boolean(getCurrentUserEmail());
-        const canWarm = signedIn && (
-            hasDownloadAccess(normalizedProduct) ||
-            isFreeDesign(normalizedProduct)
-        );
-
-        if (!canWarm || !window.AjArtivoPayment || typeof window.AjArtivoPayment.primeDownload !== "function") {
-            productWarmupPromise = null;
-            return;
-        }
-
-        productWarmupPromise = window.AjArtivoPayment.primeDownload(normalizedProduct).catch(function (error) {
-            console.warn("Download warmup skipped:", error);
-            return null;
-        });
     }
 
     async function resolveDesignAccess(product) {
@@ -594,12 +568,7 @@
             let activeProduct = currentDesign ? services.normalizeDesign(currentDesign) : currentItem;
             let activeState = resolveActionButtonState(activeProduct);
 
-            const shouldWaitForAccess = Boolean(
-                currentAccessPromise &&
-                activeState.mode === "buy-now"
-            );
-
-            if (shouldWaitForAccess) {
+            if (currentAccessPromise) {
                 try {
                     await currentAccessPromise;
                 } catch (_error) {
@@ -614,12 +583,6 @@
             button.textContent = activeState.busyText;
 
             try {
-                if (productWarmupPromise) {
-                    productWarmupPromise.catch(function () {
-                        return null;
-                    });
-                }
-
                 if (activeState.mode === "buy-now" && typeof window.AjArtivoPayment.buyNow === "function") {
                     await window.AjArtivoPayment.buyNow(activeProduct);
                 } else {
