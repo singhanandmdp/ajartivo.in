@@ -64,9 +64,17 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.*
 functions/.env
 backend/.env
 .runtimeconfig.json
+
+# Local backups and archived project copies
+backup/
+firebase-backup/
+*.bak
+*.backup
+*.tmp
 
 # dataconnect generated files
 .dataconnect
