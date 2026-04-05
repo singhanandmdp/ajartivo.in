@@ -288,6 +288,9 @@ function initSearch() {
 
         input.dataset.searchReady = "true";
     });
+
+    syncSearchInputsFromQuery();
+    bindSearchQueryEditor();
 }
 
 function initMobileHeaderSearch() {
@@ -317,45 +320,207 @@ function initMobileHeaderSearch() {
 }
 
 function initHeaderVoiceSearch() {
-    const micButton = document.getElementById("headerMicBtn");
-    const input = document.getElementById("headerSearchInput");
-
-    if (!micButton || !input || micButton.dataset.voiceReady === "true") return;
-
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-        micButton.hidden = true;
-        micButton.dataset.voiceReady = "true";
+        ["headerMicBtn", "mobileVoiceToggle", "mobileHeaderVoiceBtn"].forEach((buttonId) => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.hidden = true;
+                button.dataset.voiceReady = "true";
+            }
+        });
         return;
     }
 
+    [
+        { buttonId: "headerMicBtn", inputId: "headerSearchInput" },
+        { buttonId: "mobileVoiceToggle", inputId: "mobileHeaderSearchInput" },
+        { buttonId: "mobileHeaderVoiceBtn", inputId: "mobileHeaderSearchInput" }
+    ].forEach(({ buttonId, inputId }) => {
+        const button = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
+        if (!button || !input || button.dataset.voiceReady === "true") return;
+
+        button.addEventListener("click", () => {
+            openVoiceSearchExperience({ targetInputId: inputId });
+        });
+
+        button.dataset.voiceReady = "true";
+    });
+}
+
+function syncSearchInputsFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const query = (params.get("q") || "").trim();
+    if (!query) return;
+
+    ["heroSearchInput", "headerSearchInput", "mobileHeaderSearchInput", "searchPageInput"].forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = query;
+        }
+    });
+}
+
+function bindSearchQueryEditor() {
+    const form = document.getElementById("searchQueryForm");
+    const input = document.getElementById("searchPageInput");
+    if (!form || !input || form.dataset.queryReady === "true") return;
+
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const query = input.value.trim();
+        if (!query) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.set("q", query);
+        params.set("page", "1");
+        window.location.href = resolveSiteUrl(`/pages/search.html?${params.toString()}`);
+    });
+
+    form.dataset.queryReady = "true";
+}
+
+function openVoiceSearchExperience(options) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const targetInputId = options && options.targetInputId ? options.targetInputId : "headerSearchInput";
+    const targetInput = document.getElementById(targetInputId);
+    const modal = ensureVoiceSearchModal();
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IN";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    recognition.addEventListener("start", () => {
-        micButton.classList.add("is-listening");
+    let finalTranscript = "";
+    let closed = false;
+
+    modal.root.hidden = false;
+    modal.setTitle("Listening for your design");
+    modal.setCopy("Speak naturally. We will turn your voice into a premium search experience.");
+    modal.setTranscript("");
+
+    const closeModal = () => {
+        if (closed) return;
+        closed = true;
+        modal.root.hidden = true;
+        recognition.abort();
+    };
+
+    modal.close.onclick = closeModal;
+    modal.backdrop.onclick = closeModal;
+
+    recognition.addEventListener("result", (event) => {
+        const text = Array.from(event.results)
+            .map((result) => result && result[0] ? result[0].transcript : "")
+            .join(" ")
+            .trim();
+
+        if (text) {
+            modal.setTranscript(text);
+        }
+
+        const lastResult = event.results[event.results.length - 1];
+        if (lastResult && lastResult.isFinal) {
+            finalTranscript = text;
+        }
+    });
+
+    recognition.addEventListener("error", () => {
+        modal.setTitle("Voice search unavailable");
+        modal.setCopy("We could not hear a clear search phrase. Please try again.");
+        modal.setTranscript("Try saying something like birthday banner, wedding card, or logo design.");
     });
 
     recognition.addEventListener("end", () => {
-        micButton.classList.remove("is-listening");
+        if (closed) return;
+
+        const transcript = finalTranscript.trim() || modal.transcript.textContent.trim();
+        if (!transcript || transcript === "Listening...") {
+            return;
+        }
+
+        modal.setTitle("Opening your results");
+        modal.setCopy("We captured your search. Loading the result page with editable text...");
+        modal.setTranscript(transcript);
+
+        if (targetInput) {
+            targetInput.value = transcript;
+        }
+
+        const params = new URLSearchParams();
+        params.set("q", transcript);
+
+        window.setTimeout(() => {
+            window.location.href = resolveSiteUrl(`/pages/search.html?${params.toString()}`);
+        }, 800);
     });
 
-    recognition.addEventListener("result", (event) => {
-        const transcript = event.results[0] && event.results[0][0] ? event.results[0][0].transcript : "";
-        if (!transcript) return;
-
-        input.value = transcript.trim();
-        input.focus();
-    });
-
-    micButton.addEventListener("click", () => {
+    window.setTimeout(() => {
         recognition.start();
-    });
+    }, 180);
+}
 
-    micButton.dataset.voiceReady = "true";
+function ensureVoiceSearchModal() {
+    let root = document.getElementById("voiceSearchModal");
+    if (!root) {
+        root = document.createElement("div");
+        root.className = "voice-search-modal";
+        root.id = "voiceSearchModal";
+        root.hidden = true;
+        root.innerHTML = `
+            <div class="voice-search-backdrop"></div>
+            <div class="voice-search-dialog" role="dialog" aria-modal="true" aria-label="Voice search">
+                <button type="button" class="voice-search-close" aria-label="Close voice search">&times;</button>
+                <p class="voice-search-kicker">Voice Search</p>
+                <h3 class="voice-search-title">Listening for your design</h3>
+                <p class="voice-search-copy">Speak naturally. We will turn your voice into a premium search experience.</p>
+                <div class="voice-search-stage">
+                    <div class="voice-search-rings" aria-hidden="true">
+                        <span class="voice-search-ring"></span>
+                        <span class="voice-search-ring"></span>
+                        <span class="voice-search-ring"></span>
+                    </div>
+                    <div class="voice-search-core" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                            <path d="M19 11a7 7 0 0 1-14 0"></path>
+                            <path d="M12 18v3"></path>
+                            <path d="M8 21h8"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="voice-search-loader" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="voice-search-transcript is-empty">Listening...</div>
+            </div>
+        `;
+        document.body.appendChild(root);
+    }
+
+    return {
+        root,
+        close: root.querySelector(".voice-search-close"),
+        backdrop: root.querySelector(".voice-search-backdrop"),
+        title: root.querySelector(".voice-search-title"),
+        copy: root.querySelector(".voice-search-copy"),
+        transcript: root.querySelector(".voice-search-transcript"),
+        setTitle(value) {
+            this.title.textContent = value;
+        },
+        setCopy(value) {
+            this.copy.textContent = value;
+        },
+        setTranscript(value) {
+            this.transcript.textContent = value || "Listening...";
+            this.transcript.classList.toggle("is-empty", !value);
+        }
+    };
 }
 
 function initSearchResults() {
