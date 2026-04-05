@@ -11,70 +11,70 @@
 
     if (!trendingGrid && !popularGrid) return;
 
-    loadHomepageProducts();
+    loadHomepageDesigns();
     bindLiveRefresh();
 
-    async function loadHomepageProducts() {
+    async function loadHomepageDesigns() {
         try {
-            const products = await services.fetchProducts();
-            const latestProducts = [...products]
+            const designs = await services.fetchDesigns();
+            const latestDesigns = [...designs]
                 .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
 
             if (trendingGrid) {
-                renderProductCards(trendingGrid, latestProducts.slice(0, 6));
+                renderDesignCards(trendingGrid, latestDesigns.slice(0, 6));
             }
 
             if (popularGrid) {
-                const popularProducts = [...products]
+                const popularDesigns = [...designs]
                     .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
                     .slice(0, 6);
 
-                renderProductCards(popularGrid, popularProducts);
+                renderDesignCards(popularGrid, popularDesigns);
             }
         } catch (error) {
-            console.error("Failed to load homepage products:", error);
+            console.error("Failed to load homepage designs:", error);
             if (trendingGrid) {
-                trendingGrid.innerHTML = '<div class="empty-state">Could not load products right now.</div>';
+                trendingGrid.innerHTML = '<div class="empty-state">Could not load designs right now.</div>';
             }
             if (popularGrid) {
-                popularGrid.innerHTML = '<div class="empty-state">Could not load popular products right now.</div>';
+                popularGrid.innerHTML = '<div class="empty-state">Could not load popular designs right now.</div>';
             }
         }
     }
 
     function bindLiveRefresh() {
-        if (document.body.dataset.homeProductsLiveBound === "true") {
+        if (document.body.dataset.homeDesignsLiveBound === "true") {
             return;
         }
 
-        window.addEventListener("ajartivo:products-changed", function () {
+        window.addEventListener("ajartivo:designs-changed", function () {
             if (refreshTimerId) {
                 window.clearTimeout(refreshTimerId);
             }
 
             refreshTimerId = window.setTimeout(function () {
-                loadHomepageProducts();
+                loadHomepageDesigns();
             }, 250);
         });
 
-        document.body.dataset.homeProductsLiveBound = "true";
+        document.body.dataset.homeDesignsLiveBound = "true";
     }
 
-    function renderProductCards(container, products) {
-        if (!products.length) {
-            container.innerHTML = '<div class="empty-state">No products found yet.</div>';
+    function renderDesignCards(container, designs) {
+        if (!designs.length) {
+            container.innerHTML = '<div class="empty-state">No designs found yet.</div>';
             return;
         }
 
-        container.innerHTML = products.map(function (product) {
-            const title = escapeHtml(product.title);
-            const image = escapeHtml(product.image || "/images/preview1.jpg");
-            const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(product.id)}`);
-            const badge = getProductBadge(product);
+        container.innerHTML = designs.map(function (design) {
+            const title = escapeHtml(design.title);
+            const image = escapeHtml(design.image || "/images/preview1.jpg");
+            const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
+            const badge = getDesignBadge(design);
 
             return `
-                <article class="product-card homepage-design-card" data-product-id="${escapeHtml(product.id)}">
-                    <a href="${productUrl}" class="card-link homepage-card-link">
+                <article class="design-card homepage-design-card" data-design-id="${escapeHtml(design.id)}">
+                    <a href="${designUrl}" class="card-link homepage-card-link">
                         <div class="homepage-card-media">
                             <img src="${image}" alt="${title}" class="homepage-card-image">
                             <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
@@ -85,8 +85,8 @@
         }).join("");
     }
 
-    function getProductBadge(product) {
-        const format = String(product.category || "").trim().toUpperCase();
+    function getDesignBadge(design) {
+        const format = String(design.category || "").trim().toUpperCase();
         const knownClass = format.toLowerCase();
         const knownFormats = new Set(["psd", "cdr", "ai", "png", "jpg", "jpeg", "pdf", "svg", "eps"]);
 
@@ -103,14 +103,14 @@
         }
 
         return {
-            label: product.is_premium ? "PREMIUM" : "FREE",
-            className: product.is_premium ? "premium" : "free",
+            label: design.is_premium ? "PREMIUM" : "FREE",
+            className: design.is_premium ? "premium" : "free",
             styleAttr: ""
         };
     }
 
-    function getCreatedAtMs(product) {
-        const date = new Date(product.created_at || product.createdAt || 0);
+    function getCreatedAtMs(design) {
+        const date = new Date(design.created_at || design.createdAt || 0);
         const millis = date.getTime();
         return Number.isFinite(millis) ? millis : 0;
     }

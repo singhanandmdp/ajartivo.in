@@ -1233,11 +1233,11 @@ textarea {
         border-radius: 22px;
     }
 
-    .featured-products {
+    .featured-designs {
         padding: 28px 12px;
     }
 
-    .featured-products h2 {
+    .featured-designs h2 {
         margin-bottom: 18px;
         font-size: 22px;
     }
@@ -2011,14 +2011,14 @@ textarea {
     color: #3758d8;
 }
 
-.featured-products {
+.featured-designs {
     padding: 60px 40px;
     max-width: 1280px;
     margin: 0 auto;
     width: 100%;
 }
 
-.featured-products h2 {
+.featured-designs h2 {
     font-size: 28px;
     margin-bottom: 30px;
 }
@@ -3336,7 +3336,7 @@ textarea {
         justify-content: center;
     }
 
-    .featured-products,
+    .featured-designs,
     .trending-section,
     .why-ajartivo,
     .about-skills,
@@ -3366,7 +3366,7 @@ textarea {
         font-size: 28px;
     }
 
-    .featured-products h2,
+    .featured-designs h2,
     .why-ajartivo h2,
     .about-skills h2,
     .about-journey h2,

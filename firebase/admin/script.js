@@ -147,9 +147,9 @@ async function handleSave(event) {
     imageFileInput.disabled = true;
     setStatus("Saving...");
 
-    await addDoc(collection(db, "products"), buildProductPayload(uploadedImageUrl));
+    await addDoc(collection(db, "designs"), buildProductPayload(uploadedImageUrl));
 
-    showMessage("success", "Product saved to Firestore successfully.");
+    showMessage("success", "Design saved to Firestore successfully.");
     setStatus("Saved");
     uploadForm.reset();
     uploadedImageUrl = "";

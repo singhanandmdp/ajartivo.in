@@ -231,11 +231,11 @@ async function updateSidebarDesignCounts() {
     if (!services) return;
 
     try {
-        const products = await services.fetchProducts();
+        const designs = await services.fetchDesigns();
         const counts = { psd: 0, cdr: 0, ai: 0 };
 
-        products.forEach((product) => {
-            const rawType = String(product.category || product.type || "").trim().toUpperCase();
+        designs.forEach((design) => {
+            const rawType = String(design.category || design.type || "").trim().toUpperCase();
 
             if (rawType === "PSD") {
                 counts.psd += 1;
@@ -413,9 +413,9 @@ function initSearchResults() {
     });
     container.innerHTML = '<div class="empty-state">Loading designs...</div>';
 
-    services.fetchProducts()
-        .then((products) => {
-            let designs = Array.isArray(products) ? [...products] : [];
+    services.fetchDesigns()
+        .then((designsResult) => {
+            let designs = Array.isArray(designsResult) ? [...designsResult] : [];
 
             if (category) {
                 designs = designs.filter((design) => {
@@ -1291,7 +1291,7 @@ function initAuthUI() {
         memberBox.innerHTML = `
             <div class="member-text">
                 <h5>Member Access</h5>
-                <p>Login to manage your saved products.</p>
+                <p>Login to manage your saved designs.</p>
             </div>
             <a href="${resolveSiteUrl("/login.html")}" class="member-login-btn">
                 <img src="${resolveSiteUrl("/icons/login.svg")}" class="icon-svg" alt="Login">

@@ -40,7 +40,7 @@
                 return;
             }
 
-            currentProduct = services.normalizeProduct(currentProduct);
+            currentProduct = services.normalizeDesign(currentProduct);
             renderProduct(currentProduct);
 
             await Promise.all([
@@ -61,7 +61,7 @@
             return;
         }
 
-        window.addEventListener("ajartivo:products-changed", function () {
+        window.addEventListener("ajartivo:designs-changed", function () {
             if (refreshTimerId) {
                 window.clearTimeout(refreshTimerId);
             }
@@ -137,7 +137,7 @@
     }
 
     async function refreshProductAccess(product) {
-        const normalizedProduct = services.normalizeProduct(product);
+        const normalizedProduct = services.normalizeDesign(product);
         const requestId = accessRequestId + 1;
         accessRequestId = requestId;
 
@@ -340,7 +340,7 @@
     }
 
     function applyAccessState(product, accessState) {
-        const normalizedProduct = services.normalizeProduct(product);
+        const normalizedProduct = services.normalizeDesign(product);
         const isPurchased = Boolean(
             normalizedProduct.isPurchased === true ||
             normalizedProduct.is_purchased === true ||
@@ -348,7 +348,7 @@
         );
         const hasAccess = Boolean(accessState && accessState.hasAccess);
 
-        return services.normalizeProduct({
+        return services.normalizeDesign({
             ...normalizedProduct,
             has_access: hasAccess,
             isPurchased: isPurchased,
@@ -383,25 +383,25 @@
         const relatedGrid = document.getElementById("relatedDesignGrid");
         if (!relatedGrid) return;
 
-        relatedGrid.innerHTML = '<div class="empty-state">Loading related products...</div>';
+        relatedGrid.innerHTML = '<div class="empty-state">Loading related designs...</div>';
 
         try {
-            const products = await services.fetchRelatedProducts(currentId, 6);
+            const designs = await services.fetchRelatedDesigns(currentId, 6);
 
-            if (!products.length) {
-                relatedGrid.innerHTML = '<div class="empty-state">No related products found.</div>';
+            if (!designs.length) {
+                relatedGrid.innerHTML = '<div class="empty-state">No related designs found.</div>';
                 return;
             }
 
-            relatedGrid.innerHTML = products.map(function (product) {
-                const title = escapeHtml(product.title);
-                const image = escapeHtml(product.image || "/images/preview1.jpg");
-                const badge = getProductBadge(product);
-                const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(product.id)}`);
+            relatedGrid.innerHTML = designs.map(function (design) {
+                const title = escapeHtml(design.title);
+                const image = escapeHtml(design.image || "/images/preview1.jpg");
+                const badge = getProductBadge(design);
+                const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
 
                 return `
                     <article class="design-card homepage-design-card">
-                        <a href="${productUrl}" class="card-link homepage-card-link">
+                        <a href="${designUrl}" class="card-link homepage-card-link">
                             <div class="homepage-card-media">
                                 <img src="${image}" alt="${title}" class="homepage-card-image">
                                 <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
@@ -411,8 +411,8 @@
                 `;
             }).join("");
         } catch (error) {
-            console.error("Related products load failed:", error);
-            relatedGrid.innerHTML = '<div class="empty-state">Could not load related products right now.</div>';
+            console.error("Related designs load failed:", error);
+            relatedGrid.innerHTML = '<div class="empty-state">Could not load related designs right now.</div>';
         }
     }
 
@@ -556,7 +556,7 @@
             return;
         }
 
-        const currentItem = services.normalizeProduct(product);
+        const currentItem = services.normalizeDesign(product);
         const buttonState = resolveActionButtonState(currentItem);
 
         button.disabled = false;
@@ -565,7 +565,7 @@
         button.setAttribute("aria-busy", accessState && accessState.loading ? "true" : "false");
 
         button.onclick = async function () {
-            let activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : currentItem;
+            let activeProduct = currentProduct ? services.normalizeDesign(currentProduct) : currentItem;
             let activeState = resolveActionButtonState(activeProduct);
 
             if (currentAccessPromise) {
@@ -575,7 +575,7 @@
                     // Fall through to the standard action flow and let it handle any retry path.
                 }
 
-                activeProduct = currentProduct ? services.normalizeProduct(currentProduct) : activeProduct;
+                activeProduct = currentProduct ? services.normalizeDesign(currentProduct) : activeProduct;
                 activeState = resolveActionButtonState(activeProduct);
             }
 
@@ -592,7 +592,7 @@
                 console.error("Download failed:", error);
                 alert("Unable to start the download right now.");
             } finally {
-                const refreshedProduct = currentProduct ? services.normalizeProduct(currentProduct) : activeProduct;
+                const refreshedProduct = currentProduct ? services.normalizeDesign(currentProduct) : activeProduct;
                 const refreshedState = resolveActionButtonState(refreshedProduct);
 
                 button.disabled = false;
@@ -891,12 +891,12 @@
     }
 
     function isFreeDesign(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         return item.is_free === true || (item.is_paid !== true && Number(item.price || 0) <= 0);
     }
 
     function hasDownloadAccess(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         return item.has_access === true || item.isPurchased === true || item.is_purchased === true;
     }
 

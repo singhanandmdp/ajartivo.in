@@ -9,7 +9,7 @@
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
-    let productsChannel = null;
+    let designsChannel = null;
 
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
         console.error("Supabase CDN failed to load.");
@@ -26,11 +26,15 @@
 
     window.AjArtivoSupabase = {
         client: supabase,
-        fetchProducts: fetchProducts,
-        fetchProductById: fetchProductById,
-        fetchRelatedProducts: fetchRelatedProducts,
+        fetchProducts: fetchDesigns,
+        fetchDesigns: fetchDesigns,
+        fetchProductById: fetchDesignById,
+        fetchDesignById: fetchDesignById,
+        fetchRelatedProducts: fetchRelatedDesigns,
+        fetchRelatedDesigns: fetchRelatedDesigns,
         hasPurchasedDesign: hasPurchasedDesign,
-        normalizeProduct: normalizeProduct,
+        normalizeProduct: normalizeDesign,
+        normalizeDesign: normalizeDesign,
         getSession: getSession,
         getAuthSession: getAuthSession,
         getAccessToken: getAccessToken,
@@ -52,7 +56,8 @@
         isWishlisted: isWishlisted,
         addDownloadHistoryItem: addDownloadHistoryItem,
         resetStoredUserData: resetStoredUserData,
-        subscribeToProductChanges: subscribeToProductChanges
+        subscribeToProductChanges: subscribeToDesignChanges,
+        subscribeToDesignChanges: subscribeToDesignChanges
     };
 
     initializeApp();
@@ -60,17 +65,17 @@
     async function initializeApp() {
         await applyTemporaryUserDataReset();
         await hydrateSession();
-        subscribeToProductChanges();
+        subscribeToDesignChanges();
         supabase.auth.onAuthStateChange(function (_event, session) {
             syncSessionFromAuth(session);
         });
     }
 
-    async function fetchProducts() {
+    async function fetchDesigns() {
         let result = await supabase.from("designs").select("*");
 
         if (result.error || !Array.isArray(result.data) || !result.data.length) {
-            const fallback = await supabase.from("products").select("*");
+            const fallback = await supabase.from("designs").select("*");
             if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length) {
                 result = fallback;
             }
@@ -81,34 +86,30 @@
             return [];
         }
 
-        return Array.isArray(result.data) ? result.data.map(normalizeProduct) : [];
+        return Array.isArray(result.data) ? result.data.map(normalizeDesign) : [];
     }
 
-    async function fetchProductById(id) {
-        const productId = cleanText(id);
-        if (!productId) {
-            console.warn("Supabase product fetch skipped: missing product ID.");
+    async function fetchDesignById(id) {
+        const designId = cleanText(id);
+        if (!designId) {
+            console.warn("Supabase design fetch skipped: missing design ID.");
             return null;
         }
 
-        let result = await readSingleProduct("designs", productId);
-
-        if (!result.data && !result.error) {
-            result = await readSingleProduct("products", productId);
-        }
+        const result = await readSingleDesign("designs", designId);
 
         if (result.error) {
-            console.error("Supabase product fetch failed:", result.error);
+            console.error("Supabase design fetch failed:", result.error);
             return null;
         }
 
-        return result.data ? normalizeProduct(result.data) : null;
+        return result.data ? normalizeDesign(result.data) : null;
     }
 
-    async function fetchRelatedProducts(currentId, limit) {
-        const products = await fetchProducts();
-        return products
-            .filter((product) => String(product.id) !== String(currentId))
+    async function fetchRelatedDesigns(currentId, limit) {
+        const designs = await fetchDesigns();
+        return designs
+            .filter((design) => String(design.id) !== String(currentId))
             .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a))
             .slice(0, limit || 6);
     }
@@ -136,33 +137,33 @@
         return Array.isArray(data) && data.length > 0;
     }
 
-    function normalizeProduct(record) {
-        const product = record || {};
-        const normalizedId = String(product.id || "").trim();
-        const title = cleanText(product.title) || "Untitled Design";
-        const image = cleanText(product.image || product.image_url || product.preview_url || product.previewUrl) || "/images/preview1.jpg";
-        const category = cleanText(product.category).toUpperCase();
-        const createdAt = cleanText(product.created_at) || new Date(0).toISOString();
-        const price = Number(product.price || 0);
+    function normalizeDesign(record) {
+        const design = record || {};
+        const normalizedId = String(design.id || "").trim();
+        const title = cleanText(design.title) || "Untitled Design";
+        const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || "/images/preview1.jpg";
+        const category = cleanText(design.category).toUpperCase();
+        const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
+        const price = Number(design.price || 0);
         const normalizedPrice = Number.isFinite(price) ? price : 0;
-        const isFree = product.is_free === true || (product.is_premium !== true && product.is_paid !== true && normalizedPrice <= 0);
-        const isPremium = product.is_premium === true || (isFree !== true && (product.is_paid === true || normalizedPrice > 0));
+        const isFree = design.is_free === true || (design.is_premium !== true && design.is_paid !== true && normalizedPrice <= 0);
+        const isPremium = design.is_premium === true || (isFree !== true && (design.is_paid === true || normalizedPrice > 0));
         const isPaid = isPremium === true || normalizedPrice > 0;
-        const isPurchased = product.isPurchased === true || product.is_purchased === true;
-        const hasAccess = product.has_access === true || isPurchased;
-        const rawDownloadLink = cleanText(product.download_link || product.file_url || product.downloadUrl || product.download);
+        const isPurchased = design.isPurchased === true || design.is_purchased === true;
+        const hasAccess = design.has_access === true || isPurchased;
+        const rawDownloadLink = cleanText(design.download_link || design.file_url || design.downloadUrl || design.download);
         const hasDownloadAsset = Boolean(rawDownloadLink);
         const publicDownloadLink = "";
-        const previewImages = collectProductImages(product, image);
-        const tags = collectProductTags(product, title);
+        const previewImages = collectDesignImages(design, image);
+        const tags = collectDesignTags(design, title);
 
         return {
-            ...product,
+            ...design,
             id: normalizedId,
             title: title,
             name: title,
             image: image,
-            image_url: cleanText(product.image_url || image),
+            image_url: cleanText(design.image_url || image),
             category: category,
             type: category,
             format: category,
@@ -179,16 +180,16 @@
             accessType: hasAccess ? "UNLOCKED" : isFree ? "FREE" : "PREMIUM",
             download_enabled: hasDownloadAsset,
             download_link: publicDownloadLink,
-            file_url: cleanText(product.file_url || product.download_link || product.downloadUrl || product.download),
+            file_url: cleanText(design.file_url || design.download_link || design.downloadUrl || design.download),
             downloadLink: publicDownloadLink,
             downloadUrl: publicDownloadLink,
             fileUrl: publicDownloadLink,
             protected_download_link: "",
             protectedDownloadLink: "",
-            description: cleanText(product.description) || `${title} ready for instant access.`,
+            description: cleanText(design.description) || `${title} ready for instant access.`,
             tags: tags,
-            downloads: Number(product.downloads || 0) || 0,
-            views: Number(product.views || 0) || 0,
+            downloads: Number(design.downloads || 0) || 0,
+            views: Number(design.views || 0) || 0,
             previewImages: previewImages,
             gallery: previewImages
         };
@@ -448,9 +449,9 @@
         writeJson(key, Array.isArray(items) ? items : []);
     }
 
-    function addWishlistItem(product) {
-        const items = readList(WISHLIST_KEY).filter((item) => String(item.id) !== String(product.id));
-        items.unshift(buildStoredProduct(product, "savedAt"));
+    function addWishlistItem(design) {
+        const items = readList(WISHLIST_KEY).filter((item) => String(item.id) !== String(design.id));
+        items.unshift(buildStoredDesign(design, "savedAt"));
         writeList(WISHLIST_KEY, items);
         return items;
     }
@@ -465,15 +466,15 @@
         return readList(WISHLIST_KEY).some((item) => String(item.id) === String(productId));
     }
 
-    function addDownloadHistoryItem(product) {
+    function addDownloadHistoryItem(design) {
         const items = readList(DOWNLOAD_HISTORY_KEY);
-        items.unshift(buildStoredProduct(product, "downloadedAt"));
+        items.unshift(buildStoredDesign(design, "downloadedAt"));
         writeList(DOWNLOAD_HISTORY_KEY, items.slice(0, 50));
         return items;
     }
 
-    function buildStoredProduct(product, timestampKey) {
-        const normalized = normalizeProduct(product);
+    function buildStoredDesign(design, timestampKey) {
+        const normalized = normalizeDesign(design);
         return {
             id: normalized.id,
             title: normalized.title,
@@ -489,8 +490,8 @@
         };
     }
 
-    function buildProtectedDownloadRoute(productId) {
-        const normalizedId = cleanText(productId);
+    function buildProtectedDownloadRoute(designId) {
+        const normalizedId = cleanText(designId);
         return normalizedId ? `/download/${encodeURIComponent(normalizedId)}` : "";
     }
 
@@ -703,13 +704,13 @@
         };
     }
 
-    function collectProductImages(product, primaryImage) {
-        const extraImages = Array.isArray(product && product.extra_images)
-            ? product.extra_images
-            : Array.isArray(product && product.extraImages)
-            ? product.extraImages
-            : Array.isArray(product && product.gallery)
-            ? product.gallery
+    function collectDesignImages(design, primaryImage) {
+        const extraImages = Array.isArray(design && design.extra_images)
+            ? design.extra_images
+            : Array.isArray(design && design.extraImages)
+            ? design.extraImages
+            : Array.isArray(design && design.gallery)
+            ? design.gallery
             : [];
 
         return [primaryImage]
@@ -721,11 +722,11 @@
             });
     }
 
-    function collectProductTags(product, fallbackTitle) {
-        const rawTags = Array.isArray(product && product.tags)
-            ? product.tags
-            : typeof (product && product.tags) === "string"
-            ? product.tags.split(",")
+    function collectDesignTags(design, fallbackTitle) {
+        const rawTags = Array.isArray(design && design.tags)
+            ? design.tags
+            : typeof (design && design.tags) === "string"
+            ? design.tags.split(",")
             : [];
 
         const tags = rawTags
@@ -743,36 +744,22 @@
         return fallback ? [fallback] : [];
     }
 
-    async function readSingleProduct(tableName, productId) {
+    async function readSingleDesign(tableName, designId) {
         const { data, error } = await supabase
             .from(tableName)
             .select("*")
-            .eq("id", productId)
+            .eq("id", designId)
             .maybeSingle();
 
         if (!error || data) {
             return { data: data || null, error: null };
         }
 
-        const numericProductId = Number(productId);
-        if (!Number.isInteger(numericProductId)) {
-            return { data: null, error: error };
-        }
-
-        const retry = await supabase
-            .from(tableName)
-            .select("*")
-            .eq("id", numericProductId)
-            .maybeSingle();
-
-        return {
-            data: retry.data || null,
-            error: retry.error || null
-        };
+        return { data: null, error: error };
     }
 
-    function getCreatedAtMs(product) {
-        const value = cleanText(product && (product.created_at || product.createdAt));
+    function getCreatedAtMs(design) {
+        const value = cleanText(design && (design.created_at || design.createdAt));
         const date = new Date(value || 0);
         const millis = date.getTime();
         return Number.isFinite(millis) ? millis : 0;
@@ -782,22 +769,17 @@
         await refreshSession();
     }
 
-    function subscribeToProductChanges() {
-        if (productsChannel || typeof supabase.channel !== "function") {
-            return productsChannel;
+    function subscribeToDesignChanges() {
+        if (designsChannel || typeof supabase.channel !== "function") {
+            return designsChannel;
         }
 
-        productsChannel = supabase
-            .channel("ajartivo-products-live")
+        designsChannel = supabase
+            .channel("ajartivo-designs-live")
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "designs" },
-                dispatchProductChange
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "products" },
-                dispatchProductChange
+                dispatchDesignChange
             )
             .subscribe(function (status) {
                 if (status === "CHANNEL_ERROR") {
@@ -805,7 +787,7 @@
                 }
             });
 
-        return productsChannel;
+        return designsChannel;
     }
 
     function syncSessionFromAuth(session) {
@@ -862,7 +844,13 @@
         });
     }
 
-    function dispatchProductChange(payload) {
+    function dispatchDesignChange(payload) {
+        window.dispatchEvent(new CustomEvent("ajartivo:designs-changed", {
+            detail: {
+                change: payload || null,
+                receivedAt: new Date().toISOString()
+            }
+        }));
         window.dispatchEvent(new CustomEvent("ajartivo:products-changed", {
             detail: {
                 change: payload || null,
