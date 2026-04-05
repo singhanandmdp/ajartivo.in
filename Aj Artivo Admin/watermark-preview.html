@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AjArtivo Watermarked Preview</title>
+  <link rel="stylesheet" href="assets/watermark-preview.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="preview-card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">AJARTIVO PREVIEW SYSTEM</p>
+          <h1>Create a permanently watermarked preview image</h1>
+          <p class="subtext">
+            Select an image to merge it with the local watermark and generate a flattened preview.
+          </p>
+        </div>
+      </div>
+
+      <section class="control-panel" aria-label="Upload Controls">
+        <label class="file-picker" for="imageInput">
+          <input id="imageInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+          <span class="file-picker-copy">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12"></path>
+              <path d="M8 7l4-4 4 4"></path>
+              <path d="M4 17.5A2.5 2.5 0 0 0 6.5 20h11A2.5 2.5 0 0 0 20 17.5"></path>
+            </svg>
+            <strong>Select Image</strong>
+            <small id="fileMeta">PNG, JPG, and WEBP files are supported.</small>
+          </span>
+        </label>
+
+        <button id="uploadButton" class="action-button" type="button">Upload Later</button>
+      </section>
+
+      <section class="workspace">
+        <div class="canvas-panel">
+          <div class="panel-head">
+            <h2>Canvas Render</h2>
+            <span id="statusText">Waiting for image</span>
+          </div>
+          <canvas id="mergeCanvas" hidden></canvas>
+          <div id="canvasPlaceholder" class="placeholder">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="14" rx="2"></rect>
+              <path d="M8 14l2.5-2.5 2 2 3.5-3.5L19 13"></path>
+              <circle cx="9" cy="9" r="1.2"></circle>
+            </svg>
+            <strong>No image selected</strong>
+            <small>The uploaded image will be merged with the watermark inside the canvas.</small>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="panel-head">
+            <h2>Final Preview</h2>
+            <span>Merged image only</span>
+          </div>
+          <div class="preview-frame">
+            <img id="finalPreview" alt="Final watermarked preview" hidden>
+            <div id="previewPlaceholder" class="placeholder">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="14" rx="2"></rect>
+                <path d="M8 14l2.5-2.5 2 2 3.5-3.5L19 13"></path>
+                <circle cx="9" cy="9" r="1.2"></circle>
+              </svg>
+              <strong>No merged preview yet</strong>
+              <small>The page will only show the flattened result.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="js/watermark-preview.js"></script>
+</body>
+</html>

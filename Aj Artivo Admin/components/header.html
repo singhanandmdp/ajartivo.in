@@ -1,0 +1,119 @@
+<link rel="stylesheet" href="/css/style.css">
+
+<header class="header">
+  <div class="logo-shell">
+    <a href="/index.html" class="logo">
+      <img src="/images/logo.png" alt="AJartivo Logo">
+      <div class="logo-copy">
+        <strong>AJartivo</strong>
+        <span>Premium creative marketplace</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="header-search">
+    <input type="text" id="headerSearchInput" placeholder="Search for banners, cards, logos, and more...">
+    <button type="button" class="header-mic-btn" id="headerMicBtn" aria-label="Search with voice">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+        <path d="M19 11a7 7 0 0 1-14 0"></path>
+        <path d="M12 18v3"></path>
+        <path d="M8 21h8"></path>
+      </svg>
+    </button>
+    <button class="header-search-btn" onclick="searchDesign('headerSearchInput')" aria-label="Search">
+      <img src="/icons/search.svg" alt="">
+    </button>
+  </div>
+
+  <div class="header-right">
+    <nav class="main-nav">
+      <a href="/index.html">
+        <img src="/icons/home.svg" class="icon-svg" alt="">
+        Home
+      </a>
+
+      <div class="nav-divider"></div>
+
+      <div class="dropdown">
+        <a href="#" class="dropdown-trigger">
+          <img src="/icons/explore.svg" class="icon-svg" alt="">
+          Explore
+        </a>
+
+        <div class="dropdown-menu">
+          <a href="#">PSD Designs</a>
+          <a href="#">CDR Designs</a>
+          <a href="#">AI Designs</a>
+          <hr>
+          <a href="/index.html#trending">Trending Designs</a>
+          <a href="#">Free Resources</a>
+        </div>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <a href="#">
+        <img src="/icons/tools.svg" class="icon-svg" alt="">
+        Designer Tools
+      </a>
+
+      <div class="nav-divider"></div>
+
+      <div id="guestMenu">
+        <a href="/login.html" class="slide-btn login-btn">
+          <img src="/icons/login.svg" alt="Login Icon" class="icon-svg">
+          <span>Login</span>
+        </a>
+      </div>
+
+      <div id="userMenu" class="dropdown" style="display:none;">
+        <a class="profile-trigger" id="profileTrigger" href="#">
+          <img id="headerAvatar" src="/images/default-user.png" alt="">
+          <span id="userName">User</span>
+        </a>
+
+        <div class="dropdown-menu profile-panel">
+          <div class="profile-summary">
+            <div class="profile-avatar-wrap">
+              <img id="profileCardAvatar" src="/images/default-user.png" alt="Profile Avatar">
+            </div>
+            <div class="profile-identity">
+              <h3 id="profileFullName">User Name</h3>
+              <p id="profileUserId">ID: AJ000001</p>
+              <div class="profile-meta">
+                <span id="profileInitial" class="profile-initial">U</span>
+                <span id="profileVerifiedText" class="profile-verified">Verified user</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <a href="/pages/profile.html" class="upgrade-btn">Get a plan</a>
+          </div>
+
+          <div class="profile-menu">
+            <a href="/pages/profile.html" class="profile-menu-item">Profile</a>
+            <a href="/pages/profile.html" class="profile-menu-item">Plan &amp; billing</a>
+            <a href="/pages/profile.html" class="profile-menu-item">Settings</a>
+            <a href="/pages/profile.html" class="profile-menu-item">My collections</a>
+            <a href="/pages/search.html?q=custom%20design" class="profile-menu-item">Custom Design</a>
+            <a href="#" class="profile-menu-item">Help center</a>
+          </div>
+
+          <div class="profile-panel-bottom">
+            <a href="#" id="logoutBtn" class="profile-logout">Log out</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <button class="menu-icon" id="menu-btn" aria-label="Open menu">
+      <svg width="30" height="30" viewBox="0 0 100 100">
+        <path class="line top" d="M20 30 H80"></path>
+        <path class="line middle" d="M20 50 H80"></path>
+        <path class="line bottom" d="M20 70 H80"></path>
+      </svg>
+    </button>
+  </div>
+</header>
