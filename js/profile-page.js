@@ -335,7 +335,7 @@
             const title = escapeHtml(item.title || "Untitled Design");
             const image = escapeHtml(item.image || "/images/preview1.jpg");
             const price = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
-            const productUrl = resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`);
+            const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`);
 
             return `
                 <article class="profile-media-card">
@@ -344,7 +344,7 @@
                         <strong>${title}</strong>
                         <span>${escapeHtml(price)}</span>
                         <div class="profile-media-actions">
-                            <a href="${productUrl}" class="profile-inline-btn">Open Product</a>
+                            <a href="${designUrl}" class="profile-inline-btn">Open Design</a>
                             <button type="button" class="profile-inline-btn danger" data-remove-wishlist="${escapeHtml(item.id || "")}">Remove</button>
                         </div>
                     </div>
@@ -354,8 +354,8 @@
 
         container.querySelectorAll("[data-remove-wishlist]").forEach((button) => {
             button.addEventListener("click", function () {
-                const productId = button.getAttribute("data-remove-wishlist");
-                services.removeWishlistItem(productId);
+                const designId = button.getAttribute("data-remove-wishlist");
+                services.removeWishlistItem(designId);
                 loadWishlist();
             });
         });
@@ -386,7 +386,7 @@
                         <span>${item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free"}</span>
                         <small>${dateText}</small>
                         <div class="profile-media-actions">
-                            <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Product</a>
+                            <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Design</a>
                             <button type="button" class="profile-inline-btn" data-download-history="${escapeHtml(item.id || "")}">Download Again</button>
                         </div>
                     </div>
@@ -396,13 +396,13 @@
 
         container.querySelectorAll("[data-download-history]").forEach((button) => {
             button.addEventListener("click", async function () {
-                const productId = button.getAttribute("data-download-history");
+                const designId = button.getAttribute("data-download-history");
                 const item = items.find(function (entry) {
-                    return String(entry.id || "") === String(productId || "");
+                    return String(entry.id || "") === String(designId || "");
                 });
 
                 if (!item || !window.AjArtivoPayment || typeof window.AjArtivoPayment.startDownloadFlow !== "function") {
-                    window.location.href = resolveUrl(`/product.html?id=${encodeURIComponent(productId || "")}`);
+                    window.location.href = resolveUrl(`/product.html?id=${encodeURIComponent(designId || "")}`);
                     return;
                 }
 

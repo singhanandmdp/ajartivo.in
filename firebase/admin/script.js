@@ -71,7 +71,7 @@ function updatePreview(imageUrl) {
   previewPlaceholder.hidden = true;
 }
 
-function buildProductPayload(imageUrl) {
+function buildDesignPayload(imageUrl) {
   return {
     imageUrl: imageUrl,
     createdAt: serverTimestamp()
@@ -147,7 +147,7 @@ async function handleSave(event) {
     imageFileInput.disabled = true;
     setStatus("Saving...");
 
-    await addDoc(collection(db, "designs"), buildProductPayload(uploadedImageUrl));
+    await addDoc(collection(db, "designs"), buildDesignPayload(uploadedImageUrl));
 
     showMessage("success", "Design saved to Firestore successfully.");
     setStatus("Saved");

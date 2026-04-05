@@ -131,12 +131,12 @@
 
         <section class="info-box">
             <div class="row">
-                <span class="label">Product</span>
-                <span class="value" id="productName">-</span>
+                <span class="label">Design</span>
+                <span class="value" id="designName">-</span>
             </div>
             <div class="row">
                 <span class="label">Amount</span>
-                <span class="value" id="productAmount">-</span>
+                <span class="value" id="designAmount">-</span>
             </div>
             <div class="row">
                 <span class="label">Payment ID</span>
@@ -155,12 +155,12 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const file = params.get("file") || "";
-        const productName = params.get("name") || "AJartivo Product";
+        const designName = params.get("name") || "AJartivo Design";
         const amount = params.get("amount") || "0";
         const paymentId = params.get("payment_id") || "N/A";
 
-        document.getElementById("productName").textContent = productName;
-        document.getElementById("productAmount").textContent = "INR " + amount;
+        document.getElementById("designName").textContent = designName;
+        document.getElementById("designAmount").textContent = "INR " + amount;
         document.getElementById("paymentId").textContent = paymentId;
         document.getElementById("fileName").textContent = file || "No file selected";
 

@@ -5,12 +5,12 @@
         : function (path) { return path; };
     if (!services) return;
 
-    const productTitle = document.getElementById("productTitle");
-    if (!productTitle) return;
+    const designTitleElement = document.getElementById("productTitle");
+    if (!designTitleElement) return;
 
     const params = new URLSearchParams(window.location.search);
-    const productId = cleanText(params.get("id"));
-    let currentProduct = null;
+    const designId = cleanText(params.get("id"));
+    let currentDesign = null;
     let refreshTimerId = null;
     let accessRequestId = 0;
     let currentAccessPromise = null;
@@ -24,40 +24,40 @@
         bindStaticInteractions();
 
         try {
-            if (!productId) {
-                setText("productTitle", "Product not found");
-                setText("productDescription", "Product link is missing or invalid.");
+            if (!designId) {
+                setText("productTitle", "Design not found");
+                setText("productDescription", "Design link is missing or invalid.");
                 bindActionButton(null, createAccessState());
                 return;
             }
 
-            currentProduct = await services.fetchProductById(productId);
+            currentDesign = await services.fetchDesignById(designId);
 
-            if (!currentProduct) {
-                setText("productTitle", "Product not found");
-                setText("productDescription", "This product is not available right now.");
+            if (!currentDesign) {
+                setText("productTitle", "Design not found");
+                setText("productDescription", "This design is not available right now.");
                 bindActionButton(null, createAccessState());
                 return;
             }
 
-            currentProduct = services.normalizeDesign(currentProduct);
-            renderProduct(currentProduct);
+            currentDesign = services.normalizeDesign(currentDesign);
+            renderDesign(currentDesign);
 
             await Promise.all([
-                loadRelatedProducts(currentProduct.id),
-                bindWishlistButton(currentProduct),
-                refreshProductAccess(currentProduct)
+                loadRelatedDesigns(currentDesign.id),
+                bindWishlistButton(currentDesign),
+                refreshDesignAccess(currentDesign)
             ]);
         } catch (error) {
-            console.error("Product load failed:", error);
-            setText("productTitle", "Unable to load product");
+            console.error("Design load failed:", error);
+            setText("productTitle", "Unable to load design");
             setText("productDescription", "Please try again later.");
             bindActionButton(null, createAccessState());
         }
     }
 
     function bindLiveRefresh() {
-        if (document.body.dataset.productLiveBound === "true") {
+        if (document.body.dataset.designLiveBound === "true") {
             return;
         }
 
@@ -71,17 +71,17 @@
             }, 250);
         });
 
-        document.body.dataset.productLiveBound = "true";
+        document.body.dataset.designLiveBound = "true";
     }
 
     function bindPurchaseStateEvents() {
-        if (document.body.dataset.productPurchaseBound === "true") {
+        if (document.body.dataset.designPurchaseBound === "true") {
             return;
         }
 
         window.addEventListener("ajartivo:purchase-completed", function (event) {
             const detail = event && event.detail ? event.detail : {};
-            if (!currentProduct || String(detail.productId) !== String(currentProduct.id)) {
+            if (!currentDesign || String(detail.designId) !== String(currentDesign.id)) {
                 return;
             }
 
@@ -92,30 +92,30 @@
                 reason: "purchased",
                 userEmail: cleanText(detail.userEmail).toLowerCase()
             });
-            currentProduct = applyAccessState(currentProduct, currentAccessState);
-            updateAccessUi(currentProduct, currentAccessState);
+            currentDesign = applyAccessState(currentDesign, currentAccessState);
+            updateAccessUi(currentDesign, currentAccessState);
         });
 
         window.addEventListener("ajartivo:session-changed", function () {
-            if (!currentProduct) {
+            if (!currentDesign) {
                 return;
             }
 
-            refreshProductAccess(currentProduct);
+            refreshDesignAccess(currentDesign);
         });
 
         window.addEventListener("ajartivo:account-updated", function () {
-            if (!currentProduct) {
+            if (!currentDesign) {
                 return;
             }
 
-            refreshProductAccess(currentProduct);
+            refreshDesignAccess(currentDesign);
         });
 
-        document.body.dataset.productPurchaseBound = "true";
+        document.body.dataset.designPurchaseBound = "true";
     }
 
-    function renderProduct(product) {
+    function renderDesign(product) {
         const title = product.title || "Untitled Design";
         const type = String(product.category || "OTHER").toUpperCase();
         const price = Number(product.price || 0);
@@ -123,7 +123,7 @@
 
         document.title = `${title} - AJartivo`;
         setText("productTitle", title);
-        setText("productDescription", product.description || "Creative product ready for instant access.");
+        setText("productDescription", product.description || "Creative design ready for instant access.");
         setText("productTypeChip", type);
         setText("productPrice", amount);
         setText("galleryFormat", type);
@@ -132,11 +132,11 @@
 
         renderFeatures(product, type);
         renderGalleryCaption(product, type);
-        renderThumbnails(getProductImages(product), title);
+        renderThumbnails(getDesignImages(product), title);
         updateAccessUi(product, deriveInitialAccessState(product));
     }
 
-    async function refreshProductAccess(product) {
+    async function refreshDesignAccess(product) {
         const normalizedProduct = services.normalizeDesign(product);
         const requestId = accessRequestId + 1;
         accessRequestId = requestId;
@@ -150,20 +150,20 @@
         });
         updateAccessUi(normalizedProduct, currentAccessState);
 
-        currentAccessPromise = resolveProductAccess(normalizedProduct);
+        currentAccessPromise = resolveDesignAccess(normalizedProduct);
         const resolvedAccess = await currentAccessPromise;
         if (requestId !== accessRequestId) {
-            return currentProduct;
+            return currentDesign;
         }
 
         currentAccessState = resolvedAccess;
-        currentProduct = applyAccessState(normalizedProduct, resolvedAccess);
-        updateAccessUi(currentProduct, resolvedAccess);
+        currentDesign = applyAccessState(normalizedProduct, resolvedAccess);
+        updateAccessUi(currentDesign, resolvedAccess);
         currentAccessPromise = null;
-        return currentProduct;
+        return currentDesign;
     }
 
-    async function resolveProductAccess(product) {
+    async function resolveDesignAccess(product) {
         const userSession = getCurrentUserSession();
         if (!userSession) {
             return createAccessState({
@@ -379,7 +379,7 @@
         };
     }
 
-    async function loadRelatedProducts(currentId) {
+    async function loadRelatedDesigns(currentId) {
         const relatedGrid = document.getElementById("relatedDesignGrid");
         if (!relatedGrid) return;
 
@@ -396,7 +396,7 @@
             relatedGrid.innerHTML = designs.map(function (design) {
                 const title = escapeHtml(design.title);
                 const image = escapeHtml(design.image || "/images/preview1.jpg");
-                const badge = getProductBadge(design);
+                const badge = getDesignBadge(design);
                 const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
 
                 return `
@@ -456,7 +456,7 @@
 
     function resolveAccessFeature(product) {
         if (isFreeDesign(product)) {
-            return "Free product with account-based download";
+            return "Free design with account-based download";
         }
 
         if (product.premium_active === true) {
@@ -512,14 +512,14 @@
         if (!previewBox || !mainImage || !src) return;
 
         previewBox.classList.add("is-loading");
-        mainImage.alt = title || "Product Preview";
+        mainImage.alt = title || "Design Preview";
 
         const preloader = new Image();
         preloader.onload = function () {
             mainImage.src = src;
             if (lightboxImage) {
                 lightboxImage.src = src;
-                lightboxImage.alt = `${title || "Product Preview"} zoomed preview`;
+                lightboxImage.alt = `${title || "Design Preview"} zoomed preview`;
             }
             requestAnimationFrame(() => previewBox.classList.remove("is-loading"));
         };
@@ -533,7 +533,7 @@
         preloader.src = src;
     }
 
-    function getProductImages(product) {
+    function getDesignImages(product) {
         const images = Array.isArray(product && product.previewImages)
             ? product.previewImages
             : Array.isArray(product && product.gallery)
@@ -565,7 +565,7 @@
         button.setAttribute("aria-busy", accessState && accessState.loading ? "true" : "false");
 
         button.onclick = async function () {
-            let activeProduct = currentProduct ? services.normalizeDesign(currentProduct) : currentItem;
+            let activeProduct = currentDesign ? services.normalizeDesign(currentDesign) : currentItem;
             let activeState = resolveActionButtonState(activeProduct);
 
             if (currentAccessPromise) {
@@ -575,7 +575,7 @@
                     // Fall through to the standard action flow and let it handle any retry path.
                 }
 
-                activeProduct = currentProduct ? services.normalizeDesign(currentProduct) : activeProduct;
+                activeProduct = currentDesign ? services.normalizeDesign(currentDesign) : activeProduct;
                 activeState = resolveActionButtonState(activeProduct);
             }
 
@@ -592,7 +592,7 @@
                 console.error("Download failed:", error);
                 alert("Unable to start the download right now.");
             } finally {
-                const refreshedProduct = currentProduct ? services.normalizeDesign(currentProduct) : activeProduct;
+                const refreshedProduct = currentDesign ? services.normalizeDesign(currentDesign) : activeProduct;
                 const refreshedState = resolveActionButtonState(refreshedProduct);
 
                 button.disabled = false;
@@ -629,7 +629,7 @@
         };
     }
 
-    function getProductBadge(product) {
+    function getDesignBadge(product) {
         const format = String(product.category || "").trim().toUpperCase();
         const knownClass = format.toLowerCase();
         const knownFormats = new Set(["psd", "cdr", "ai", "png", "jpg", "jpeg", "pdf", "svg", "eps"]);
@@ -666,7 +666,7 @@
     }
 
     function bindStaticInteractions() {
-        if (document.body.dataset.productStaticBound === "true") {
+        if (document.body.dataset.designStaticBound === "true") {
             return;
         }
 
@@ -677,7 +677,7 @@
         syncPreviewHint();
         window.addEventListener("resize", syncPreviewHint);
 
-        document.body.dataset.productStaticBound = "true";
+        document.body.dataset.designStaticBound = "true";
     }
 
     function initPreviewZoom() {
@@ -852,8 +852,8 @@
 
         button.addEventListener("click", async function () {
             const shareData = {
-                title: document.getElementById("productTitle")?.textContent || "AJartivo Product",
-                text: "Check out this product on AJartivo.",
+                title: document.getElementById("productTitle")?.textContent || "AJartivo Design",
+                text: "Check out this design on AJartivo.",
                 url: window.location.href
             };
 
@@ -868,7 +868,7 @@
 
             try {
                 await navigator.clipboard.writeText(window.location.href);
-                alert("Product link copied.");
+                alert("Design link copied.");
             } catch (error) {
                 console.error("Share failed:", error);
                 alert("Unable to share right now.");

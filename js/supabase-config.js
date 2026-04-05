@@ -25,16 +25,8 @@
     });
 
     window.AjArtivoSupabase = {
-        client: supabase,
-        fetchProducts: fetchDesigns,
-        fetchDesigns: fetchDesigns,
-        fetchProductById: fetchDesignById,
-        fetchDesignById: fetchDesignById,
-        fetchRelatedProducts: fetchRelatedDesigns,
-        fetchRelatedDesigns: fetchRelatedDesigns,
-        hasPurchasedDesign: hasPurchasedDesign,
-        normalizeProduct: normalizeDesign,
-        normalizeDesign: normalizeDesign,
+        client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchRelatedDesigns: fetchRelatedDesigns,
+        hasPurchasedDesign: hasPurchasedDesign,        normalizeDesign: normalizeDesign,
         getSession: getSession,
         getAuthSession: getAuthSession,
         getAccessToken: getAccessToken,
@@ -55,9 +47,7 @@
         removeWishlistItem: removeWishlistItem,
         isWishlisted: isWishlisted,
         addDownloadHistoryItem: addDownloadHistoryItem,
-        resetStoredUserData: resetStoredUserData,
-        subscribeToProductChanges: subscribeToDesignChanges,
-        subscribeToDesignChanges: subscribeToDesignChanges
+        resetStoredUserData: resetStoredUserData,        subscribeToDesignChanges: subscribeToDesignChanges
     };
 
     initializeApp();
@@ -456,14 +446,14 @@
         return items;
     }
 
-    function removeWishlistItem(productId) {
-        const items = readList(WISHLIST_KEY).filter((item) => String(item.id) !== String(productId));
+    function removeWishlistItem(designId) {
+        const items = readList(WISHLIST_KEY).filter((item) => String(item.id) !== String(designId));
         writeList(WISHLIST_KEY, items);
         return items;
     }
 
-    function isWishlisted(productId) {
-        return readList(WISHLIST_KEY).some((item) => String(item.id) === String(productId));
+    function isWishlisted(designId) {
+        return readList(WISHLIST_KEY).some((item) => String(item.id) === String(designId));
     }
 
     function addDownloadHistoryItem(design) {
@@ -851,7 +841,7 @@
                 receivedAt: new Date().toISOString()
             }
         }));
-        window.dispatchEvent(new CustomEvent("ajartivo:products-changed", {
+        window.dispatchEvent(new CustomEvent("ajartivo:designs-changed-legacy", {
             detail: {
                 change: payload || null,
                 receivedAt: new Date().toISOString()

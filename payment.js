@@ -50,10 +50,10 @@
     }
 
     async function startDownloadFlow(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
 
         if (!item.id) {
-            alert("Product not found.");
+            alert("Design not found.");
             return;
         }
 
@@ -85,7 +85,7 @@
     }
 
     async function buyNow(product, authOverride) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         const authContext = authOverride || await getAuthContext({ reason: "buy" });
         if (!authContext) {
             return null;
@@ -128,7 +128,7 @@
         order = await createOrder(product, authContext);
 
         if (order && order.alreadyPurchased) {
-            const unlockedProduct = markProductAsPurchased(product);
+            const unlockedProduct = markDesignAsPurchased(product);
             await refreshAccountSummary();
             emitPurchaseCompleted(unlockedProduct, authContext, order);
             await downloadFile(unlockedProduct, authContext);
@@ -149,14 +149,14 @@
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            product_id: product.id
+                            design_id: product.id
                         }, authContext);
 
                         if (!result || result.success !== true) {
                             throw new Error("Payment verification failed.");
                         }
 
-                        const unlockedProduct = markProductAsPurchased(product);
+                        const unlockedProduct = markDesignAsPurchased(product);
                         await refreshAccountSummary();
                         emitPurchaseCompleted(unlockedProduct, authContext, result);
                         await downloadFile(unlockedProduct, authContext);
@@ -167,7 +167,7 @@
                 },
                 prefill: buildPrefill(authContext),
                 notes: {
-                    product_id: cleanText(product && product.id),
+                    design_id: cleanText(product && product.id),
                     user_id: cleanText(authContext && authContext.id)
                 },
                 theme: {
@@ -200,7 +200,7 @@
             method: "POST",
             authContext: authContext,
             payload: {
-                product_id: cleanText(product && product.id)
+                design_id: cleanText(product && product.id)
             }
         });
     }
@@ -729,25 +729,25 @@
     }
 
     function isPremiumDesign(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         return item.is_premium === true;
     }
 
     function hasDownloadAccess(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         return item.is_free === true || item.has_access === true || item.isPurchased === true || item.is_purchased === true;
     }
 
     function isFreeDownload(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
         return item.is_free === true || (item.is_paid !== true && Number(item.price || 0) <= 0);
     }
 
     async function toggleWishlist(product) {
-        const item = services.normalizeProduct(product);
+        const item = services.normalizeDesign(product);
 
         if (!item.id) {
-            throw new Error("Product not found.");
+            throw new Error("Design not found.");
         }
 
         if (services.isWishlisted(item.id)) {
@@ -759,8 +759,8 @@
         return { saved: true };
     }
 
-    async function isInWishlist(productId) {
-        return services.isWishlisted(productId);
+    async function isInWishlist(designId) {
+        return services.isWishlisted(designId);
     }
 
     function triggerBrowserDownload(url, fileName) {
@@ -1584,8 +1584,8 @@
         document.head.appendChild(style);
     }
 
-    function markProductAsPurchased(product) {
-        return services.normalizeProduct({
+    function markDesignAsPurchased(product) {
+        return services.normalizeDesign({
             ...product,
             has_access: true,
             isPurchased: true,
@@ -1596,12 +1596,12 @@
     function emitPurchaseCompleted(product, authContext, result) {
         window.dispatchEvent(new CustomEvent("ajartivo:purchase-completed", {
             detail: {
-                productId: cleanText(product && product.id),
+                designId: cleanText(product && product.id),
                 userId: cleanText(authContext && authContext.id),
                 userEmail: cleanText(authContext && authContext.email).toLowerCase(),
                 amount: Number(result && result.amount || 0),
                 paymentId: cleanText(result && result.payment_id),
-                product: product || null
+                design: product || null
             }
         }));
 
