@@ -1181,7 +1181,10 @@ function initAuthUI() {
     const profilePlanBadge = document.getElementById("profilePlanBadge");
     const profileExpiryText = document.getElementById("profileExpiryText");
     const profileFreeCounter = document.getElementById("profileFreeCounter");
+    const profileFreeStatMeta = document.getElementById("profileFreeStatMeta");
+    const profileDownloadStatLabel = document.getElementById("profileDownloadStatLabel");
     const profileWeeklyCounter = document.getElementById("profileWeeklyCounter");
+    const profileDownloadStatMeta = document.getElementById("profileDownloadStatMeta");
     const profileUpgradeCtaText = document.getElementById("profileUpgradeCtaText");
 
     if (user) {
@@ -1194,6 +1197,7 @@ function initAuthUI() {
         const premiumLabel = premiumActive ? "Premium Active" : "Free Member";
         const freeRemaining = Number(user.freeDownloadRemaining || 0);
         const weeklyRemaining = Number(user.weeklyPremiumRemaining || 0);
+        const downloadStats = getProfileDownloadStats(services);
         const premiumExpiry = user.premiumExpiry
             ? new Date(user.premiumExpiry).toLocaleDateString("en-IN", {
                 day: "numeric",
@@ -1254,8 +1258,24 @@ function initAuthUI() {
             profileFreeCounter.textContent = String(freeRemaining);
         }
 
+        if (profileFreeStatMeta) {
+            profileFreeStatMeta.textContent = premiumActive ? "Unlimited free access" : "out of 5 total";
+        }
+
+        if (profileDownloadStatLabel) {
+            profileDownloadStatLabel.textContent = premiumActive ? "Premium week" : "Downloaded Files";
+        }
+
         if (profileWeeklyCounter) {
-            profileWeeklyCounter.textContent = String(weeklyRemaining);
+            profileWeeklyCounter.textContent = premiumActive
+                ? String(weeklyRemaining)
+                : String(downloadStats.total);
+        }
+
+        if (profileDownloadStatMeta) {
+            profileDownloadStatMeta.textContent = premiumActive
+                ? `${downloadStats.total} files downloaded so far`
+                : `PNG ${downloadStats.png} • JPG ${downloadStats.jpg} • PSD ${downloadStats.psd}`;
         }
 
         if (profileUpgradeCtaText) {
@@ -1299,6 +1319,34 @@ function initAuthUI() {
             </a>
         `;
     }
+}
+
+function getProfileDownloadStats(services) {
+    const items = services && typeof services.readList === "function"
+        ? services.readList("ajartivo_download_history")
+        : [];
+
+    return items.reduce(function (stats, item) {
+        const rawCategory = String(item && item.category || "").trim().toUpperCase();
+        const category = rawCategory === "JPEG" ? "JPG" : rawCategory;
+
+        stats.total += 1;
+
+        if (category === "PNG") {
+            stats.png += 1;
+        } else if (category === "JPG") {
+            stats.jpg += 1;
+        } else if (category === "PSD") {
+            stats.psd += 1;
+        }
+
+        return stats;
+    }, {
+        total: 0,
+        png: 0,
+        jpg: 0,
+        psd: 0
+    });
 }
 
 function createLetterAvatar(firstLetter) {

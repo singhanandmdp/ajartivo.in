@@ -4,13 +4,18 @@
     const SESSION_KEY = "ajartivo_session";
     const WISHLIST_KEY = "ajartivo_wishlist";
     const DOWNLOAD_HISTORY_KEY = "ajartivo_download_history";
+    const DESIGNS_CACHE_KEY = "ajartivo_designs_cache_v1";
     const TEMPORARY_USER_DATA_RESET_VERSION = "20260403-new-user-experience";
     const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const BASE_URL = resolveBackendBaseUrl();
+    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
     let designsChannel = null;
+    let designsCache = [];
+    let designsCacheLoaded = false;
+    let designsPreloadPromise = null;
 
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
         console.error("Supabase CDN failed to load.");
@@ -27,6 +32,8 @@
 
     window.AjArtivoSupabase = {
         client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchRelatedDesigns: fetchRelatedDesigns,
+        preloadDesigns: preloadDesigns,
+        getCachedDesignById: getCachedDesignById,
         hasPurchasedDesign: hasPurchasedDesign,        normalizeDesign: normalizeDesign,
         getSession: getSession,
         getAuthSession: getAuthSession,
@@ -55,7 +62,9 @@
 
     async function initializeApp() {
         await applyTemporaryUserDataReset();
+        hydrateDesignCache();
         await hydrateSession();
+        preloadDesigns();
         subscribeToDesignChanges();
         supabase.auth.onAuthStateChange(function (_event, session) {
             syncSessionFromAuth(session);
@@ -63,7 +72,11 @@
     }
 
     async function fetchDesigns() {
-        let result = await supabase.from("designs").select("*");
+        if (designsCacheLoaded && designsCache.length) {
+            return designsCache.slice();
+        }
+
+        let result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
 
         if (result.error || !Array.isArray(result.data) || !result.data.length) {
             const fallback = await supabase.from("designs").select("*");
@@ -74,10 +87,12 @@
 
         if (result.error) {
             console.error("Supabase designs fetch failed:", result.error);
-            return [];
+            return designsCacheLoaded ? designsCache.slice() : [];
         }
 
-        return Array.isArray(result.data) ? result.data.map(normalizeDesign) : [];
+        const normalizedDesigns = Array.isArray(result.data) ? result.data.map(normalizeDesign) : [];
+        setDesignsCache(normalizedDesigns);
+        return normalizedDesigns;
     }
 
     async function fetchDesignById(id) {
@@ -87,14 +102,23 @@
             return null;
         }
 
+        const cachedDesign = getCachedDesignById(designId);
+        if (cachedDesign) {
+            preloadDesigns();
+            return cachedDesign;
+        }
+
         const result = await readSingleDesign("designs", designId);
 
         if (result.error) {
             console.error("Supabase design fetch failed:", result.error);
             return null;
         }
-
-        return result.data ? normalizeDesign(result.data) : null;
+        const normalizedDesign = result.data ? normalizeDesign(result.data) : null;
+        if (normalizedDesign) {
+            upsertDesignCache(normalizedDesign);
+        }
+        return normalizedDesign;
     }
 
     async function fetchRelatedDesigns(currentId, limit) {
@@ -103,6 +127,36 @@
             .filter((design) => String(design.id) !== String(currentId))
             .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a))
             .slice(0, limit || 6);
+    }
+
+    async function preloadDesigns() {
+        if (designsPreloadPromise) {
+            return designsPreloadPromise;
+        }
+
+        designsPreloadPromise = fetchDesigns()
+            .catch(function (error) {
+                console.error("Supabase design preload failed:", error);
+                return designsCache.slice();
+            })
+            .finally(function () {
+                designsPreloadPromise = null;
+            });
+
+        return designsPreloadPromise;
+    }
+
+    function getCachedDesignById(id) {
+        const designId = cleanText(id);
+        if (!designId) {
+            return null;
+        }
+
+        const match = designsCache.find(function (design) {
+            return String(design.id) === String(designId);
+        });
+
+        return match ? normalizeDesign(match) : null;
     }
 
     async function hasPurchasedDesign(userRef, designId) {
@@ -660,6 +714,49 @@
             localStorage.setItem(key, cleanText(value));
         } catch (error) {
             console.error("Local storage write failed:", error);
+        }
+    }
+
+    function hydrateDesignCache() {
+        const cached = readSessionJson(DESIGNS_CACHE_KEY, []);
+        if (!Array.isArray(cached) || !cached.length) {
+            return;
+        }
+
+        designsCache = cached.map(normalizeDesign);
+        designsCacheLoaded = true;
+    }
+
+    function setDesignsCache(items) {
+        designsCache = Array.isArray(items) ? items.map(normalizeDesign) : [];
+        designsCacheLoaded = true;
+        writeSessionJson(DESIGNS_CACHE_KEY, designsCache);
+    }
+
+    function upsertDesignCache(item) {
+        const normalizedItem = normalizeDesign(item);
+        const nextCache = designsCache.filter(function (design) {
+            return String(design.id) !== String(normalizedItem.id);
+        });
+        nextCache.unshift(normalizedItem);
+        setDesignsCache(nextCache);
+    }
+
+    function readSessionJson(key, fallbackValue) {
+        try {
+            const raw = sessionStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallbackValue;
+        } catch (error) {
+            console.error("Session storage read failed:", error);
+            return fallbackValue;
+        }
+    }
+
+    function writeSessionJson(key, value) {
+        try {
+            sessionStorage.setItem(key, JSON.stringify(value));
+        } catch (error) {
+            console.error("Session storage write failed:", error);
         }
     }
 

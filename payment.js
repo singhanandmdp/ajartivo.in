@@ -49,48 +49,106 @@
         return LIVE_BACKEND_BASE_URL;
     }
 
-    async function startDownloadFlow(product) {
+    async function startDownloadFlow(product, flowOptions) {
         const item = services.normalizeDesign(product);
+        const flowUi = flowOptions && flowOptions.ui ? flowOptions.ui : null;
 
         if (!item.id) {
+            notifyFlowUi(flowUi, {
+                label: "Unavailable",
+                message: "This design could not be found."
+            });
             alert("Design not found.");
             return;
         }
+
+        notifyFlowUi(flowUi, {
+            label: "Processing...",
+            message: "Checking your secure access."
+        });
 
         const authContext = await getAuthContext({
             reason: hasDownloadAccess(item) ? "download" : "buy"
         });
         if (!authContext) {
+            notifyFlowUi(flowUi, {
+                label: "Download",
+                message: "Sign in to continue with this design.",
+                state: "idle"
+            });
             return;
         }
 
-        if (isFreeDownload(item)) {
-            await downloadFile(item, authContext);
+        if (canStartDirectDownload(item, authContext)) {
+            notifyFlowUi(flowUi, {
+                label: "Processing...",
+                message: isFreeDownload(item)
+                    ? "Free download ready. Starting instantly..."
+                    : "Access already available. Starting your download..."
+            });
+            await downloadFile(item, authContext, flowUi);
+            queueAccountRefresh();
             return;
         }
 
         try {
+            notifyFlowUi(flowUi, {
+                label: "Processing...",
+                message: isFreeDownload(item)
+                    ? "Checking your remaining free downloads."
+                    : "Checking your purchase and download access."
+            });
             const summary = await fetchDownloadAccess(item.id, authContext);
             if (summary && summary.access && summary.access.allowed === true) {
-                await downloadFile(item, authContext);
-                await refreshAccountSummary();
-                emitAccountUpdated();
+                notifyFlowUi(flowUi, {
+                    label: "Processing...",
+                    message: isFreeDownload(item)
+                        ? "Free download confirmed. Preparing your file..."
+                        : "Access confirmed. Preparing your download..."
+                });
+                await downloadFile(item, authContext, flowUi);
+                queueAccountRefresh();
                 return;
             }
+            notifyFlowUi(flowUi, {
+                label: "Buy Now",
+                message: "Choose a secure purchase option to continue.",
+                state: "idle"
+            });
             await openAccessPopup(item, summary, authContext);
         } catch (error) {
             console.error("[AJartivo Payment] access check failed", error);
+            notifyFlowUi(flowUi, {
+                label: "Try Again",
+                message: cleanText(error && error.message) || "Unable to check download access right now.",
+                state: "error"
+            });
             alert(error && error.message ? error.message : "Unable to check download access right now.");
         }
     }
 
-    async function buyNow(product, authOverride) {
+    async function buyNow(product, authOverride, flowOptions) {
         const item = services.normalizeDesign(product);
+        const flowUi = flowOptions && flowOptions.ui ? flowOptions.ui : null;
+        notifyFlowUi(flowUi, {
+            label: "Processing...",
+            message: "Preparing secure checkout."
+        });
+
         const authContext = authOverride || await getAuthContext({ reason: "buy" });
         if (!authContext) {
+            notifyFlowUi(flowUi, {
+                label: "Buy Now",
+                message: "Sign in to continue with this purchase.",
+                state: "idle"
+            });
             return null;
         }
 
+        notifyFlowUi(flowUi, {
+            label: "Processing...",
+            message: "Opening Razorpay checkout."
+        });
         return openDesignCheckout(item, authContext);
     }
 
@@ -117,6 +175,16 @@
 
     async function refreshAccountSummary() {
         return services.refreshAccountSummary ? services.refreshAccountSummary() : services.getSession();
+    }
+
+    function queueAccountRefresh() {
+        Promise.resolve(refreshAccountSummary())
+            .then(function () {
+                emitAccountUpdated();
+            })
+            .catch(function (error) {
+                console.error("[AJartivo Payment] account refresh failed", error);
+            });
     }
 
     async function openDesignCheckout(product, authContext) {
@@ -362,13 +430,14 @@
     }
 
     async function getAuthContext(options) {
-        if (services.refreshSession) {
+        let authSession = await readAuthSession();
+
+        if (!authSession && services.refreshSession) {
             await services.refreshSession().catch(function () {
                 return null;
             });
+            authSession = await readAuthSession();
         }
-
-        let authSession = await readAuthSession();
 
         if (!authSession) {
             const loginResult = await openLoginPopup(options);
@@ -621,7 +690,7 @@
         return loginPopupState.promise;
     }
 
-    async function downloadFile(product, authContext) {
+    async function downloadFile(product, authContext, flowUi) {
         const fileName = buildDownloadFileName(product, "");
         return new Promise(function (resolve) {
             let resolvedOnce = false;
@@ -633,6 +702,12 @@
                 fileName: fileName,
                 waitSeconds: 8,
                 onClose: function () {
+                    notifyFlowUi(flowUi, {
+                        visible: false,
+                        label: hasDownloadAccess(product) ? "Download" : "Buy Now",
+                        message: "Download popup closed.",
+                        state: "idle"
+                    });
                     if (!resolvedOnce) {
                         resolve(null);
                     }
@@ -640,6 +715,10 @@
                 onDownload: attemptDownload
             });
 
+            notifyFlowUi(flowUi, {
+                label: "Processing...",
+                message: "Preparing your download..."
+            });
             preparePromise = prepareDownload();
 
             async function attemptDownload() {
@@ -652,6 +731,10 @@
                 }
 
                 try {
+                    notifyFlowUi(flowUi, {
+                        label: "Processing...",
+                        message: "Finalizing your download file."
+                    });
                     const downloadAsset = await ensurePreparedDownload();
                     triggerBrowserDownload(downloadAsset.objectUrl, downloadAsset.fileName);
                     services.addDownloadHistoryItem({
@@ -671,6 +754,15 @@
                         });
                     }
 
+                    notifyFlowUi(flowUi, {
+                        label: "Download Started",
+                        message: "Your file is on the way. Use Download Again if the browser blocks it.",
+                        state: "success",
+                        autoHideMs: 2200
+                    });
+
+                    updateSessionDownloadCounters(product, authContext);
+
                     if (!resolvedOnce) {
                         resolvedOnce = true;
                         resolve({
@@ -689,6 +781,11 @@
                             label: "Try Again"
                         });
                     }
+                    notifyFlowUi(flowUi, {
+                        label: "Try Again",
+                        message: cleanText(error && error.message) || "Download failed.",
+                        state: "error"
+                    });
                     alert(error && error.message ? error.message : "Unable to download this file right now.");
                 }
             }
@@ -707,6 +804,10 @@
             }
 
             async function prepareDownload() {
+                notifyFlowUi(flowUi, {
+                    label: "Processing...",
+                    message: "Fetching the file securely in the background."
+                });
                 const response = await fetch(`${BASE_URL}/download/${encodeURIComponent(product.id)}`, {
                     method: "GET",
                     headers: buildAuthHeaders(authContext)
@@ -741,6 +842,75 @@
     function isFreeDownload(product) {
         const item = services.normalizeDesign(product);
         return item.is_free === true || (item.is_paid !== true && Number(item.price || 0) <= 0);
+    }
+
+    function canStartDirectDownload(product, authContext) {
+        const sessionUser = authContext && authContext.sessionUser ? authContext.sessionUser : (services.getSession ? services.getSession() : null);
+        if (!sessionUser) {
+            return false;
+        }
+
+        if (isFreeDownload(product)) {
+            return Boolean(sessionUser.premiumActive) || Number(sessionUser.freeDownloadRemaining || 0) > 0;
+        }
+
+        if (hasDownloadAccess(product)) {
+            return true;
+        }
+
+        return Boolean(sessionUser.premiumActive) && Number(sessionUser.weeklyPremiumRemaining || 0) > 0;
+    }
+
+    function updateSessionDownloadCounters(product, authContext) {
+        if (!services.setSession || !services.getSession) {
+            return;
+        }
+
+        const currentSession = authContext && authContext.sessionUser
+            ? authContext.sessionUser
+            : services.getSession();
+
+        if (!currentSession) {
+            return;
+        }
+
+        const nextSession = { ...currentSession };
+
+        if (isFreeDownload(product)) {
+            if (nextSession.premiumActive !== true) {
+                const currentCount = Number(nextSession.freeDownloadCount || 0) || 0;
+                const currentRemaining = Number(nextSession.freeDownloadRemaining || 0) || 0;
+                nextSession.freeDownloadCount = currentCount + 1;
+                nextSession.freeDownloadRemaining = Math.max(0, currentRemaining - 1);
+            }
+        } else if (nextSession.premiumActive === true && hasDownloadAccess(product) !== true) {
+            const currentCount = Number(nextSession.weeklyPremiumDownloadCount || 0) || 0;
+            const currentRemaining = Number(nextSession.weeklyPremiumRemaining || 0) || 0;
+            nextSession.weeklyPremiumDownloadCount = currentCount + 1;
+            nextSession.weeklyPremiumRemaining = Math.max(0, currentRemaining - 1);
+        }
+
+        services.setSession(nextSession);
+        authContext.sessionUser = services.getSession();
+        emitAccountUpdated(buildAccountSummaryFromSessionSafe(authContext.sessionUser));
+    }
+
+    function buildAccountSummaryFromSessionSafe(session) {
+        if (!session) {
+            return null;
+        }
+
+        return {
+            is_premium: Boolean(session.isPremium),
+            premium_active: Boolean(session.premiumActive),
+            premium_expiry: cleanText(session.premiumExpiry),
+            free_download_count: Number(session.freeDownloadCount || 0) || 0,
+            free_download_remaining: Number(session.freeDownloadRemaining || 0) || 0,
+            weekly_premium_download_count: Number(session.weeklyPremiumDownloadCount || 0) || 0,
+            weekly_premium_remaining: Number(session.weeklyPremiumRemaining || 0) || 0,
+            weekly_reset_date: cleanText(session.weeklyResetDate),
+            premium_badge: cleanText(session.premiumBadge)
+        };
     }
 
     async function toggleWishlist(product) {
@@ -893,6 +1063,12 @@
                 }
             }
         };
+    }
+
+    function notifyFlowUi(flowUi, nextState) {
+        if (flowUi && typeof flowUi.setState === "function") {
+            flowUi.setState(nextState || {});
+        }
     }
 
     function ensureDownloadPopup() {

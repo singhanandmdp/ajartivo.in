@@ -15,6 +15,8 @@
     let accessRequestId = 0;
     let currentAccessPromise = null;
     let currentAccessState = createAccessState();
+    let actionSequence = 0;
+    let actionFeedbackTimerId = 0;
 
     initPage();
     bindLiveRefresh();
@@ -22,6 +24,7 @@
 
     async function initPage() {
         bindStaticInteractions();
+        warmProductCache();
 
         try {
             if (!designId) {
@@ -29,6 +32,16 @@
                 setText("productDescription", "Design link is missing or invalid.");
                 bindActionButton(null, createAccessState());
                 return;
+            }
+
+            const cachedDesign = typeof services.getCachedDesignById === "function"
+                ? services.getCachedDesignById(designId)
+                : null;
+
+            if (cachedDesign) {
+                currentDesign = services.normalizeDesign(cachedDesign);
+                renderDesign(currentDesign);
+                bindActionButton(currentDesign, deriveInitialAccessState(currentDesign));
             }
 
             currentDesign = await services.fetchDesignById(designId);
@@ -79,7 +92,7 @@
             return;
         }
 
-        window.addEventListener("ajartivo:purchase-completed", function (event) {
+            window.addEventListener("ajartivo:purchase-completed", function (event) {
             const detail = event && event.detail ? event.detail : {};
             if (!currentDesign || String(detail.designId) !== String(currentDesign.id)) {
                 return;
@@ -94,6 +107,12 @@
             });
             currentDesign = applyAccessState(currentDesign, currentAccessState);
             updateAccessUi(currentDesign, currentAccessState);
+            updateActionFeedback({
+                visible: true,
+                state: "success",
+                label: "Purchase Complete",
+                message: "Your design is unlocked and ready to download."
+            });
         });
 
         window.addEventListener("ajartivo:session-changed", function () {
@@ -133,6 +152,7 @@
         renderFeatures(product, type);
         renderGalleryCaption(product, type);
         renderThumbnails(getDesignImages(product), title);
+        resetActionFeedback();
         updateAccessUi(product, deriveInitialAccessState(product));
     }
 
@@ -553,6 +573,7 @@
             button.disabled = true;
             button.textContent = "Unavailable";
             button.onclick = null;
+            resetActionFeedback();
             return;
         }
 
@@ -561,12 +582,26 @@
 
         button.disabled = false;
         button.textContent = buttonState.idleText;
+        button.classList.remove("is-loading");
         button.dataset.mode = buttonState.mode;
         button.setAttribute("aria-busy", accessState && accessState.loading ? "true" : "false");
 
         button.onclick = async function () {
+            const requestId = actionSequence + 1;
+            actionSequence = requestId;
             let activeProduct = currentDesign ? services.normalizeDesign(currentDesign) : currentItem;
             let activeState = resolveActionButtonState(activeProduct);
+            const busyLabel = activeState.mode === "buy-now" ? "Processing..." : "Processing...";
+
+            setActionButtonBusy(button, busyLabel);
+            updateActionFeedback({
+                visible: true,
+                state: "loading",
+                label: "Preparing your download...",
+                message: activeState.mode === "buy-now"
+                    ? "We are checking your access and opening secure checkout."
+                    : "We are checking your access and preparing secure delivery."
+            });
 
             if (currentAccessPromise) {
                 try {
@@ -579,28 +614,110 @@
                 activeState = resolveActionButtonState(activeProduct);
             }
 
-            button.disabled = true;
-            button.textContent = activeState.busyText;
-
             try {
                 if (activeState.mode === "buy-now" && typeof window.AjArtivoPayment.buyNow === "function") {
-                    await window.AjArtivoPayment.buyNow(activeProduct);
+                    await window.AjArtivoPayment.buyNow(activeProduct, null, {
+                        ui: createFlowUiController(requestId)
+                    });
                 } else {
-                    await window.AjArtivoPayment.startDownloadFlow(activeProduct);
+                    await window.AjArtivoPayment.startDownloadFlow(activeProduct, {
+                        ui: createFlowUiController(requestId)
+                    });
                 }
             } catch (error) {
                 console.error("Download failed:", error);
+                updateActionFeedback({
+                    visible: true,
+                    state: "error",
+                    label: "Unable to continue",
+                    message: "Please try again in a moment."
+                });
                 alert("Unable to start the download right now.");
             } finally {
                 const refreshedProduct = currentDesign ? services.normalizeDesign(currentDesign) : activeProduct;
                 const refreshedState = resolveActionButtonState(refreshedProduct);
 
-                button.disabled = false;
-                button.textContent = refreshedState.idleText;
-                button.dataset.mode = refreshedState.mode;
-                button.setAttribute("aria-busy", currentAccessPromise ? "true" : "false");
+                restoreActionButton(button, refreshedState, currentAccessPromise);
             }
         };
+    }
+
+    function createFlowUiController(requestId) {
+        return {
+            setState: function (nextState) {
+                if (requestId !== actionSequence) {
+                    return;
+                }
+
+                const state = nextState || {};
+                updateActionFeedback({
+                    visible: state.visible !== false,
+                    state: state.state || "loading",
+                    label: cleanText(state.label) || "Preparing your download...",
+                    message: cleanText(state.message) || "Please wait while secure delivery is being prepared.",
+                    autoHideMs: Number(state.autoHideMs) || 0
+                });
+            }
+        };
+    }
+
+    function setActionButtonBusy(button, label) {
+        if (!button) return;
+        button.disabled = true;
+        button.textContent = cleanText(label) || "Processing...";
+        button.classList.add("is-loading");
+        button.setAttribute("aria-busy", "true");
+    }
+
+    function restoreActionButton(button, buttonState, isCheckingAccess) {
+        if (!button) return;
+        button.disabled = false;
+        button.textContent = buttonState.idleText;
+        button.dataset.mode = buttonState.mode;
+        button.classList.remove("is-loading");
+        button.setAttribute("aria-busy", isCheckingAccess ? "true" : "false");
+    }
+
+    function updateActionFeedback(options) {
+        const panel = document.getElementById("productActionStatus");
+        const label = document.getElementById("productActionLabel");
+        const message = document.getElementById("productActionMessage");
+        if (!panel || !label || !message) {
+            return;
+        }
+
+        const nextState = options || {};
+        if (actionFeedbackTimerId) {
+            window.clearTimeout(actionFeedbackTimerId);
+            actionFeedbackTimerId = 0;
+        }
+
+        panel.hidden = nextState.visible === false;
+        panel.dataset.state = cleanText(nextState.state) || "loading";
+        label.textContent = cleanText(nextState.label) || "Preparing your download...";
+        message.textContent = cleanText(nextState.message) || "Please wait while secure delivery is being prepared.";
+
+        if (nextState.autoHideMs && panel.hidden === false) {
+            actionFeedbackTimerId = window.setTimeout(function () {
+                resetActionFeedback();
+            }, Number(nextState.autoHideMs) || 2200);
+        }
+    }
+
+    function resetActionFeedback() {
+        if (actionFeedbackTimerId) {
+            window.clearTimeout(actionFeedbackTimerId);
+            actionFeedbackTimerId = 0;
+        }
+        updateActionFeedback({ visible: false });
+    }
+
+    function warmProductCache() {
+        if (typeof services.preloadDesigns === "function") {
+            services.preloadDesigns().catch(function (error) {
+                console.error("Product cache warmup failed:", error);
+            });
+        }
     }
 
     async function bindWishlistButton(product) {
@@ -907,7 +1024,7 @@
             return {
                 mode: "download",
                 idleText: "Download",
-                busyText: "Preparing..."
+                busyText: "Processing..."
             };
         }
 
@@ -915,7 +1032,7 @@
             return {
                 mode: "download",
                 idleText: "Download",
-                busyText: "Preparing..."
+                busyText: "Processing..."
             };
         }
 
@@ -923,14 +1040,14 @@
             return {
                 mode: "login-download",
                 idleText: "Login to Download",
-                busyText: "Opening..."
+                busyText: "Processing..."
             };
         }
 
         return {
             mode: "buy-now",
             idleText: "Buy Now",
-            busyText: "Opening..."
+            busyText: "Processing..."
         };
     }
 

@@ -103,11 +103,15 @@ body.legal-page {
     border-radius: 22px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 10px;
+    min-height: 210px;
+    align-items: start;
 }
 
 .legal-contact-card strong {
     display: block;
-    margin-bottom: 10px;
     color: #111827;
     font-size: 18px;
 }
@@ -115,12 +119,50 @@ body.legal-page {
 .legal-link-list {
     display: grid;
     gap: 12px;
+    align-self: end;
+    padding-top: 4px;
 }
 
 .legal-link-list a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid rgba(96, 165, 250, 0.24);
     color: #1d4ed8;
     text-decoration: none;
     font-weight: 700;
+}
+
+.legal-contact-email {
+    margin-top: 20px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #fffef8, #ffffff);
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.legal-contact-email span {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.legal-contact-email a {
+    color: #1d4ed8;
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: 800;
 }
 
 .legal-split {
