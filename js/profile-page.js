@@ -33,6 +33,9 @@
 
         const profileDetailsForm = document.getElementById("profileDetailsForm");
         const passwordChangeForm = document.getElementById("passwordChangeForm");
+        const profileAvatarButton = document.getElementById("profileAvatarButton");
+        const profileAvatarInput = document.getElementById("profileAvatarInput");
+        const dashboardSaveButton = document.querySelector("[data-dashboard-save]");
 
         if (profileDetailsForm) {
             profileDetailsForm.addEventListener("submit", handleProfileSave);
@@ -41,6 +44,23 @@
         if (passwordChangeForm) {
             passwordChangeForm.addEventListener("submit", handlePasswordSave);
         }
+
+        if (profileAvatarButton && profileAvatarInput) {
+            renderAvatarButton(profileAvatarButton, false);
+            profileAvatarButton.addEventListener("click", function () {
+                profileAvatarInput.click();
+            });
+
+            profileAvatarInput.addEventListener("change", handleAvatarSelection);
+        }
+
+        if (dashboardSaveButton && profileDetailsForm) {
+            dashboardSaveButton.addEventListener("click", function () {
+                profileDetailsForm.requestSubmit();
+            });
+        }
+
+        bindDashboardNavigation();
 
         window.addEventListener("ajartivo:session-changed", function () {
             const session = services.getSession();
@@ -65,6 +85,7 @@
         renderProfile(session);
         renderAccountBenefits(session);
         populateProfileForm(session);
+        updateDashboardHistoryLabel();
     }
 
     async function getLoggedInUser() {
@@ -142,6 +163,7 @@
             lastName: cleanText(baseSession.lastName) || cleanText(profile.last_name) || nameParts.lastName,
             address: cleanText(baseSession.address) || cleanText(profile.address),
             mobileNumber: cleanText(baseSession.mobileNumber) || cleanText(profile.mobile_number),
+            avatarUrl: cleanText(baseSession.avatarUrl || profile.avatar_url || authUser && authUser.user_metadata && (authUser.user_metadata.avatar_url || authUser.user_metadata.picture)),
             email: cleanText(baseSession.email) || cleanText(profile.email) || cleanText(authUser && authUser.email),
             createdAt: cleanText(baseSession.createdAt) || cleanText(authUser && authUser.created_at) || new Date().toISOString()
         };
@@ -154,7 +176,8 @@
         const address = cleanText(session.address || currentProfile && currentProfile.address);
         const mobileNumber = cleanText(session.mobileNumber || currentProfile && currentProfile.mobile_number);
         const firstLetter = firstName.trim().charAt(0).toUpperCase() || "A";
-        const avatar = createProfileAvatar(firstLetter);
+        const avatarUrl = cleanText(session.avatarUrl || currentProfile && currentProfile.avatar_url);
+        const avatar = avatarUrl || createProfileAvatar(firstLetter);
         const memberSince = formatDate(session.createdAt);
         const email = cleanText(session.email || currentProfile && currentProfile.email) || "member@ajartivo.local";
 
@@ -300,6 +323,39 @@
         }
     }
 
+    async function handleAvatarSelection(event) {
+        const input = event && event.target;
+        const file = input && input.files && input.files[0] ? input.files[0] : null;
+        const trigger = document.getElementById("profileAvatarButton");
+
+        if (!file) {
+            return;
+        }
+
+        renderAvatarButton(trigger, true);
+        setInlineStatus("profileAvatarStatus", "Uploading profile image...", "success");
+
+        try {
+            const updatedSession = await services.uploadProfileAvatar(file);
+            currentSession = buildDisplaySession(updatedSession || services.getSession(), null);
+            currentProfile = {
+                ...(currentProfile || {}),
+                avatar_url: cleanText(currentSession && currentSession.avatarUrl)
+            };
+            if (currentSession) {
+                renderPage(currentSession);
+            }
+            setInlineStatus("profileAvatarStatus", "Profile image updated successfully.", "success");
+        } catch (error) {
+            setInlineStatus("profileAvatarStatus", mapProfileError(error), "error");
+        } finally {
+            if (input) {
+                input.value = "";
+            }
+            renderAvatarButton(trigger, false);
+        }
+    }
+
     function renderAccountBenefits(session) {
         const premiumActive = session && session.premiumActive === true;
         const planLabel = premiumActive ? "Premium Active" : "Free Member";
@@ -367,6 +423,7 @@
 
         const items = services.readList("ajartivo_download_history");
         setText("downloadHistoryCount", `${items.length} download${items.length === 1 ? "" : "s"}`);
+        updateDashboardHistoryLabel(items.length);
 
         if (!items.length) {
             container.innerHTML = '<article class="profile-empty-card">No downloads yet.</article>';
@@ -450,6 +507,90 @@
         element.textContent = message;
         element.classList.remove("is-success", "is-error");
         element.classList.add(tone === "success" ? "is-success" : "is-error");
+    }
+
+    function setInlineStatus(id, message, tone) {
+        const element = document.getElementById(id);
+        if (!element) return;
+
+        element.hidden = !message;
+        element.textContent = message || "";
+        element.classList.remove("is-success", "is-error");
+        if (message) {
+            element.classList.add(tone === "success" ? "is-success" : "is-error");
+        }
+    }
+
+    function renderAvatarButton(button, isLoading) {
+        if (!button) return;
+
+        button.disabled = isLoading;
+        if (isLoading) {
+            button.textContent = "...";
+            return;
+        }
+
+        button.innerHTML = '<img src="icons/upload_img.svg" alt="Upload Profile Image">';
+    }
+
+    function bindDashboardNavigation() {
+        const navButtons = Array.from(document.querySelectorAll("[data-dashboard-nav]"));
+        if (!navButtons.length) {
+            return;
+        }
+
+        navButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                const target = cleanText(button.getAttribute("data-dashboard-nav"));
+                const section = document.querySelector(`[data-dashboard-section="${target}"]`);
+                if (!section) {
+                    return;
+                }
+
+                section.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+                setActiveDashboardNav(target);
+            });
+        });
+
+        const sections = Array.from(document.querySelectorAll("[data-dashboard-section]"));
+        if (!sections.length || typeof IntersectionObserver !== "function") {
+            return;
+        }
+
+        const observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    setActiveDashboardNav(entry.target.getAttribute("data-dashboard-section"));
+                }
+            });
+        }, {
+            rootMargin: "-20% 0px -55% 0px",
+            threshold: 0.05
+        });
+
+        sections.forEach(function (section) {
+            observer.observe(section);
+        });
+    }
+
+    function setActiveDashboardNav(target) {
+        const normalizedTarget = cleanText(target);
+        document.querySelectorAll("[data-dashboard-nav]").forEach(function (button) {
+            button.classList.toggle("is-active", cleanText(button.getAttribute("data-dashboard-nav")) === normalizedTarget);
+        });
+    }
+
+    function updateDashboardHistoryLabel(countOverride) {
+        const count = Number.isFinite(Number(countOverride))
+            ? Number(countOverride)
+            : (services.readList("ajartivo_download_history") || []).length;
+        const historyButtonLabel = document.querySelector('[data-dashboard-nav="history"] span:last-child');
+        if (historyButtonLabel && count > 0) {
+            historyButtonLabel.textContent = `Download History (${count})`;
+        }
     }
 
     function toggleButtonState(button, disabled, label) {

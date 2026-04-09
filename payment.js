@@ -11,6 +11,7 @@
         startDownloadFlow: startDownloadFlow,
         buyNow: buyNow,
         upgradeToPremium: upgradeToPremium,
+        startPremiumPlanCheckout: startPremiumPlanCheckout,
         fetchDownloadAccess: fetchDownloadAccess,
         refreshAccountSummary: refreshAccountSummary,
         hasDownloadAccess: hasDownloadAccess,
@@ -158,7 +159,16 @@
             return null;
         }
 
-        return openPremiumCheckout(authContext);
+        return openPremiumCheckout(authContext, "yearly_999");
+    }
+
+    async function startPremiumPlanCheckout(planId, authOverride) {
+        const authContext = authOverride || await getAuthContext({ reason: "buy" });
+        if (!authContext) {
+            return null;
+        }
+
+        return openPremiumCheckout(authContext, cleanText(planId) || "yearly_999");
     }
 
     async function fetchDownloadAccess(designId, authContext) {
@@ -281,11 +291,13 @@
         });
     }
 
-    async function createPremiumOrder(authContext) {
+    async function createPremiumOrder(authContext, planId) {
         return requestJson("/create-premium-order", {
             method: "POST",
             authContext: authContext,
-            payload: {}
+            payload: {
+                plan_id: cleanText(planId)
+            }
         });
     }
 
@@ -369,12 +381,12 @@
         return data;
     }
 
-    async function openPremiumCheckout(authContext) {
+    async function openPremiumCheckout(authContext, planId) {
         if (typeof window.Razorpay === "undefined") {
             throw new Error("Payment system failed to load.");
         }
 
-        const order = await createPremiumOrder(authContext);
+        const order = await createPremiumOrder(authContext, planId);
         if (order && order.alreadyPremium) {
             await refreshAccountSummary();
             emitAccountUpdated(order.account || null);

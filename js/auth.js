@@ -856,11 +856,7 @@
             const { error: insertError } = await supabase
                 .from("profiles")
                 .insert([
-                    {
-                        id: authUser.id,
-                        email: cleanText(authUser.email).toLowerCase(),
-                        name: resolveProfileName(authUser, fallbackName)
-                    }
+                    buildProfilePayload(authUser, fallbackName)
                 ]);
 
             if (insertError) {
@@ -881,11 +877,43 @@
         return finalProfile;
     }
 
+    function buildProfilePayload(user, fallbackName) {
+        const fullName = resolveProfileName(user, fallbackName);
+        const nameParts = splitNameParts(fullName);
+        const metadata = user && user.user_metadata ? user.user_metadata : {};
+
+        return {
+            id: cleanText(user && user.id),
+            email: cleanText(user && user.email).toLowerCase(),
+            first_name: nameParts.firstName,
+            last_name: nameParts.lastName,
+            address: cleanText(metadata.address),
+            mobile_number: cleanText(metadata.mobile_number || metadata.phone_number || metadata.phone),
+            avatar_url: cleanText(metadata.avatar_url || metadata.picture)
+        };
+    }
+
     function resolveProfileName(user, fallbackName) {
         const metadata = user && user.user_metadata ? user.user_metadata : {};
         return cleanText(fallbackName)
             || cleanText(metadata.full_name || metadata.name)
             || "User";
+    }
+
+    function splitNameParts(fullName) {
+        const normalizedName = cleanText(fullName);
+        if (!normalizedName) {
+            return {
+                firstName: "",
+                lastName: ""
+            };
+        }
+
+        const parts = normalizedName.split(/\s+/).filter(Boolean);
+        return {
+            firstName: parts[0] || "",
+            lastName: parts.slice(1).join(" ")
+        };
     }
 
     function ensureModalStyles() {

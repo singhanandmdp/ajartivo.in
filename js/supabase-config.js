@@ -48,6 +48,7 @@
         signOut: signOut,
         signInWithOAuth: signInWithOAuth,
         updateProfile: updateProfile,
+        uploadProfileAvatar: uploadProfileAvatar,
         updatePassword: updatePassword,
         readList: readList,
         writeList: writeList,
@@ -292,6 +293,7 @@
             lastName: names.lastName,
             address: address,
             mobileNumber: mobileNumber,
+            avatarUrl: cleanText(user && (user.avatarUrl || user.avatar_url)),
             email: cleanText(user && user.email) || "member@ajartivo.local",
             createdAt: cleanText(user && user.createdAt) || new Date().toISOString(),
             emailVerified: Boolean(user && user.emailVerified),
@@ -443,6 +445,66 @@
         return getSession();
     }
 
+    async function uploadProfileAvatar(file) {
+        const authSession = await getAuthSession({ sync: false });
+        if (!authSession || !authSession.user) {
+            throw new Error("You need to log in again before uploading a profile image.");
+        }
+
+        const imageFile = file instanceof File ? file : null;
+        if (!imageFile) {
+            throw new Error("Please choose a valid image file.");
+        }
+
+        const fileName = cleanText(imageFile.name);
+        const fileType = cleanText(imageFile.type) || "application/octet-stream";
+        if (!/\.(png|jpe?g|webp)$/i.test(fileName)) {
+            throw new Error("Profile image must be PNG, JPG, JPEG, or WEBP.");
+        }
+
+        if (Number(imageFile.size || 0) > 10 * 1024 * 1024) {
+            throw new Error("Profile image must be 10 MB or smaller.");
+        }
+
+        const token = cleanText(authSession.access_token);
+        if (!token) {
+            throw new Error("Session token missing. Please log in again.");
+        }
+
+        const response = await fetch(`${BASE_URL}/account/avatar`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": fileType,
+                "X-File-Name": encodeURIComponent(imageFile.name),
+                "X-File-Type": encodeURIComponent(fileType)
+            },
+            body: imageFile
+        });
+
+        const payload = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok) {
+            throw new Error(cleanText(payload && payload.error) || `Avatar upload failed with status ${response.status}.`);
+        }
+
+        const currentSession = getSession() || {};
+        const accountSummary = normalizeAccountSummary(payload && payload.account ? payload.account : {});
+        const avatarUrl = cleanText(payload && payload.avatar_url) || cleanText(accountSummary.avatarUrl);
+
+        setSession({
+            ...currentSession,
+            ...accountSummary,
+            avatarUrl: avatarUrl || cleanText(currentSession.avatarUrl)
+        });
+
+        const updatedSession = getSession();
+        dispatchSessionChange(updatedSession);
+        return updatedSession;
+    }
+
     async function updatePassword(nextPassword) {
         const authSession = await getAuthSession({ sync: false });
         if (!authSession || !authSession.user) {
@@ -585,6 +647,7 @@
             lastName: cleanText(summary.last_name),
             address: cleanText(summary.address),
             mobileNumber: cleanText(summary.mobile_number),
+            avatarUrl: cleanText(summary.avatar_url),
             isPremium: summary.is_premium === true,
             premiumActive: summary.premium_active === true,
             premiumExpiry: cleanText(summary.premium_expiry),
@@ -603,6 +666,7 @@
             last_name: session && session.lastName,
             address: session && session.address,
             mobile_number: session && session.mobileNumber,
+            avatar_url: session && session.avatarUrl,
             is_premium: session && session.isPremium,
             premium_active: session && session.premiumActive,
             premium_expiry: session && session.premiumExpiry,
@@ -643,8 +707,51 @@
             return;
         }
 
+        if (hasActiveAuthCallback()) {
+            writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
+            return;
+        }
+
+        try {
+            const authResult = await supabase.auth.getSession();
+            if (authResult && authResult.data && authResult.data.session) {
+                writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
+                return;
+            }
+        } catch (error) {
+            console.warn("Supabase auth session check failed before temporary reset:", error);
+        }
+
         await resetStoredUserData();
         writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
+    }
+
+    function hasActiveAuthCallback() {
+        try {
+            const searchParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+            const authKeys = [
+                "code",
+                "access_token",
+                "refresh_token",
+                "expires_at",
+                "expires_in",
+                "provider_token",
+                "provider_refresh_token",
+                "token_type",
+                "type",
+                "error",
+                "error_code",
+                "error_description"
+            ];
+
+            return authKeys.some(function (key) {
+                return searchParams.has(key) || hashParams.has(key);
+            });
+        } catch (error) {
+            console.warn("Auth callback detection failed:", error);
+            return false;
+        }
     }
 
     async function resetStoredUserData() {
@@ -915,6 +1022,7 @@
             "lastName",
             "address",
             "mobileNumber",
+            "avatarUrl",
             "accessToken",
             "refreshToken",
             "expiresAt",
@@ -968,6 +1076,7 @@
             lastName: names.lastName,
             address: cleanText(metadata && metadata.address),
             mobileNumber: cleanText(metadata && (metadata.mobile_number || metadata.phone_number || metadata.phone)),
+            avatarUrl: cleanText(metadata && (metadata.avatar_url || metadata.picture)),
             email: email || "member@ajartivo.local",
             createdAt: joinedAt,
             emailVerified: Boolean(user && user.email_confirmed_at),

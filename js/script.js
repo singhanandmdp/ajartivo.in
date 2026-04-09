@@ -1192,7 +1192,8 @@ function initAuthUI() {
         const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || "User";
         const firstLetter = firstName.charAt(0).toUpperCase() || "U";
         const shortId = (user.id || "AJ000001").slice(0, 8).toUpperCase();
-        const avatarDataUrl = createLetterAvatar(firstLetter);
+        const avatarUrl = cleanText(user.avatarUrl);
+        const avatarDataUrl = avatarUrl || createLetterAvatar(firstLetter);
         const premiumActive = user.premiumActive === true;
         const premiumLabel = premiumActive ? "Premium Active" : "Free Member";
         const freeRemaining = Number(user.freeDownloadRemaining || 0);
@@ -1240,6 +1241,7 @@ function initAuthUI() {
 
         if (profileInitial) {
             profileInitial.textContent = firstLetter;
+            profileInitial.style.display = avatarUrl ? "none" : "inline-flex";
         }
 
         if (profileVerifiedText) {
@@ -1287,7 +1289,9 @@ function initAuthUI() {
             memberBox.innerHTML = `
                 <div class="member-account-row">
                     <a href="${resolveSiteUrl("/dashboard.html")}" class="member-user">
-                        <div class="member-avatar-letter">${firstLetter}</div>
+                        ${avatarUrl
+                            ? `<img class="member-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(firstName)}">`
+                            : `<div class="member-avatar-letter">${firstLetter}</div>`}
                         <div class="member-user-text">
                             <strong>${firstName}</strong>
                             <span>${premiumLabel} • ID: ${shortId}</span>

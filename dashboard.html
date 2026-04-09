@@ -19,158 +19,254 @@
     <main class="profile-page-shell">
         <section class="profile-card-layout">
             <aside class="profile-summary-card">
-                <div class="profile-avatar-ring">
-                    <img id="profileAvatar" src="images/default-user.png" alt="User Avatar">
+                <div class="profile-summary-noise" aria-hidden="true"></div>
+                <div class="profile-summary-orb profile-summary-orb-one" aria-hidden="true"></div>
+                <div class="profile-summary-orb profile-summary-orb-two" aria-hidden="true"></div>
+
+                <div class="profile-summary-topline">
+                    <span class="profile-member-tag dashboard-feature" data-feature="Your premium member identity badge for the AJArtivo dashboard.">AJARTIVO SIGNATURE ACCESS</span>
+                    <span class="profile-member-dot"></span>
                 </div>
-                <h1 id="profileName">User Name</h1>
-                <p id="profileEmail">user@email.com</p>
-                <span class="profile-pill">Free Member</span>
+
+                <div class="profile-avatar-showcase">
+                    <div class="profile-avatar-ring dashboard-feature" data-feature="Your profile image area. Use the small upload icon to change your avatar anytime.">
+                        <img id="profileAvatar" src="images/default-user.png" alt="User Avatar">
+                        <input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                        <button id="profileAvatarButton" type="button" class="profile-secondary-btn profile-icon-btn dashboard-feature" data-feature="Upload a new profile photo to Cloudflare R2 storage." aria-label="Upload Profile Image">
+                            <img src="icons/upload_img.svg" alt="Upload Profile Image">
+                        </button>
+                    </div>
+                </div>
+
+                <p id="profileAvatarStatus" class="profile-avatar-status" hidden></p>
+
+                <div class="profile-summary-copy">
+                    <h1 id="profileName">User Name</h1>
+                    <p id="profileEmail">user@email.com</p>
+                    <span class="profile-pill dashboard-feature" data-feature="This badge shows your current membership plan status.">Free Member</span>
+                </div>
+
+                <div class="profile-signature-note dashboard-feature" data-feature="A quick summary of what this dashboard gives you access to.">
+                    <strong>Elegant access for serious creators</strong>
+                    <p>Your account dashboard is designed as a premium workspace for identity, downloads, and secure account control.</p>
+                </div>
+
+                <div class="profile-mini-grid">
+                    <article class="profile-mini-card dashboard-feature" data-feature="Creative tier tells you the type of member access active on your account.">
+                        <span>Creative tier</span>
+                        <strong>Member</strong>
+                    </article>
+                    <article class="profile-mini-card dashboard-feature" data-feature="Workspace status shows that your account area and downloads are protected.">
+                        <span>Workspace</span>
+                        <strong>Protected</strong>
+                    </article>
+                </div>
+
+                <nav class="profile-side-nav" aria-label="Dashboard sections">
+                    <button type="button" class="profile-side-link is-active dashboard-feature" data-feature="Jump to your live account overview and profile highlights." data-dashboard-nav="overview">
+                        <span class="profile-side-icon">•</span>
+                        <span>Account Overview</span>
+                    </button>
+                    <button type="button" class="profile-side-link dashboard-feature" data-feature="Open the edit profile section to update your personal details." data-dashboard-nav="profile-edit">
+                        <span class="profile-side-icon">•</span>
+                        <span>Edit Profile</span>
+                    </button>
+                    <button type="button" class="profile-side-link dashboard-feature" data-feature="Go to the password and account security section." data-dashboard-nav="security">
+                        <span class="profile-side-icon">•</span>
+                        <span>Security</span>
+                    </button>
+                    <button type="button" class="profile-side-link dashboard-feature" data-feature="See free downloads, premium limits, and your current access summary." data-dashboard-nav="benefits">
+                        <span class="profile-side-icon">•</span>
+                        <span>Download Benefits</span>
+                    </button>
+                    <button type="button" class="profile-side-link dashboard-feature" data-feature="Open your saved wishlist items." data-dashboard-nav="wishlist">
+                        <span class="profile-side-icon">•</span>
+                        <span>Wishlist</span>
+                    </button>
+                    <button type="button" class="profile-side-link dashboard-feature" data-feature="View your recent download activity and re-download files quickly." data-dashboard-nav="history">
+                        <span class="profile-side-icon">•</span>
+                        <span>Download History</span>
+                    </button>
+                </nav>
+
+                <button type="button" class="profile-side-save dashboard-feature" data-feature="Save the profile form changes from anywhere in the dashboard." data-dashboard-save>
+                    <span>Save Changes</span>
+                    <strong>›</strong>
+                </button>
             </aside>
 
             <section class="profile-details-card">
-                <div class="profile-topbar">
-                    <div>
-                        <p class="profile-kicker">Account overview</p>
+                <section class="dashboard-hero">
+                    <div class="dashboard-hero-copy">
+                        <p class="profile-kicker">Private Control Room</p>
                         <h2>Your Dashboard</h2>
+                        <p class="dashboard-hero-text">A polished member area for profile identity, secure updates, premium benefits, and download activity. Everything stays functional, but the experience feels far more refined.</p>
                     </div>
-                    <button id="dashboardLogout" class="profile-logout-btn">Logout</button>
-                </div>
-
-                <div id="userData" class="profile-info-grid">
-                    <article class="profile-info-box">
-                        <span>First name</span>
-                        <strong>User</strong>
-                    </article>
-                    <article class="profile-info-box">
-                        <span>Last name</span>
-                        <strong>Name</strong>
-                    </article>
-                    <article class="profile-info-box">
-                        <span>Address</span>
-                        <strong>Not added</strong>
-                    </article>
-                    <article class="profile-info-box">
-                        <span>Mobile number</span>
-                        <strong>Not added</strong>
-                    </article>
-                </div>
-
-                <section class="profile-data-section">
-                    <div class="profile-section-head">
-                        <div>
-                            <p class="profile-kicker">Personal details</p>
-                            <h3>Edit Profile</h3>
+                    <div class="dashboard-hero-actions">
+                        <div class="dashboard-hero-tools">
+                            <button type="button" class="dashboard-tool-btn dashboard-feature" data-feature="Quick shortcut to recent download activity and alerts." data-dashboard-nav="history" aria-label="Open notifications">
+                                <span class="dashboard-tool-badge">1</span>
+                                <span>◌</span>
+                            </button>
+                            <button type="button" class="dashboard-tool-btn dashboard-feature" data-feature="Return to the main account overview section." data-dashboard-nav="overview" aria-label="Open account overview">
+                                <span>◔</span>
+                            </button>
                         </div>
-                        <span class="profile-section-pill">Public identity</span>
-                    </div>
-                    <form id="profileDetailsForm" class="profile-form-card">
-                        <div class="profile-form-grid">
-                            <label class="profile-field">
-                                <span>First name</span>
-                                <input id="profileFirstName" type="text" placeholder="First name" autocomplete="given-name" required>
-                            </label>
-                            <label class="profile-field">
-                                <span>Last name</span>
-                                <input id="profileLastName" type="text" placeholder="Last name" autocomplete="family-name">
-                            </label>
-                            <label class="profile-field profile-field-wide">
-                                <span>Address</span>
-                                <input id="profileAddress" type="text" placeholder="Address" autocomplete="street-address">
-                            </label>
-                            <label class="profile-field profile-field-wide">
-                                <span>Mobile number</span>
-                                <input id="profileMobileNumber" type="tel" placeholder="Mobile number" autocomplete="tel" inputmode="tel">
-                            </label>
-                            <label class="profile-field profile-field-wide">
-                                <span>Email address</span>
-                                <input id="profileEmailField" type="email" placeholder="Email address" autocomplete="email" disabled>
-                            </label>
-                        </div>
-                        <div class="profile-form-actions">
-                            <p id="profileDetailsStatus" class="profile-form-status" hidden></p>
-                            <button id="profileSaveBtn" type="submit" class="profile-primary-btn">Save Changes</button>
-                        </div>
-                    </form>
-                </section>
-
-                <section class="profile-data-section">
-                    <div class="profile-section-head">
-                        <div>
-                            <p class="profile-kicker">Security</p>
-                            <h3>Change Password</h3>
-                        </div>
-                        <span class="profile-section-pill">Secure access</span>
-                    </div>
-                    <form id="passwordChangeForm" class="profile-form-card">
-                        <div class="profile-form-grid">
-                            <label class="profile-field">
-                                <span>New password</span>
-                                <input id="profileNewPassword" type="password" placeholder="New password" autocomplete="new-password" required>
-                            </label>
-                            <label class="profile-field">
-                                <span>Confirm password</span>
-                                <input id="profileConfirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
-                            </label>
-                        </div>
-                        <div class="profile-form-actions">
-                            <p id="passwordChangeStatus" class="profile-form-status" hidden></p>
-                            <button id="passwordSaveBtn" type="submit" class="profile-primary-btn">Update Password</button>
-                        </div>
-                    </form>
-                </section>
-
-                <section class="profile-data-section">
-                    <div class="profile-section-head">
-                        <div>
-                            <p class="profile-kicker">Membership</p>
-                            <h3>Download Benefits</h3>
-                        </div>
-                        <span class="profile-section-pill" id="accountPlanBadge">Free Member</span>
-                    </div>
-                    <div class="profile-info-grid" id="accountBenefitGrid">
-                        <article class="profile-info-box">
-                            <span>Free downloads remaining</span>
-                            <strong id="accountFreeRemaining">0 / 5</strong>
-                        </article>
-                        <article class="profile-info-box">
-                            <span>Weekly premium remaining</span>
-                            <strong id="accountWeeklyRemaining">0 / 2</strong>
-                        </article>
-                        <article class="profile-info-box">
-                            <span>Premium expiry</span>
-                            <strong id="accountPremiumExpiry">Not active</strong>
-                        </article>
-                        <article class="profile-info-box">
-                            <span>Access summary</span>
-                            <strong id="accountAccessSummary">Upgrade to unlock premium benefits.</strong>
-                        </article>
+                        <span class="dashboard-hero-chip">Elegant member workspace</span>
+                        <button id="dashboardLogout" class="profile-logout-btn">Logout</button>
                     </div>
                 </section>
 
-                <section class="profile-data-section">
-                    <div class="profile-section-head">
-                        <div>
-                            <p class="profile-kicker">Saved items</p>
-                            <h3>Wishlist</h3>
-                        </div>
-                        <span class="profile-section-pill" id="wishlistCount">0 items</span>
-                    </div>
-                    <div id="wishlistList" class="profile-list-grid">
-                        <article class="profile-empty-card">Your wishlist will appear here.</article>
-                    </div>
-                </section>
+                <section class="dashboard-shell-grid">
+                    <section class="dashboard-main-stack">
+                        <section class="profile-premium-panel" id="dashboardSection-overview" data-dashboard-section="overview">
+                            <div class="profile-panel-head">
+                                <div>
+                                    <p class="profile-kicker">Identity Snapshot</p>
+                                    <h3>Profile Highlights</h3>
+                                </div>
+                                <span class="profile-section-pill">Live account details</span>
+                            </div>
+                            <div id="userData" class="profile-info-grid">
+                                <article class="profile-info-box">
+                                    <span>First name</span>
+                                    <strong>User</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Last name</span>
+                                    <strong>Name</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Address</span>
+                                    <strong>Not added</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Mobile number</span>
+                                    <strong>Not added</strong>
+                                </article>
+                            </div>
+                        </section>
 
-                <section class="profile-data-section">
-                    <div class="profile-section-head">
-                        <div>
-                            <p class="profile-kicker">Recent activity</p>
-                            <h3>Download History</h3>
-                        </div>
-                        <span class="profile-section-pill" id="downloadHistoryCount">0 downloads</span>
-                    </div>
-                    <div id="downloadHistoryList" class="profile-list-grid">
-                        <article class="profile-empty-card">Your downloaded files will appear here.</article>
-                    </div>
+                        <section class="profile-data-section" id="dashboardSection-profile-edit" data-dashboard-section="profile-edit">
+                            <div class="profile-section-head">
+                                <div>
+                                    <p class="profile-kicker">Personal Details</p>
+                                    <h3>Edit Profile</h3>
+                                </div>
+                                <span class="profile-section-pill">Public identity</span>
+                            </div>
+                            <form id="profileDetailsForm" class="profile-form-card">
+                                <div class="profile-form-grid">
+                                    <label class="profile-field">
+                                        <span>First name</span>
+                                        <input id="profileFirstName" type="text" placeholder="First name" autocomplete="given-name" required>
+                                    </label>
+                                    <label class="profile-field">
+                                        <span>Last name</span>
+                                        <input id="profileLastName" type="text" placeholder="Last name" autocomplete="family-name">
+                                    </label>
+                                    <label class="profile-field profile-field-wide">
+                                        <span>Address</span>
+                                        <input id="profileAddress" type="text" placeholder="Address" autocomplete="street-address">
+                                    </label>
+                                    <label class="profile-field">
+                                        <span>Mobile number</span>
+                                        <input id="profileMobileNumber" type="tel" placeholder="Mobile number" autocomplete="tel" inputmode="tel">
+                                    </label>
+                                    <label class="profile-field">
+                                        <span>Email address</span>
+                                        <input id="profileEmailField" type="email" placeholder="Email address" autocomplete="email" disabled>
+                                    </label>
+                                </div>
+                                <div class="profile-form-actions">
+                                    <p id="profileDetailsStatus" class="profile-form-status" hidden></p>
+                                    <button id="profileSaveBtn" type="submit" class="profile-primary-btn">Save Changes</button>
+                                </div>
+                            </form>
+                        </section>
+
+                        <section class="profile-data-section" id="dashboardSection-security" data-dashboard-section="security">
+                            <div class="profile-section-head">
+                                <div>
+                                    <p class="profile-kicker">Security</p>
+                                    <h3>Change Password</h3>
+                                </div>
+                                <span class="profile-section-pill">Secure access</span>
+                            </div>
+                            <form id="passwordChangeForm" class="profile-form-card">
+                                <div class="profile-form-grid">
+                                    <label class="profile-field">
+                                        <span>New password</span>
+                                        <input id="profileNewPassword" type="password" placeholder="New password" autocomplete="new-password" required>
+                                    </label>
+                                    <label class="profile-field">
+                                        <span>Confirm password</span>
+                                        <input id="profileConfirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
+                                    </label>
+                                </div>
+                                <div class="profile-form-actions">
+                                    <p id="passwordChangeStatus" class="profile-form-status" hidden></p>
+                                    <button id="passwordSaveBtn" type="submit" class="profile-primary-btn">Update Password</button>
+                                </div>
+                            </form>
+                        </section>
+                    </section>
+
+                    <aside class="dashboard-side-stack">
+                        <section class="profile-data-section profile-benefits-panel" id="dashboardSection-benefits" data-dashboard-section="benefits">
+                            <div class="profile-section-head">
+                                <div>
+                                    <p class="profile-kicker">Membership</p>
+                                    <h3>Download Benefits</h3>
+                                </div>
+                                <span class="profile-section-pill" id="accountPlanBadge">Free Member</span>
+                            </div>
+                            <div class="profile-info-grid profile-benefits-grid" id="accountBenefitGrid">
+                                <article class="profile-info-box">
+                                    <span>Free downloads remaining</span>
+                                    <strong id="accountFreeRemaining">0 / 5</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Weekly premium remaining</span>
+                                    <strong id="accountWeeklyRemaining">0 / 2</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Premium expiry</span>
+                                    <strong id="accountPremiumExpiry">Not active</strong>
+                                </article>
+                                <article class="profile-info-box">
+                                    <span>Access summary</span>
+                                    <strong id="accountAccessSummary">Upgrade to unlock premium benefits.</strong>
+                                </article>
+                            </div>
+                        </section>
+
+                        <section class="profile-data-section profile-activity-panel" id="dashboardSection-wishlist" data-dashboard-section="wishlist">
+                            <div class="profile-section-head">
+                                <div>
+                                    <p class="profile-kicker">Saved Items</p>
+                                    <h3>Wishlist</h3>
+                                </div>
+                                <span class="profile-section-pill" id="wishlistCount">0 items</span>
+                            </div>
+                            <div id="wishlistList" class="profile-list-grid">
+                                <article class="profile-empty-card">Your wishlist will appear here.</article>
+                            </div>
+                        </section>
+
+                        <section class="profile-data-section profile-activity-panel" id="dashboardSection-history" data-dashboard-section="history">
+                            <div class="profile-section-head">
+                                <div>
+                                    <p class="profile-kicker">Recent Activity</p>
+                                    <h3>Download History</h3>
+                                </div>
+                                <span class="profile-section-pill" id="downloadHistoryCount">0 downloads</span>
+                            </div>
+                            <div id="downloadHistoryList" class="profile-list-grid">
+                                <article class="profile-empty-card">Your downloaded files will appear here.</article>
+                            </div>
+                        </section>
+                    </aside>
                 </section>
             </section>
         </section>
