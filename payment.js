@@ -4,7 +4,9 @@
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
-    const BASE_URL = resolveBackendBaseUrl();
+    const BASE_URL = typeof window.AjArtivoGetBackendBaseUrl === "function"
+        ? window.AjArtivoGetBackendBaseUrl()
+        : resolveBackendBaseUrl();
     const BACKEND_REQUEST_TIMEOUT_MS = 15000;
 
     window.AjArtivoPayment = {
@@ -34,16 +36,15 @@
     }
 
     function resolveBackendBaseUrl() {
-        const configuredUrl = cleanText(
+        const configuredUrl = normalizeBackendBaseUrl(
             window.AJARTIVO_BACKEND_URL ||
             (document.querySelector('meta[name="ajartivo-backend-url"]') || {}).content
         );
         if (configuredUrl) {
-            return configuredUrl.replace(/\/+$/, "");
+            return configuredUrl;
         }
 
-        const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
-        if (hostname === "localhost" || hostname === "127.0.0.1") {
+        if (isLocalRuntime()) {
             return LOCAL_BACKEND_BASE_URL;
         }
 
@@ -159,7 +160,7 @@
             return null;
         }
 
-        return openPremiumCheckout(authContext, "yearly_999");
+        return openPremiumCheckout(authContext, "starter_149_15d");
     }
 
     async function startPremiumPlanCheckout(planId, authOverride) {
@@ -168,7 +169,7 @@
             return null;
         }
 
-        return openPremiumCheckout(authContext, cleanText(planId) || "yearly_999");
+        return openPremiumCheckout(authContext, cleanText(planId) || "starter_149_15d");
     }
 
     async function fetchDownloadAccess(designId, authContext) {
@@ -445,7 +446,10 @@
         let authSession = await readAuthSession();
 
         if (!authSession && services.refreshSession) {
-            await services.refreshSession().catch(function () {
+            await services.refreshSession({
+                awaitAccountSummary: false,
+                timeoutMs: 4000
+            }).catch(function () {
                 return null;
             });
             authSession = await readAuthSession();
@@ -863,14 +867,16 @@
         }
 
         if (isFreeDownload(product)) {
-            return Boolean(sessionUser.premiumActive) || Number(sessionUser.freeDownloadRemaining || 0) > 0;
+            const freeRemaining = Number(sessionUser.freeDownloadRemaining || 0);
+            return Boolean(sessionUser.premiumActive) || freeRemaining < 0 || freeRemaining > 0;
         }
 
         if (hasDownloadAccess(product)) {
             return true;
         }
 
-        return Boolean(sessionUser.premiumActive) && Number(sessionUser.weeklyPremiumRemaining || 0) > 0;
+        const premiumRemaining = Number(sessionUser.weeklyPremiumRemaining || 0);
+        return Boolean(sessionUser.premiumActive) && (premiumRemaining < 0 || premiumRemaining > 0);
     }
 
     function updateSessionDownloadCounters(product, authContext) {
@@ -893,13 +899,13 @@
                 const currentCount = Number(nextSession.freeDownloadCount || 0) || 0;
                 const currentRemaining = Number(nextSession.freeDownloadRemaining || 0) || 0;
                 nextSession.freeDownloadCount = currentCount + 1;
-                nextSession.freeDownloadRemaining = Math.max(0, currentRemaining - 1);
+                nextSession.freeDownloadRemaining = currentRemaining < 0 ? -1 : Math.max(0, currentRemaining - 1);
             }
         } else if (nextSession.premiumActive === true && hasDownloadAccess(product) !== true) {
             const currentCount = Number(nextSession.weeklyPremiumDownloadCount || 0) || 0;
             const currentRemaining = Number(nextSession.weeklyPremiumRemaining || 0) || 0;
             nextSession.weeklyPremiumDownloadCount = currentCount + 1;
-            nextSession.weeklyPremiumRemaining = Math.max(0, currentRemaining - 1);
+            nextSession.weeklyPremiumRemaining = currentRemaining < 0 ? -1 : Math.max(0, currentRemaining - 1);
         }
 
         services.setSession(nextSession);
@@ -1199,18 +1205,22 @@
             popup.kicker.textContent = premiumActive ? "AJartivo Premium Access" : "AJartivo Secure Download";
             popup.title.textContent = cleanText(product && product.title) || "AJartivo Design";
             popup.message.textContent = cleanText(access.message) || "Review your account access before downloading.";
-            popup.freeStat.textContent = `You have ${freeRemaining} out of 5 free downloads remaining`;
+            popup.freeStat.textContent = freeRemaining < 0
+                ? "Free designs are available for your account."
+                : `You have ${freeRemaining} free downloads remaining`;
             popup.premiumStat.textContent = premiumActive
-                ? "Premium Active: Unlimited downloads"
+                ? "Premium Active: premium access is live"
                 : "Premium inactive: Upgrade to unlock premium benefits";
-            popup.weeklyStat.textContent = `You have ${weeklyRemaining} out of 2 premium downloads remaining this week`;
+            popup.weeklyStat.textContent = weeklyRemaining < 0
+                ? "Monthly premium allowance is unlimited for this plan"
+                : `You have ${weeklyRemaining} premium downloads remaining this month`;
 
             popup.downloadBtn.disabled = access.allowed !== true;
             popup.downloadBtn.hidden = access.allowed !== true;
             popup.downloadBtn.textContent = "Download";
             popup.upgradeBtn.disabled = premiumActive === true;
             popup.upgradeBtn.hidden = access.can_upgrade !== true;
-            popup.upgradeBtn.textContent = premiumActive === true ? "Premium Active" : "Upgrade to Premium";
+            popup.upgradeBtn.textContent = premiumActive === true ? "Premium Active" : "Choose Premium Plan";
             popup.buyBtn.disabled = access.can_buy !== true;
             popup.buyBtn.hidden = access.can_buy !== true;
             popup.buyBtn.textContent = "Buy Now";
@@ -1249,20 +1259,9 @@
             }
 
             popup.upgradeBtn.disabled = true;
-            popup.upgradeBtn.textContent = "Opening...";
-
-            try {
-                await openPremiumCheckout(authContext);
-                await refreshAccountSummary();
-                summary = await fetchDownloadAccess(product.id, authContext);
-                render(summary);
-            } catch (error) {
-                console.error("[AJartivo Payment] premium checkout failed", error);
-                alert(error && error.message ? error.message : "Unable to start premium upgrade.");
-            } finally {
-                popup.upgradeBtn.disabled = summary && summary.account && summary.account.premium_active === true;
-                popup.upgradeBtn.textContent = popup.upgradeBtn.disabled ? "Premium Active" : "Upgrade to Premium";
-            }
+            popup.upgradeBtn.textContent = "Opening plans...";
+            closeAccessPopup();
+            window.location.href = resolveFrontendUrl("/premium.html");
         };
 
         popup.buyBtn.onclick = async function () {
@@ -1322,13 +1321,13 @@
                         <strong class="aj-access-premium-stat"></strong>
                     </article>
                     <article class="aj-access-metric">
-                        <span>Weekly premium</span>
+                        <span>Monthly premium</span>
                         <strong class="aj-access-weekly-stat"></strong>
                     </article>
                 </div>
                 <div class="aj-access-actions">
                     <button type="button" class="aj-access-primary">Download Now</button>
-                    <button type="button" class="aj-access-secondary">Upgrade to Premium</button>
+                    <button type="button" class="aj-access-secondary">Choose Premium Plan</button>
                     <button type="button" class="aj-access-secondary aj-access-buy">Buy This Design</button>
                 </div>
             </div>
@@ -2223,6 +2222,25 @@
 
     function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    function normalizeBackendBaseUrl(value) {
+        const normalized = cleanText(value).replace(/\/+$/, "");
+        if (!normalized) {
+            return "";
+        }
+
+        if (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(normalized) && !isLocalRuntime()) {
+            console.warn("Ignoring local backend URL on non-local host.");
+            return LIVE_BACKEND_BASE_URL;
+        }
+
+        return normalized;
+    }
+
+    function isLocalRuntime() {
+        const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
+        return !hostname || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
     }
 
     function isValidEmail(email) {

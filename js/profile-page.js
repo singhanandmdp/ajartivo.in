@@ -9,18 +9,24 @@
     let currentSession = null;
     let currentProfile = null;
     let formsBound = false;
+    let downloadHistoryObserver = null;
 
     init();
 
     async function init() {
-        const authUser = await getLoggedInUser();
+        const authUser = await resolveAuthenticatedUser();
         if (!authUser) {
             window.location.href = resolveUrl("/login.html");
             return;
         }
 
         currentProfile = await loadProfileIdentity(authUser);
-        const user = services.refreshSession ? await services.refreshSession() : null;
+        const user = services.refreshSession
+            ? await services.refreshSession({
+                awaitAccountSummary: false,
+                timeoutMs: 4000
+            })
+            : null;
         currentSession = buildDisplaySession(user, authUser);
         renderPage(currentSession);
         bindEvents();
@@ -97,6 +103,24 @@
         return authResult && authResult.data ? authResult.data.user : null;
     }
 
+    async function resolveAuthenticatedUser() {
+        let authUser = await getLoggedInUser();
+        if (authUser || !hasActiveAuthCallback()) {
+            return authUser;
+        }
+
+        const deadline = Date.now() + 6000;
+        while (Date.now() < deadline) {
+            await delay(200);
+            authUser = await getLoggedInUser();
+            if (authUser) {
+                return authUser;
+            }
+        }
+
+        return null;
+    }
+
     async function loadProfileIdentity(user) {
         if (!user || !cleanText(user.id)) {
             return null;
@@ -117,11 +141,7 @@
                 const { error: insertError } = await supabase
                     .from("profiles")
                     .insert([
-                        {
-                            id: user.id,
-                            email: cleanText(user.email).toLowerCase(),
-                            name: "User"
-                        }
+                        buildProfilePayload(user)
                     ]);
 
                 if (insertError) {
@@ -146,6 +166,22 @@
         }
     }
 
+    function buildProfilePayload(user) {
+        const metadata = user && user.user_metadata ? user.user_metadata : {};
+        const nameParts = splitName(cleanText(metadata.full_name || metadata.name) || "User");
+
+        return {
+            id: cleanText(user && user.id),
+            name: cleanText(metadata.full_name || metadata.name) || "User",
+            email: cleanText(user && user.email).toLowerCase(),
+            avatar_url: cleanText(metadata.avatar_url || metadata.picture),
+            address: cleanText(metadata.address),
+            mobile_number: cleanText(metadata.mobile_number || metadata.phone_number || metadata.phone),
+            first_name: nameParts.firstName,
+            last_name: nameParts.lastName
+        };
+    }
+
     function buildDisplaySession(session, authUser) {
         const baseSession = session || {};
         const profile = currentProfile || {};
@@ -163,7 +199,12 @@
             lastName: cleanText(baseSession.lastName) || cleanText(profile.last_name) || nameParts.lastName,
             address: cleanText(baseSession.address) || cleanText(profile.address),
             mobileNumber: cleanText(baseSession.mobileNumber) || cleanText(profile.mobile_number),
-            avatarUrl: cleanText(baseSession.avatarUrl || profile.avatar_url || authUser && authUser.user_metadata && (authUser.user_metadata.avatar_url || authUser.user_metadata.picture)),
+            avatarUrl: cleanText(
+                baseSession.avatarUrl ||
+                baseSession.avatar_url ||
+                profile.avatar_url ||
+                authUser && authUser.user_metadata && (authUser.user_metadata.avatar_url || authUser.user_metadata.picture)
+            ),
             email: cleanText(baseSession.email) || cleanText(profile.email) || cleanText(authUser && authUser.email),
             createdAt: cleanText(baseSession.createdAt) || cleanText(authUser && authUser.created_at) || new Date().toISOString()
         };
@@ -195,6 +236,16 @@
         const profileAvatar = document.getElementById("profileAvatar");
         if (profileAvatar) {
             profileAvatar.src = avatar;
+        }
+
+        const headerAvatar = document.getElementById("headerAvatar");
+        if (headerAvatar) {
+            headerAvatar.src = avatar;
+        }
+
+        const profileCardAvatar = document.getElementById("profileCardAvatar");
+        if (profileCardAvatar) {
+            profileCardAvatar.src = avatar;
         }
 
         const userData = document.getElementById("userData");
@@ -358,15 +409,22 @@
 
     function renderAccountBenefits(session) {
         const premiumActive = session && session.premiumActive === true;
-        const planLabel = premiumActive ? "Premium Active" : "Free Member";
-        const freeRemaining = `${Number(session && session.freeDownloadRemaining || 0)} / 5`;
-        const weeklyRemaining = `${Number(session && session.weeklyPremiumRemaining || 0)} / 2`;
+        const planName = cleanText(session && session.planName) || (premiumActive ? "Premium" : "Free");
+        const planLabel = premiumActive ? `${planName} Active` : "Free Member";
+        const freeRemainingValue = Number(session && session.freeDownloadRemaining || 0);
+        const weeklyRemainingValue = Number(session && session.weeklyPremiumRemaining || 0);
+        const freeRemaining = freeRemainingValue < 0
+            ? "Unlimited"
+            : `${freeRemainingValue} left`;
+        const weeklyRemaining = weeklyRemainingValue < 0
+            ? "Unlimited"
+            : `${weeklyRemainingValue} left`;
         const premiumExpiry = premiumActive && session && session.premiumExpiry
             ? formatDate(session.premiumExpiry)
             : "Not active";
         const accessSummary = premiumActive
-            ? "Unlimited free downloads and 2 premium downloads per week."
-            : "Free users can download up to 5 free designs lifetime.";
+            ? `${planName} gives premium downloads plus designer tool access.`
+            : "Free users can browse the marketplace and use limited tool runs.";
 
         setText("accountPlanBadge", planLabel);
         setText("accountFreeRemaining", freeRemaining);
@@ -424,34 +482,85 @@
         const items = services.readList("ajartivo_download_history");
         setText("downloadHistoryCount", `${items.length} download${items.length === 1 ? "" : "s"}`);
         updateDashboardHistoryLabel(items.length);
+        container.classList.add("profile-history-grid");
+        disconnectDownloadHistoryObserver();
 
         if (!items.length) {
             container.innerHTML = '<article class="profile-empty-card">No downloads yet.</article>';
             return;
         }
 
-        container.innerHTML = items.map((item) => {
-            const title = escapeHtml(item.title || "Untitled Design");
-            const image = escapeHtml(item.image || "/images/preview1.jpg");
-            const dateText = escapeHtml(formatDateTime(item.downloadedAt));
+        const PAGE_SIZE = 6;
+        let renderedCount = 0;
+        const sentinel = document.createElement("div");
+        sentinel.className = "profile-history-sentinel";
+        sentinel.setAttribute("aria-hidden", "true");
+        container.innerHTML = "";
 
-            return `
-                <article class="profile-media-card">
-                    <img src="${image}" alt="${title}" class="profile-media-thumb">
-                    <div class="profile-media-body">
-                        <strong>${title}</strong>
-                        <span>${item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free"}</span>
-                        <small>${dateText}</small>
-                        <div class="profile-media-actions">
-                            <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Design</a>
-                            <button type="button" class="profile-inline-btn" data-download-history="${escapeHtml(item.id || "")}">Download Again</button>
+        const renderNextBatch = function () {
+            const nextItems = items.slice(renderedCount, renderedCount + PAGE_SIZE);
+            if (!nextItems.length) {
+                disconnectDownloadHistoryObserver();
+                sentinel.remove();
+                return;
+            }
+
+            const markup = nextItems.map(function (item) {
+                const title = escapeHtml(item.title || "Untitled Design");
+                const image = escapeHtml(item.image || "/images/preview1.jpg");
+                const dateText = escapeHtml(formatDateTime(item.downloadedAt));
+                const priceText = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
+
+                return `
+                    <article class="profile-media-card">
+                        <img src="${image}" alt="${title}" class="profile-media-thumb" loading="lazy" decoding="async">
+                        <div class="profile-media-body">
+                            <strong>${title}</strong>
+                            <span>${priceText}</span>
+                            <small>${dateText}</small>
+                            <div class="profile-media-actions">
+                                <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Design</a>
+                                <button type="button" class="profile-inline-btn" data-download-history="${escapeHtml(item.id || "")}">Download Again</button>
+                            </div>
                         </div>
-                    </div>
-                </article>
-            `;
-        }).join("");
+                    </article>
+                `;
+            }).join("");
 
-        container.querySelectorAll("[data-download-history]").forEach((button) => {
+            sentinel.insertAdjacentHTML("beforebegin", markup);
+            renderedCount += nextItems.length;
+            bindHistoryButtons(container, items);
+
+            if (renderedCount >= items.length) {
+                disconnectDownloadHistoryObserver();
+                sentinel.remove();
+            }
+        };
+
+        container.appendChild(sentinel);
+        renderNextBatch();
+
+        if (renderedCount < items.length && typeof IntersectionObserver === "function") {
+            downloadHistoryObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        renderNextBatch();
+                    }
+                });
+            }, {
+                root: null,
+                rootMargin: "0px 0px 220px 0px",
+                threshold: 0.05
+            });
+            downloadHistoryObserver.observe(sentinel);
+        }
+    }
+
+    function bindHistoryButtons(container, items) {
+        container.querySelectorAll("[data-download-history]").forEach(function (button) {
+            if (button.dataset.bound === "true") return;
+            button.dataset.bound = "true";
+
             button.addEventListener("click", async function () {
                 const designId = button.getAttribute("data-download-history");
                 const item = items.find(function (entry) {
@@ -475,6 +584,13 @@
                 }
             });
         });
+    }
+
+    function disconnectDownloadHistoryObserver() {
+        if (downloadHistoryObserver && typeof downloadHistoryObserver.disconnect === "function") {
+            downloadHistoryObserver.disconnect();
+        }
+        downloadHistoryObserver = null;
     }
 
     function createProfileAvatar(letter) {
@@ -679,6 +795,40 @@
         }
 
         return cleanText(error && error.message) || "Something went wrong. Please try again.";
+    }
+
+    function hasActiveAuthCallback() {
+        try {
+            const searchParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+            const keys = [
+                "code",
+                "access_token",
+                "refresh_token",
+                "expires_at",
+                "expires_in",
+                "provider_token",
+                "provider_refresh_token",
+                "token_type",
+                "type",
+                "error",
+                "error_code",
+                "error_description"
+            ];
+
+            return keys.some(function (key) {
+                return searchParams.has(key) || hashParams.has(key);
+            });
+        } catch (error) {
+            console.warn("Profile auth callback detection failed:", error);
+            return false;
+        }
+    }
+
+    function delay(ms) {
+        return new Promise(function (resolve) {
+            window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+        });
     }
 
     function cleanText(value) {

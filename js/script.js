@@ -14,6 +14,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+function cleanText(value) {
+    if (typeof window.AjArtivoCleanText === "function") {
+        return window.AjArtivoCleanText(value);
+    }
+
+    return String(value || "").trim();
+}
+
 function getSiteBasePath() {
     const scriptElement = document.querySelector('script[src*="js/script.js"]');
     const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
@@ -67,6 +75,7 @@ function normalizeAppAnchorHref(value) {
         "/dashboard.html",
         "/pages/",
         "/about/",
+        "/tools/",
         "/terms.html",
         "/privacy.html",
         "/icons/",
@@ -1192,12 +1201,26 @@ function initAuthUI() {
         const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || "User";
         const firstLetter = firstName.charAt(0).toUpperCase() || "U";
         const shortId = (user.id || "AJ000001").slice(0, 8).toUpperCase();
-        const avatarUrl = cleanText(user.avatarUrl);
+        const avatarUrl = cleanText(
+            user.avatarUrl ||
+            user.avatar_url ||
+            user.profileAvatar ||
+            user.profile_avatar
+        );
         const avatarDataUrl = avatarUrl || createLetterAvatar(firstLetter);
+        const applyAvatar = function (node) {
+            if (!node) return;
+            node.src = avatarDataUrl;
+            node.onerror = function () {
+                node.onerror = null;
+                node.src = createLetterAvatar(firstLetter);
+            };
+        };
         const premiumActive = user.premiumActive === true;
-        const premiumLabel = premiumActive ? "Premium Active" : "Free Member";
-        const freeRemaining = Number(user.freeDownloadRemaining || 0);
-        const weeklyRemaining = Number(user.weeklyPremiumRemaining || 0);
+        const planName = cleanText(user.planName) || (premiumActive ? "Premium" : "Free");
+        const premiumLabel = premiumActive ? `${planName} Active` : "Free Member";
+        const freeRemaining = Number(user.downloadsRemainingMonth || user.freeDownloadRemaining || 0);
+        const weeklyRemaining = Number(user.aiRemainingToday || user.weeklyPremiumRemaining || 0);
         const downloadStats = getProfileDownloadStats(services);
         const premiumExpiry = user.premiumExpiry
             ? new Date(user.premiumExpiry).toLocaleDateString("en-IN", {
@@ -1223,13 +1246,9 @@ function initAuthUI() {
             headerPlanBadge.textContent = premiumLabel;
         }
 
-        if (headerAvatar) {
-            headerAvatar.src = avatarDataUrl;
-        }
+        applyAvatar(headerAvatar);
 
-        if (profileCardAvatar) {
-            profileCardAvatar.src = avatarDataUrl;
-        }
+        applyAvatar(profileCardAvatar);
 
         if (profileFullName) {
             profileFullName.textContent = firstName;
@@ -1245,7 +1264,7 @@ function initAuthUI() {
         }
 
         if (profileVerifiedText) {
-            profileVerifiedText.textContent = premiumLabel;
+            profileVerifiedText.textContent = "Verified Account";
         }
 
         if (profilePlanBadge) {
@@ -1257,21 +1276,21 @@ function initAuthUI() {
         }
 
         if (profileFreeCounter) {
-            profileFreeCounter.textContent = String(freeRemaining);
+            profileFreeCounter.textContent = freeRemaining < 0 ? "Open" : String(freeRemaining);
         }
 
         if (profileFreeStatMeta) {
-            profileFreeStatMeta.textContent = premiumActive ? "Unlimited free access" : "out of 5 total";
+            profileFreeStatMeta.textContent = premiumActive
+                ? (Number(user.monthlyDownloadLimit || 0) < 0 ? "Unlimited premium downloads" : `${Number(user.downloadsUsedMonth || 0)} used this month`)
+                : (freeRemaining < 0 ? "Free download access" : "Free account");
         }
 
         if (profileDownloadStatLabel) {
-            profileDownloadStatLabel.textContent = premiumActive ? "Premium week" : "Downloaded Files";
+            profileDownloadStatLabel.textContent = "Tool usage";
         }
 
         if (profileWeeklyCounter) {
-            profileWeeklyCounter.textContent = premiumActive
-                ? String(weeklyRemaining)
-                : String(downloadStats.total);
+            profileWeeklyCounter.textContent = weeklyRemaining < 0 ? "Open" : String(weeklyRemaining);
         }
 
         if (profileDownloadStatMeta) {
@@ -1300,6 +1319,8 @@ function initAuthUI() {
                     <a href="#" id="sidebarLogout" class="sidebar-logout">Logout</a>
                 </div>
             `;
+            const sidebarAvatar = memberBox.querySelector(".member-avatar");
+            applyAvatar(sidebarAvatar);
         }
 
         return;

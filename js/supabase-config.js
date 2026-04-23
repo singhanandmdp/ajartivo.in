@@ -10,6 +10,7 @@
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
     const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
     let designsChannel = null;
@@ -29,6 +30,12 @@
             detectSessionInUrl: true
         }
     });
+
+    window.AjArtivoCleanText = cleanText;
+    window.AjArtivoGetBackendBaseUrl = function () {
+        return BASE_URL;
+    };
+    window.AJARTIVO_BACKEND_URL = BASE_URL;
 
     window.AjArtivoSupabase = {
         client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchRelatedDesigns: fetchRelatedDesigns,
@@ -68,7 +75,15 @@
         preloadDesigns();
         subscribeToDesignChanges();
         supabase.auth.onAuthStateChange(function (_event, session) {
-            syncSessionFromAuth(session);
+            const syncedSession = syncSessionFromAuth(session);
+            if (syncedSession && cleanText(syncedSession.accessToken)) {
+                refreshAccountSummary({
+                    timeoutMs: ACCOUNT_SUMMARY_TIMEOUT_MS,
+                    silent: true
+                }).catch(function () {
+                    return getSession();
+                });
+            }
         });
     }
 
@@ -190,10 +205,16 @@
         const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || "/images/preview1.jpg";
         const category = cleanText(design.category).toUpperCase();
         const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
+        const rawPrice = design.price;
+        const hasExplicitPrice = rawPrice !== null && typeof rawPrice !== "undefined" && String(rawPrice).trim() !== "";
         const price = Number(design.price || 0);
         const normalizedPrice = Number.isFinite(price) ? price : 0;
-        const isFree = design.is_free === true || (design.is_premium !== true && design.is_paid !== true && normalizedPrice <= 0);
-        const isPremium = design.is_premium === true || (isFree !== true && (design.is_paid === true || normalizedPrice > 0));
+        const isFree = hasExplicitPrice
+            ? normalizedPrice <= 0
+            : design.is_free === true || (design.is_premium !== true && design.is_paid !== true);
+        const isPremium = hasExplicitPrice
+            ? normalizedPrice > 0
+            : design.is_premium === true || design.is_paid === true;
         const isPaid = isPremium === true || normalizedPrice > 0;
         const isPurchased = design.isPurchased === true || design.is_purchased === true;
         const hasAccess = design.has_access === true || isPurchased;
@@ -271,13 +292,23 @@
         return cleanText(session && session.access_token);
     }
 
-    async function refreshSession() {
+    async function refreshSession(options) {
         const session = await getAuthSession();
         if (!session) {
             return null;
         }
 
-        await refreshAccountSummary();
+        if (options && options.awaitAccountSummary === false) {
+            refreshAccountSummary({
+                timeoutMs: Number(options.timeoutMs) || ACCOUNT_SUMMARY_TIMEOUT_MS,
+                silent: true
+            }).catch(function () {
+                return getSession();
+            });
+            return getSession();
+        }
+
+        await refreshAccountSummary(options);
         return getSession();
     }
 
@@ -298,12 +329,26 @@
             createdAt: cleanText(user && user.createdAt) || new Date().toISOString(),
             emailVerified: Boolean(user && user.emailVerified),
             provider: cleanText(user && user.provider) || "local",
+            role: cleanText(user && user.role) || "user",
+            isBanned: Boolean(user && (user.isBanned || user.is_banned)),
             accessToken: cleanText(user && (user.accessToken || user.access_token)),
             refreshToken: cleanText(user && (user.refreshToken || user.refresh_token)),
             expiresAt: Number(user && (user.expiresAt || user.expires_at)) || 0,
             isPremium: Boolean(user && (user.isPremium || user.is_premium)),
             premiumActive: Boolean(user && (user.premiumActive || user.premium_active)),
+            planId: cleanText(user && (user.planId || user.plan_id || user.activePlanId || user.active_plan_id || user.current_plan_id)),
+            planName: cleanText(user && (user.planName || user.plan_name || user.activePlanName || user.active_plan_name)) || (Boolean(user && (user.premiumActive || user.premium_active)) ? "Premium" : "Free"),
             premiumExpiry: cleanText(user && (user.premiumExpiry || user.premium_expiry)),
+            monthlyDownloadLimit: Number(user && (user.monthlyDownloadLimit || user.monthly_download_limit)) || 0,
+            downloadsUsedMonth: Number(user && (user.downloadsUsedMonth || user.downloads_used_month)) || 0,
+            downloadsRemainingMonth: Number(user && (user.downloadsRemainingMonth || user.downloads_remaining_month)) || 0,
+            dailyAiLimit: Number(user && (user.dailyAiLimit || user.daily_ai_limit)) || 0,
+            aiGenerationsUsedToday: Number(user && (user.aiGenerationsUsedToday || user.ai_generations_used_today)) || 0,
+            aiRemainingToday: Number(user && (user.aiRemainingToday || user.ai_remaining_today)) || 0,
+            printLayoutLimit: cleanText(user && (user.printLayoutLimit || user.print_layout_limit)),
+            toolsAccess: user && (user.toolsAccess || user.tools_access) && typeof (user.toolsAccess || user.tools_access) === "object"
+                ? (user.toolsAccess || user.tools_access)
+                : {},
             freeDownloadCount: Number(user && (user.freeDownloadCount || user.free_download_count)) || 0,
             freeDownloadRemaining: Number(user && (user.freeDownloadRemaining || user.free_download_remaining)) || 0,
             weeklyPremiumDownloadCount: Number(user && (user.weeklyPremiumDownloadCount || user.weekly_premium_download_count)) || 0,
@@ -317,7 +362,7 @@
         removeStorageItem(SESSION_KEY);
     }
 
-    async function signIn(email, password) {
+    async function signIn(email, password, options) {
         const { data, error } = await supabase.auth.signInWithPassword({
             email: cleanText(email).toLowerCase(),
             password: cleanText(password)
@@ -328,15 +373,16 @@
         }
 
         syncSessionFromAuth(data ? data.session : null);
-        await refreshAccountSummary();
+        await refreshSession(options);
         return getSession();
     }
 
     async function signUp(options) {
-        const email = cleanText(options && options.email).toLowerCase();
-        const password = cleanText(options && options.password);
-        const address = cleanText(options && options.address);
-        const names = buildNameParts(options, email);
+        const signupOptions = options || {};
+        const email = cleanText(signupOptions.email).toLowerCase();
+        const password = cleanText(signupOptions.password);
+        const address = cleanText(signupOptions.address);
+        const names = buildNameParts(signupOptions, email);
         const { data, error } = await supabase.auth.signUp({
             email: email,
             password: password,
@@ -360,7 +406,7 @@
 
         if (session) {
             syncSessionFromAuth(session);
-            await refreshAccountSummary();
+            await refreshSession(signupOptions);
         } else {
             clearSession();
         }
@@ -602,10 +648,20 @@
         return normalizedId ? `/download/${encodeURIComponent(normalizedId)}` : "";
     }
 
-    async function refreshAccountSummary() {
+    async function refreshAccountSummary(options) {
         const session = await getAuthSession();
         if (!session || !session.user || !cleanText(session.access_token)) {
             return getSession();
+        }
+
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timeoutMs = Math.max(1500, Number(options && options.timeoutMs) || ACCOUNT_SUMMARY_TIMEOUT_MS);
+        let timeoutId = 0;
+
+        if (controller) {
+            timeoutId = window.setTimeout(function () {
+                controller.abort();
+            }, timeoutMs);
         }
 
         try {
@@ -613,7 +669,8 @@
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${cleanText(session.access_token)}`
-                }
+                },
+                ...(controller ? { signal: controller.signal } : {})
             });
 
             if (!response.ok) {
@@ -633,16 +690,25 @@
 
             const updatedSession = getSession();
             dispatchSessionChange(updatedSession);
+            dispatchAccountUpdated(buildAccountSummaryFromSession(updatedSession));
             return updatedSession;
         } catch (error) {
-            console.error("Account summary refresh failed:", error);
+            if (!(options && options.silent === true && error && error.name === "AbortError")) {
+                console.error("Account summary refresh failed:", error);
+            }
             return getSession();
+        } finally {
+            if (timeoutId) {
+                window.clearTimeout(timeoutId);
+            }
         }
     }
 
     function normalizeAccountSummary(account) {
         const summary = account || {};
         return {
+            role: cleanText(summary.role) || "user",
+            isBanned: summary.is_banned === true,
             firstName: cleanText(summary.first_name),
             lastName: cleanText(summary.last_name),
             address: cleanText(summary.address),
@@ -650,7 +716,17 @@
             avatarUrl: cleanText(summary.avatar_url),
             isPremium: summary.is_premium === true,
             premiumActive: summary.premium_active === true,
+            planId: cleanText(summary.active_plan_id || summary.current_plan_id),
+            planName: cleanText(summary.active_plan_name) || (summary.premium_active === true ? "Premium" : "Free"),
             premiumExpiry: cleanText(summary.premium_expiry),
+            monthlyDownloadLimit: Number(summary.monthly_download_limit || 0) || 0,
+            downloadsUsedMonth: Number(summary.downloads_used_month || 0) || 0,
+            downloadsRemainingMonth: Number(summary.downloads_remaining_month || 0) || 0,
+            dailyAiLimit: Number(summary.daily_ai_limit || 0) || 0,
+            aiGenerationsUsedToday: Number(summary.ai_generations_used_today || 0) || 0,
+            aiRemainingToday: Number(summary.ai_remaining_today || 0) || 0,
+            printLayoutLimit: cleanText(summary.print_layout_limit),
+            toolsAccess: summary.tools_access && typeof summary.tools_access === "object" ? summary.tools_access : {},
             freeDownloadCount: Number(summary.free_download_count || 0) || 0,
             freeDownloadRemaining: Number(summary.free_download_remaining || 0) || 0,
             weeklyPremiumDownloadCount: Number(summary.weekly_premium_download_count || 0) || 0,
@@ -662,6 +738,8 @@
 
     function buildAccountSummaryFromSession(session) {
         return normalizeAccountSummary({
+            role: session && session.role,
+            is_banned: session && session.isBanned,
             first_name: session && session.firstName,
             last_name: session && session.lastName,
             address: session && session.address,
@@ -669,7 +747,17 @@
             avatar_url: session && session.avatarUrl,
             is_premium: session && session.isPremium,
             premium_active: session && session.premiumActive,
+            active_plan_id: session && session.planId,
+            active_plan_name: session && session.planName,
             premium_expiry: session && session.premiumExpiry,
+            monthly_download_limit: session && session.monthlyDownloadLimit,
+            downloads_used_month: session && session.downloadsUsedMonth,
+            downloads_remaining_month: session && session.downloadsRemainingMonth,
+            daily_ai_limit: session && session.dailyAiLimit,
+            ai_generations_used_today: session && session.aiGenerationsUsedToday,
+            ai_remaining_today: session && session.aiRemainingToday,
+            print_layout_limit: session && session.printLayoutLimit,
+            tools_access: session && session.toolsAccess,
             free_download_count: session && session.freeDownloadCount,
             free_download_remaining: session && session.freeDownloadRemaining,
             weekly_premium_download_count: session && session.weeklyPremiumDownloadCount,
@@ -961,7 +1049,18 @@
     }
 
     async function hydrateSession() {
-        await refreshSession();
+        const session = await getAuthSession();
+        if (!session || !session.user) {
+            return null;
+        }
+
+        refreshAccountSummary({
+            timeoutMs: ACCOUNT_SUMMARY_TIMEOUT_MS,
+            silent: true
+        }).catch(function () {
+            return getSession();
+        });
+        return getSession();
     }
 
     function subscribeToDesignChanges() {
@@ -1023,12 +1122,23 @@
             "address",
             "mobileNumber",
             "avatarUrl",
+            "role",
+            "isBanned",
             "accessToken",
             "refreshToken",
             "expiresAt",
             "isPremium",
             "premiumActive",
+            "planId",
+            "planName",
             "premiumExpiry",
+            "monthlyDownloadLimit",
+            "downloadsUsedMonth",
+            "downloadsRemainingMonth",
+            "dailyAiLimit",
+            "aiGenerationsUsedToday",
+            "aiRemainingToday",
+            "printLayoutLimit",
             "freeDownloadCount",
             "freeDownloadRemaining",
             "weeklyPremiumDownloadCount",
@@ -1081,6 +1191,8 @@
             createdAt: joinedAt,
             emailVerified: Boolean(user && user.email_confirmed_at),
             provider: provider,
+            role: cleanText(metadata && metadata.role) || "user",
+            isBanned: metadata && metadata.is_banned === true,
             accessToken: cleanText(session && session.access_token),
             refreshToken: cleanText(session && session.refresh_token),
             expiresAt: Number(session && session.expires_at) || 0
@@ -1090,6 +1202,14 @@
     function dispatchSessionChange(user) {
         window.dispatchEvent(new CustomEvent("ajartivo:session-changed", {
             detail: { user: user || null }
+        }));
+    }
+
+    function dispatchAccountUpdated(account) {
+        window.dispatchEvent(new CustomEvent("ajartivo:account-updated", {
+            detail: {
+                account: account || getAccountSummary()
+            }
         }));
     }
 
@@ -1113,19 +1233,37 @@
     }
 
     function resolveBackendBaseUrl() {
-        const configuredUrl = cleanText(
+        const configuredUrl = normalizeBackendBaseUrl(
             window.AJARTIVO_BACKEND_URL ||
             (document.querySelector('meta[name="ajartivo-backend-url"]') || {}).content
         );
         if (configuredUrl) {
-            return configuredUrl.replace(/\/+$/, "");
+            return configuredUrl;
         }
 
-        const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
-        if (hostname === "localhost" || hostname === "127.0.0.1") {
+        if (isLocalRuntime()) {
             return LOCAL_BACKEND_BASE_URL;
         }
 
         return LIVE_BACKEND_BASE_URL;
+    }
+
+    function normalizeBackendBaseUrl(value) {
+        const normalized = cleanText(value).replace(/\/+$/, "");
+        if (!normalized) {
+            return "";
+        }
+
+        if (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(normalized) && !isLocalRuntime()) {
+            console.warn("Ignoring local backend URL on non-local host.");
+            return LIVE_BACKEND_BASE_URL;
+        }
+
+        return normalized;
+    }
+
+    function isLocalRuntime() {
+        const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
+        return !hostname || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
     }
 })();

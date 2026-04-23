@@ -255,8 +255,8 @@
         setText("galleryAccess", isFree ? "Free" : unlocked ? "Unlocked" : "Premium");
         setText("productPriceNote", resolvePriceNote(normalizedProduct, accessState));
         setText("membershipBadge", accessState && accessState.premiumActive ? "Premium Active" : "Free Member");
-        setText("freeDownloadRemaining", `${Number(accessState && accessState.freeRemaining || 0)} / 5 remaining`);
-        setText("weeklyPremiumRemaining", `${Number(accessState && accessState.weeklyPremiumRemaining || 0)} / 2 remaining`);
+        setText("freeDownloadRemaining", formatAccessLimit(accessState && accessState.freeRemaining, "Open access", "remaining"));
+        setText("weeklyPremiumRemaining", formatAccessLimit(accessState && accessState.weeklyPremiumRemaining, "No premium allowance", "left"));
         setText("downloadAccessStatus", resolveAccessHeadline(normalizedProduct, accessState));
         renderFeatures(normalizedProduct, type);
         renderGalleryCaption(normalizedProduct, type, accessState);
@@ -292,7 +292,7 @@
         if (accessState && accessState.premiumActive) {
             return isFreeDesign(product)
                 ? "Premium access: unlimited free downloads"
-                : "Premium access with weekly premium allowance";
+                : "Premium access with monthly premium allowance";
         }
 
         if (hasDownloadAccess(product)) {
@@ -480,7 +480,9 @@
         }
 
         if (product.premium_active === true) {
-            return `Premium membership active with ${Number(product.weekly_premium_remaining || 0)} weekly premium downloads remaining`;
+            return Number(product.weekly_premium_remaining || 0) < 0
+                ? "Premium membership active with unlimited premium downloads"
+                : `Premium membership active with ${Number(product.weekly_premium_remaining || 0)} premium downloads remaining this month`;
         }
 
         if (hasDownloadAccess(product)) {
@@ -1083,6 +1085,15 @@
 
     function cleanText(value) {
         return String(value || "").trim();
+    }
+
+    function formatAccessLimit(value, unlimitedLabel, suffix) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue) || numericValue < 0) {
+            return cleanText(unlimitedLabel) || "Unlimited";
+        }
+
+        return `${numericValue} ${cleanText(suffix) || "left"}`;
     }
 
     function shortenText(value, limit) {

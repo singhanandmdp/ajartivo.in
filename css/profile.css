@@ -482,6 +482,12 @@ body {
     gap: 24px;
 }
 
+.dashboard-bottom-center {
+    grid-column: 1 / -1;
+    width: min(760px, 100%);
+    justify-self: center;
+}
+
 .profile-premium-panel,
 .profile-data-section {
     padding: 26px;
@@ -657,6 +663,14 @@ body {
     gap: 16px;
 }
 
+.profile-history-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: stretch;
+    gap: 12px;
+    max-width: 560px;
+    margin-inline: auto;
+}
+
 .profile-media-card,
 .profile-empty-card {
     padding: 18px;
@@ -725,6 +739,55 @@ body {
 .profile-empty-card {
     color: #64748b;
     text-align: center;
+}
+
+.profile-history-grid .profile-media-card {
+    grid-template-columns: 1fr;
+    align-content: start;
+    padding: 12px;
+    border-radius: 16px;
+    gap: 8px;
+}
+
+.profile-history-grid .profile-media-thumb {
+    width: 100%;
+    height: 118px;
+    border-radius: 12px;
+}
+
+.profile-history-grid .profile-media-body {
+    gap: 4px;
+}
+
+.profile-history-grid .profile-media-body strong {
+    font-size: 14px;
+    line-height: 1.25;
+}
+
+.profile-history-grid .profile-media-body span,
+.profile-history-grid .profile-media-body small {
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.profile-history-grid .profile-media-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
+.profile-history-grid .profile-inline-btn {
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.profile-history-sentinel {
+    height: 1px;
+    width: 100%;
+    grid-column: 1 / -1;
 }
 
 [data-dashboard-section] {
@@ -821,6 +884,10 @@ body {
     .profile-side-nav {
         grid-template-columns: 1fr;
     }
+
+    .dashboard-bottom-center {
+        width: 100%;
+    }
 }
 
 @media (max-width: 640px) {
@@ -862,6 +929,10 @@ body {
     .profile-media-thumb {
         width: 100%;
         height: 180px;
+    }
+
+    .profile-history-grid {
+        grid-template-columns: 1fr;
     }
 
     .profile-primary-btn {

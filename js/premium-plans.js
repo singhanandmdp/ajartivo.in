@@ -44,9 +44,10 @@
 
     function readButtonLabel(button) {
         const planId = String(button && button.getAttribute("data-plan-id") || "").trim();
-        if (planId === "monthly_299") return "Choose 1 Month";
-        if (planId === "half_yearly_599") return "Choose 6 Months";
-        return "Choose 1 Year";
+        if (planId === "starter_149_15d") return "Choose Starter";
+        if (planId === "basic_299_3m") return "Choose Basic";
+        if (planId === "advanced_599_6m") return "Choose Advanced";
+        return "Choose Ultimate";
     }
 
     function setStatus(node, message, tone) {

@@ -69,6 +69,17 @@ functions/.env
 backend/.env
 .runtimeconfig.json
 
+# Python local dev artifacts
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+tools/Aj Pixel Cut/.venv/
+tools/Aj Pixel Cut/__pycache__/
+tools/Aj Pixel Cut/test.py
+tools/Aj Pixel Cut/input.jpg
+tools/Aj Pixel Cut/output.png
+
 # Local backups and archived project copies
 backup/
 firebase-backup/

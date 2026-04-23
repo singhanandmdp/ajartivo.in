@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aj Pixel Cut - AJartivo</title>
+    <meta name="description" content="Remove image backgrounds instantly with Aj Pixel Cut.">
+    <link rel="icon" href="/Favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/tools-hub.css">
+    <link rel="stylesheet" href="/css/aj-pixel-cut.css">
+</head>
+<body class="tools-hub-page aj-pixel-cut-dashboard-page">
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="ajpc-shell" aria-label="AJ Pixel Cut dashboard">
+        <header class="ajpc-hero" aria-label="AJ Pixel Cut hero">
+            <h1>Welcome to AJ Pixel Cut.</h1>
+            <p class="ajpc-subtitle">Premium AI Background Remover Tool</p>
+            <h2>Remove Backgrounds in Seconds <span class="ajpc-rocket" aria-hidden="true">🚀</span></h2>
+        </header>
+
+        <section class="ajpc-upload" aria-label="Upload and remove background">
+            <div class="ajpc-workcard aj-pixel-cut-drop" id="ajPixelCutDrop" role="button" tabindex="0">
+                <header class="ajpc-work-topbar" aria-label="Upload controls">
+                    <div class="ajpc-upload-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.2A4 4 0 1 1 17 18H7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="M12 12v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                            <path d="M9.5 14.5 12 12l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                    </div>
+
+                    <div class="ajpc-upload-copy">
+                        <strong>Drag &amp; drop</strong>
+                        <span>or click to upload image</span>
+                        <div class="aj-pixel-cut-meta" id="ajPixelCutMeta"></div>
+                    </div>
+
+                    <div class="aj-pixel-cut-drop-actions">
+                        <label class="aj-pixel-cut-file-btn" for="ajPixelCutFile">Choose Image</label>
+                        <input class="aj-pixel-cut-file" type="file" id="ajPixelCutFile" accept="image/png,image/jpeg,image/webp">
+                        <button class="aj-pixel-cut-run-btn" id="ajPixelCutRun" type="button">Remove Background</button>
+                    </div>
+                </header>
+
+                <div class="ajpc-workspace" aria-label="Editor workspace">
+                    <section class="ajpc-editor" aria-label="Before and after preview">
+                        <div class="ajpc-view ajpc-view-before" aria-label="Before preview">
+                            <span class="ajpc-view-chip">Before</span>
+                            <div class="ajpc-view-body">
+                                <img id="ajPixelCutBeforeImage" alt="Before preview" />
+                            </div>
+                        </div>
+
+                        <div class="ajpc-view ajpc-view-after" aria-label="After preview">
+                            <div class="ajpc-view-head">
+                                <span class="ajpc-view-chip">After</span>
+                                <div class="ajpc-view-actions">
+                                    <button class="ajpc-icon-btn" id="ajPixelCutReset" type="button" aria-label="Reset output">
+                                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                            <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                                            <path d="M10 11v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                                            <path d="M14 11v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                                            <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="ajpc-view-body">
+                                <canvas id="ajPixelCutAfterCanvas" class="ajpc-canvas" width="1200" height="800"></canvas>
+                            </div>
+                            <div class="ajpc-status-row">
+                                <div class="aj-pixel-cut-status" id="ajPixelCutStatus" aria-live="polite"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside class="ajpc-controls" aria-label="Edit controls">
+                        <div class="ajpc-controls-top">
+                            <div class="ajpc-bg-picker" aria-label="Background color">
+                                <button class="ajpc-color-dot is-checker" type="button" data-ajpc-bg="transparent" aria-label="Transparent background"></button>
+                                <button class="ajpc-color-dot" type="button" data-ajpc-bg="#000000" style="--dot: #000000" aria-label="Black background"></button>
+                                <button class="ajpc-color-dot" type="button" data-ajpc-bg="#ffffff" style="--dot: #ffffff" aria-label="White background"></button>
+                                <button class="ajpc-color-dot is-custom" type="button" aria-label="Custom background color">
+                                    <input id="ajPixelCutBgColor" type="color" value="#7c3aed" aria-label="Pick background color" />
+                                </button>
+                            </div>
+
+                            <label class="ajpc-toggle" aria-label="Light on">
+                                <span class="ajpc-toggle-label">Light on</span>
+                                <input id="ajPixelCutLightToggle" type="checkbox" />
+                                <span class="ajpc-toggle-ui" aria-hidden="true"></span>
+                            </label>
+                        </div>
+
+                        <button class="ajpc-control-btn" id="ajPixelCutRefineToggle" type="button">Refine</button>
+                        <div class="ajpc-control-panel" id="ajPixelCutRefinePanel" hidden>
+                            <div class="ajpc-row">
+                                <span class="ajpc-row-label">Mode</span>
+                                <div class="ajpc-seg">
+                                    <button class="ajpc-seg-btn is-active" id="ajPixelCutRefineErase" type="button">Erase</button>
+                                    <button class="ajpc-seg-btn" id="ajPixelCutRefineRestore" type="button">Restore</button>
+                                </div>
+                            </div>
+                            <label class="ajpc-row" aria-label="Brush size">
+                                <span class="ajpc-row-label">Brush</span>
+                                <input id="ajPixelCutBrushSize" type="range" min="6" max="90" value="24" />
+                            </label>
+                            <button class="ajpc-secondary-btn" id="ajPixelCutRefineReset" type="button">Reset refine</button>
+                        </div>
+
+                        <button class="ajpc-control-btn" id="ajPixelCutResizeToggle" type="button">Resize</button>
+                        <div class="ajpc-control-panel" id="ajPixelCutResizePanel" hidden>
+                            <div class="ajpc-row">
+                                <label class="ajpc-dim">
+                                    <span>W</span>
+                                    <input id="ajPixelCutWidth" type="number" min="16" step="1" placeholder="Width" />
+                                </label>
+                                <label class="ajpc-dim">
+                                    <span>H</span>
+                                    <input id="ajPixelCutHeight" type="number" min="16" step="1" placeholder="Height" />
+                                </label>
+                            </div>
+                            <label class="ajpc-check">
+                                <input id="ajPixelCutLockRatio" type="checkbox" checked />
+                                <span>Lock ratio</span>
+                            </label>
+                            <button class="ajpc-secondary-btn" id="ajPixelCutApplyResize" type="button">Apply</button>
+                        </div>
+
+                        <button class="ajpc-download-btn" id="ajPixelCutDownloadBtn" type="button">Download Image</button>
+                        <button class="ajpc-outline-btn" id="ajPixelCutEditMore" type="button">Edit More</button>
+                        <a class="ajpc-hidden" id="ajPixelCutDownload" href="#" download="output.png">Download</a>
+                        <a class="ajpc-backlink" href="/dashboard.html">Back to AJartivo Dashboard</a>
+                    </aside>
+                </div>
+            </div>
+        </section>
+
+        <section class="ajpc-panels" aria-label="Plan and history">
+            <article class="ajpc-panel" aria-label="Your plan">
+                <header class="ajpc-panel-header">
+                    <h3>Your Plan</h3>
+                </header>
+                <div class="ajpc-plan-row">
+                    <div class="ajpc-plan-copy">
+                        <strong id="ajPixelCutPlanName">Free Plan</strong>
+                        <span>HD background removal</span>
+                    </div>
+                    <a class="ajpc-upgrade-btn" href="/premium.html">Upgrade</a>
+                </div>
+
+                <div class="ajpc-plan-metrics" aria-label="Usage metrics">
+                    <div class="ajpc-metric">
+                        <span>Quota</span>
+                        <strong id="ajPixelCutQuotaText">0 / 3 completed</strong>
+                    </div>
+                    <div class="ajpc-metric">
+                        <span>Usage</span>
+                        <strong id="ajPixelCutUsageText">0 MB of 200 MB</strong>
+                    </div>
+                </div>
+
+                <div class="ajpc-progress" aria-label="Usage progress">
+                    <div class="ajpc-progress-bar" id="ajPixelCutUsageBar" style="width: 0%"></div>
+                </div>
+            </article>
+
+            <article class="ajpc-panel" aria-label="History">
+                <header class="ajpc-panel-header ajpc-panel-header-split">
+                    <h3>History</h3>
+                    <span class="ajpc-history-more" id="ajPixelCutHistoryMore"></span>
+                </header>
+                <div class="ajpc-history" id="ajPixelCutHistoryList" aria-label="Recent exports"></div>
+            </article>
+        </section>
+
+        <section class="ajpc-note" aria-label="API note">
+            <p>
+                Note: This tool needs a background-removal API endpoint. Configure it via
+                <code>&lt;meta name="aj-pixel-cut-api" content="https://your-api/remove-bg"&gt;</code>
+                or implement <code>POST /remove-bg</code> on your backend.
+            </p>
+        </section>
+
+        <section class="ajpc-ad" aria-label="Advertisement">
+            <a class="ajpc-ad-card" href="/premium.html" aria-label="Premium advertisement">
+                <img class="ajpc-ad-img" src="../icon/background_pixel.jpg" alt="" loading="lazy" />
+                <div class="ajpc-ad-overlay">
+                    <strong>Make edits pop</strong>
+                    <span>Refine edges, change backgrounds, and export fast.</span>
+                    <span class="ajpc-ad-cta">Explore Premium</span>
+                </div>
+            </a>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="/js/script.js?v=20260411-1"></script>
+    <script src="/js/aj-pixel-cut.js?v=20260411-1"></script>
+</body>
+</html>

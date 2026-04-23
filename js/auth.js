@@ -4,6 +4,7 @@
 
     const supabase = services.client;
     const HOME_PATH = resolveAppPath("/index.html");
+    const DASHBOARD_PATH = resolveAppPath("/dashboard.html");
     const LOGIN_PATH = resolveAppPath("/login.html");
     const DEFAULT_NEXT = HOME_PATH;
     const RESEND_SECONDS = 60;
@@ -100,14 +101,12 @@
 
     async function initRouteGuards() {
         const path = cleanText(window.location.pathname).toLowerCase();
-        const authResult = await supabase.auth.getSession();
-        const session = authResult && authResult.data && authResult.data.session
-            ? await services.refreshSession()
-            : null;
+        const authState = await resolveRouteAuthState();
+        const session = authState.session;
 
         if (path.endsWith(LOGIN_PATH)) {
             if (session) {
-                await ensureProfileExists(authResult.data.session.user);
+                await ensureProfileExists(authState.authUser);
                 redirectAfterLogin(readNextPath() || DEFAULT_NEXT);
             }
             return;
@@ -117,6 +116,92 @@
             window.location.href = buildAuthRequiredUrl(window.location.pathname + window.location.search);
             return;
         }
+    }
+
+    async function resolveRouteAuthState() {
+        let authUser = null;
+        let rawSession = await readSupabaseSession();
+
+        if (!rawSession && hasActiveAuthCallback()) {
+            rawSession = await waitForSupabaseSession(6000);
+        }
+
+        if (rawSession && rawSession.user) {
+            authUser = rawSession.user;
+        }
+
+        const session = rawSession && services.refreshSession
+            ? await services.refreshSession({
+                awaitAccountSummary: false,
+                timeoutMs: 4000
+            })
+            : rawSession && services.getSession
+                ? services.getSession()
+                : null;
+
+        return {
+            authUser: authUser,
+            session: session
+        };
+    }
+
+    async function readSupabaseSession() {
+        try {
+            const authResult = await supabase.auth.getSession();
+            return authResult && authResult.data ? authResult.data.session : null;
+        } catch (error) {
+            console.warn("Supabase route session read failed:", error);
+            return null;
+        }
+    }
+
+    async function waitForSupabaseSession(timeoutMs) {
+        const deadline = Date.now() + Math.max(500, Number(timeoutMs) || 0);
+
+        while (Date.now() < deadline) {
+            const session = await readSupabaseSession();
+            if (session && session.user) {
+                return session;
+            }
+
+            await delay(200);
+        }
+
+        return null;
+    }
+
+    function hasActiveAuthCallback() {
+        try {
+            const searchParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+            const keys = [
+                "code",
+                "access_token",
+                "refresh_token",
+                "expires_at",
+                "expires_in",
+                "provider_token",
+                "provider_refresh_token",
+                "token_type",
+                "type",
+                "error",
+                "error_code",
+                "error_description"
+            ];
+
+            return keys.some(function (key) {
+                return searchParams.has(key) || hashParams.has(key);
+            });
+        } catch (error) {
+            console.warn("Auth callback detection failed:", error);
+            return false;
+        }
+    }
+
+    function delay(ms) {
+        return new Promise(function (resolve) {
+            window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+        });
     }
 
     function isProtectedPath(path) {
@@ -175,23 +260,17 @@
                     return;
                 }
 
-                const { error: insertError } = await supabase
-                    .from("profiles")
-                    .upsert([
-                        {
-                            id: user.id,
-                            email: user.email
-                        }
-                    ]);
-
-                console.log("PROFILE UPSERT ERROR:", insertError);
+                await ensureProfileExists(user);
 
                 if (services.refreshSession) {
-                    await services.refreshSession();
+                    await services.refreshSession({
+                        awaitAccountSummary: false,
+                        timeoutMs: 4000
+                    });
                 }
 
                 setInlineMessage(messageNode, "Login successful. Redirecting...", "success");
-                window.location.href = resolveAppPath("/dashboard.html");
+                redirectAfterLogin(readNextPath() || DASHBOARD_PATH);
             } catch (error) {
                 setInlineMessage(messageNode, mapLoginError(error), "error");
             } finally {
@@ -278,7 +357,10 @@
                 }
 
                 if (services.refreshSession) {
-                    await services.refreshSession();
+                    await services.refreshSession({
+                        awaitAccountSummary: false,
+                        timeoutMs: 4000
+                    });
                 }
 
                 redirectAfterLogin(DEFAULT_NEXT);
@@ -671,7 +753,10 @@
             await ensureProfileExists(data && data.session && data.session.user);
 
             const session = services.refreshSession
-                ? await services.refreshSession()
+                ? await services.refreshSession({
+                    awaitAccountSummary: false,
+                    timeoutMs: 4000
+                })
                 : data && data.session
                 ? data.session
                 : null;
