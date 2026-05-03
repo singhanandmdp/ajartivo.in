@@ -10,6 +10,7 @@
 
     const params = new URLSearchParams(window.location.search);
     const designId = cleanText(params.get("id"));
+    const designSlug = cleanText(params.get("slug")) || extractPathSlug();
     let currentDesign = null;
     let refreshTimerId = null;
     let accessRequestId = 0;
@@ -27,14 +28,24 @@
         warmProductCache();
 
         try {
-            if (!designId) {
+            if (!designId && !designSlug) {
                 setText("productTitle", "Design not found");
                 setText("productDescription", "Design link is missing or invalid.");
                 bindActionButton(null, createAccessState());
                 return;
             }
 
-            currentDesign = await services.fetchDesignById(designId);
+            if (designSlug && typeof services.fetchDesignBySlug === "function") {
+                currentDesign = await services.fetchDesignBySlug(designSlug);
+            }
+
+            if (!currentDesign && designId) {
+                currentDesign = await services.fetchDesignById(designId);
+            }
+
+            if (!currentDesign && designSlug && typeof services.fetchDesignById === "function") {
+                currentDesign = await services.fetchDesignById(designSlug);
+            }
 
             if (!currentDesign) {
                 setText("productTitle", "Design not found");
@@ -153,6 +164,11 @@
         const price = Number(product.price || 0);
         const amount = isFreeDesign(product) ? "Free" : `Rs. ${price}`;
         const seoImage = getSeoImageUrl(product, title);
+        const productUrl = getProductUrl(product);
+
+        if (productUrl && stripUrlHash(window.location.href) !== stripUrlHash(productUrl)) {
+            window.history.replaceState({}, "", productUrl);
+        }
 
         document.title = `${title} - AJartivo`;
         updateProductSeo(product, {
@@ -442,9 +458,9 @@
 
             relatedGrid.innerHTML = designs.map(function (design) {
                 const title = escapeHtml(design.title);
-                const image = escapeHtml(design.image || "/images/preview1.jpg");
+                const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
                 const badge = getDesignBadge(design);
-                const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
+                const designUrl = getProductUrl(design);
 
                 return `
                     <article class="design-card homepage-design-card">
@@ -655,12 +671,53 @@
         return `/images/${slug}.jpg`;
     }
 
+    function getProductUrl(product) {
+        if (typeof window.AjArtivoBuildProductUrl === "function") {
+            return window.AjArtivoBuildProductUrl(product);
+        }
+
+        const slug = getDesignSlug(product);
+        if (slug) {
+            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        }
+
+        const id = cleanText(product && product.id);
+        return id ? resolveUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveUrl("/product.html");
+    }
+
+    function getDesignSlug(product) {
+        if (typeof window.AjArtivoGetDesignSlug === "function") {
+            return window.AjArtivoGetDesignSlug(product);
+        }
+
+        return slugify(
+            cleanText(product && product.slug) ||
+            cleanText(product && product.title) ||
+            cleanText(product && product.name) ||
+            cleanText(product && product.id)
+        );
+    }
+
     function slugify(value) {
         return String(value || "")
             .toLowerCase()
             .replace(/['"]/g, "")
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "") || "ajartivo-product";
+    }
+
+    function extractPathSlug() {
+        const parts = String(window.location.pathname || "").split("/product/");
+        if (parts.length < 2 || !parts[1]) {
+            return "";
+        }
+
+        const slugPart = parts[1].split("/")[0];
+        try {
+            return decodeURIComponent(slugPart);
+        } catch (_error) {
+            return slugPart;
+        }
     }
 
     function toAbsoluteUrl(value) {

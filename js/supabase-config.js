@@ -12,7 +12,9 @@
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGNS_SELECT_FIELDS = "id,title,slug,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
+    const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v1";
     let designsChannel = null;
     let designsCache = [];
     let designsCacheLoaded = false;
@@ -38,10 +40,12 @@
     window.AJARTIVO_BACKEND_URL = BASE_URL;
 
     window.AjArtivoSupabase = {
-        client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchRelatedDesigns: fetchRelatedDesigns,
+        client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchDesignBySlug: fetchDesignBySlug,        fetchRelatedDesigns: fetchRelatedDesigns,
         preloadDesigns: preloadDesigns,
         getCachedDesignById: getCachedDesignById,
+        getCachedDesignBySlug: getCachedDesignBySlug,
         hasPurchasedDesign: hasPurchasedDesign,        normalizeDesign: normalizeDesign,
+        invalidateDesignCache: invalidateDesignCache,
         getSession: getSession,
         getAuthSession: getAuthSession,
         getAccessToken: getAccessToken,
@@ -70,10 +74,20 @@
 
     async function initializeApp() {
         await applyTemporaryUserDataReset();
+        syncDesignCacheRefreshState();
         hydrateDesignCache();
         await hydrateSession();
         preloadDesigns();
         subscribeToDesignChanges();
+        window.addEventListener("storage", function (event) {
+            if (event && event.key === DESIGN_REFRESH_KEY) {
+                invalidateDesignCache();
+                dispatchDesignChange({
+                    type: "storage-refresh",
+                    stamp: event.newValue || ""
+                });
+            }
+        });
         supabase.auth.onAuthStateChange(function (_event, session) {
             const syncedSession = syncSessionFromAuth(session);
             if (syncedSession && cleanText(syncedSession.accessToken)) {
@@ -87,11 +101,8 @@
         });
     }
 
-    async function fetchDesigns() {
-        if (designsCacheLoaded && designsCache.length) {
-            return designsCache.slice();
-        }
-
+    async function fetchDesigns(options) {
+        syncDesignCacheRefreshState();
         let result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
 
         if (result.error || !Array.isArray(result.data) || !result.data.length) {
@@ -103,10 +114,25 @@
 
         if (result.error) {
             console.error("Supabase designs fetch failed:", result.error);
-            return designsCacheLoaded ? designsCache.slice() : [];
+            const backendDesigns = await fetchDesignsFromBackend(options);
+            if (backendDesigns.length) {
+                setDesignsCache(backendDesigns);
+                return backendDesigns;
+            }
+            if (designsCacheLoaded && designsCache.length) {
+                return designsCache.slice();
+            }
+            return [];
         }
 
         const normalizedDesigns = Array.isArray(result.data) ? result.data.map(normalizeDesign) : [];
+        if (!normalizedDesigns.length) {
+            const backendDesigns = await fetchDesignsFromBackend(options);
+            if (backendDesigns.length) {
+                setDesignsCache(backendDesigns);
+                return backendDesigns;
+            }
+        }
         setDesignsCache(normalizedDesigns);
         return normalizedDesigns;
     }
@@ -119,13 +145,18 @@
         }
 
         const cachedDesign = getCachedDesignById(designId);
-        const result = await readSingleDesign("designs", designId);
+        const result = await readSingleDesign("designs", "id", designId);
 
         if (result.error) {
             console.error("Supabase design fetch failed:", result.error);
             if (cachedDesign) {
                 preloadDesigns();
                 return cachedDesign;
+            }
+            const backendDesign = await fetchBackendDesignById(designId);
+            if (backendDesign) {
+                upsertDesignCache(backendDesign);
+                return backendDesign;
             }
             return null;
         }
@@ -136,6 +167,100 @@
         }
 
         return cachedDesign || null;
+    }
+
+    async function fetchDesignBySlug(slug) {
+        const designSlug = getDesignSlug(slug);
+        if (!designSlug) {
+            console.warn("Supabase design fetch skipped: missing design slug.");
+            return null;
+        }
+
+        const cachedDesign = getCachedDesignBySlug(designSlug);
+        const result = await readSingleDesign("designs", "slug", designSlug);
+
+        if (result.error) {
+            console.error("Supabase design slug fetch failed:", result.error);
+            if (cachedDesign) {
+                preloadDesigns();
+                return cachedDesign;
+            }
+
+            const backendDesign = await fetchBackendDesignBySlug(designSlug);
+            if (backendDesign) {
+                upsertDesignCache(backendDesign);
+                return backendDesign;
+            }
+
+            const fallbackDesigns = await fetchDesigns();
+            const fallback = Array.isArray(fallbackDesigns)
+                ? fallbackDesigns.find(function (item) {
+                    return getDesignSlug(item) === designSlug;
+                })
+                : null;
+
+            return fallback || null;
+        }
+
+        const normalizedDesign = result.data ? normalizeDesign(result.data) : null;
+        if (normalizedDesign) {
+            upsertDesignCache(normalizedDesign);
+            return normalizedDesign;
+        }
+
+        const fallbackDesigns = await fetchDesigns();
+        const fallback = Array.isArray(fallbackDesigns)
+            ? fallbackDesigns.find(function (item) {
+                return getDesignSlug(item) === designSlug;
+            })
+            : null;
+
+        return fallback || cachedDesign || null;
+    }
+
+    async function fetchDesignsFromBackend(options) {
+        const limit = Number(options && options.limit) || 100;
+        const backendUrl = new URL(resolveBackendUrl(`/designs?limit=${encodeURIComponent(String(limit))}`), window.location.href).href;
+
+        try {
+            const response = await fetch(backendUrl, {
+                method: "GET",
+                credentials: "omit",
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                return [];
+            }
+
+            const payload = await response.json();
+            const items = Array.isArray(payload && payload.designs) ? payload.designs : [];
+            return items.map(normalizeDesign);
+        } catch (error) {
+            console.error("Backend designs fetch failed:", error);
+            return [];
+        }
+    }
+
+    async function fetchBackendDesignById(id) {
+        const designs = await fetchDesignsFromBackend({ limit: 100 });
+        const match = designs.find(function (design) {
+            return String(design.id) === String(id);
+        });
+        return match || null;
+    }
+
+    async function fetchBackendDesignBySlug(slug) {
+        const designSlug = getDesignSlug(slug);
+        if (!designSlug) {
+            return null;
+        }
+
+        const designs = await fetchDesignsFromBackend({ limit: 100 });
+        const match = designs.find(function (design) {
+            return getDesignSlug(design) === designSlug;
+        });
+        return match || null;
     }
 
     async function fetchRelatedDesigns(currentId, limit) {
@@ -163,6 +288,34 @@
         return designsPreloadPromise;
     }
 
+    function invalidateDesignCache() {
+        designsCache = [];
+        designsCacheLoaded = false;
+        designsPreloadPromise = null;
+        try {
+            sessionStorage.removeItem(DESIGNS_CACHE_KEY);
+            sessionStorage.removeItem(DESIGNS_CACHE_MARKER_KEY);
+        } catch (error) {
+            console.error("Failed to clear design cache:", error);
+        }
+    }
+
+    function syncDesignCacheRefreshState() {
+        const refreshStamp = readStorageText(DESIGN_REFRESH_KEY);
+        const cachedStamp = readSessionText(DESIGNS_CACHE_MARKER_KEY);
+
+        if (!refreshStamp) {
+            if (cachedStamp) {
+                invalidateDesignCache();
+            }
+            return;
+        }
+
+        if (refreshStamp !== cachedStamp) {
+            invalidateDesignCache();
+        }
+    }
+
     function getCachedDesignById(id) {
         const designId = cleanText(id);
         if (!designId) {
@@ -171,6 +324,19 @@
 
         const match = designsCache.find(function (design) {
             return String(design.id) === String(designId);
+        });
+
+        return match ? normalizeDesign(match) : null;
+    }
+
+    function getCachedDesignBySlug(slug) {
+        const designSlug = getDesignSlug(slug);
+        if (!designSlug) {
+            return null;
+        }
+
+        const match = designsCache.find(function (design) {
+            return getDesignSlug(design) === designSlug;
         });
 
         return match ? normalizeDesign(match) : null;
@@ -203,6 +369,7 @@
         const design = record || {};
         const normalizedId = String(design.id || "").trim();
         const title = cleanText(design.title) || "Untitled Design";
+        const slug = getDesignSlug(design);
         const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || "/images/preview1.jpg";
         const category = cleanText(design.category).toUpperCase();
         const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
@@ -229,8 +396,10 @@
             id: normalizedId,
             title: title,
             name: title,
+            slug: slug,
             image: image,
             image_url: cleanText(design.image_url || image),
+            preview_url: cleanText(design.preview_url || design.image_url || image),
             category: category,
             type: category,
             format: category,
@@ -913,6 +1082,7 @@
     }
 
     function hydrateDesignCache() {
+        syncDesignCacheRefreshState();
         const cached = readSessionJson(DESIGNS_CACHE_KEY, []);
         if (!Array.isArray(cached) || !cached.length) {
             return;
@@ -926,6 +1096,7 @@
         designsCache = Array.isArray(items) ? items.map(normalizeDesign) : [];
         designsCacheLoaded = true;
         writeSessionJson(DESIGNS_CACHE_KEY, designsCache);
+        writeSessionText(DESIGNS_CACHE_MARKER_KEY, readStorageText(DESIGN_REFRESH_KEY));
     }
 
     function upsertDesignCache(item) {
@@ -952,6 +1123,23 @@
             sessionStorage.setItem(key, JSON.stringify(value));
         } catch (error) {
             console.error("Session storage write failed:", error);
+        }
+    }
+
+    function readSessionText(key) {
+        try {
+            return cleanText(sessionStorage.getItem(key));
+        } catch (error) {
+            console.error("Session storage text read failed:", error);
+            return "";
+        }
+    }
+
+    function writeSessionText(key, value) {
+        try {
+            sessionStorage.setItem(key, cleanText(value));
+        } catch (error) {
+            console.error("Session storage text write failed:", error);
         }
     }
 
@@ -1027,11 +1215,17 @@
         return fallback ? [fallback] : [];
     }
 
-    async function readSingleDesign(tableName, designId) {
+    async function readSingleDesign(tableName, lookupField, lookupValue) {
+        const fieldName = cleanText(lookupField) || "id";
+        const value = cleanText(lookupValue);
+        if (!value) {
+            return { data: null, error: null };
+        }
+
         const { data, error } = await supabase
             .from(tableName)
             .select("*")
-            .eq("id", designId)
+            .eq(fieldName, value)
             .maybeSingle();
 
         if (!error || data) {
@@ -1039,6 +1233,22 @@
         }
 
         return { data: null, error: error };
+    }
+
+    function getDesignSlug(value) {
+        const source = typeof value === "string"
+            ? value
+            : cleanText(value && (value.slug || value.title || value.name || value.id));
+
+        return slugify(source);
+    }
+
+    function slugify(value) {
+        return String(value || "")
+            .toLowerCase()
+            .replace(/['"]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "ajartivo-product";
     }
 
     function getCreatedAtMs(design) {
@@ -1151,6 +1361,7 @@
     }
 
     function dispatchDesignChange(payload) {
+        invalidateDesignCache();
         window.dispatchEvent(new CustomEvent("ajartivo:designs-changed", {
             detail: {
                 change: payload || null,

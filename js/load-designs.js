@@ -68,8 +68,8 @@
 
         container.innerHTML = designs.map(function (design) {
             const title = escapeHtml(design.title);
-            const image = escapeHtml(design.image || "/images/preview1.jpg");
-            const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
+            const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
+            const designUrl = buildProductUrl(design);
             const badge = getDesignBadge(design);
 
             return `
@@ -83,6 +83,22 @@
                 </article>
             `;
         }).join("");
+    }
+
+    function buildProductUrl(design) {
+        if (typeof window.AjArtivoBuildProductUrl === "function") {
+            return window.AjArtivoBuildProductUrl(design);
+        }
+
+        const slug = typeof window.AjArtivoSlugify === "function"
+            ? window.AjArtivoSlugify(design && (design.slug || design.title || design.name || design.id))
+            : "";
+
+        if (slug) {
+            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        }
+
+        return resolveUrl(`/product.html?id=${encodeURIComponent(design && design.id || "")}`);
     }
 
     function getDesignBadge(design) {

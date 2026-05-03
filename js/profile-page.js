@@ -433,6 +433,22 @@
         setText("accountAccessSummary", accessSummary);
     }
 
+    function buildProductUrl(design) {
+        if (typeof window.AjArtivoBuildProductUrl === "function") {
+            return window.AjArtivoBuildProductUrl(design);
+        }
+
+        const slug = typeof window.AjArtivoSlugify === "function"
+            ? window.AjArtivoSlugify(design && (design.slug || design.title || design.name || design.id))
+            : "";
+
+        if (slug) {
+            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        }
+
+        return resolveUrl(`/product.html?id=${encodeURIComponent(design && design.id || "")}`);
+    }
+
     function loadWishlist() {
         const container = document.getElementById("wishlistList");
         if (!container) return;
@@ -449,16 +465,16 @@
             const title = escapeHtml(item.title || "Untitled Design");
             const image = escapeHtml(item.image || "/images/preview1.jpg");
             const price = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
-            const designUrl = resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`);
+            const designUrl = buildProductUrl(item);
 
             return `
                 <article class="profile-media-card">
                     <img src="${image}" alt="${title}" class="profile-media-thumb">
                     <div class="profile-media-body">
-                        <strong>${title}</strong>
-                        <span>${escapeHtml(price)}</span>
-                        <div class="profile-media-actions">
-                            <a href="${designUrl}" class="profile-inline-btn">Open Design</a>
+                            <strong>${title}</strong>
+                            <span>${escapeHtml(price)}</span>
+                            <div class="profile-media-actions">
+                                <a href="${designUrl}" class="profile-inline-btn">Open Design</a>
                             <button type="button" class="profile-inline-btn danger" data-remove-wishlist="${escapeHtml(item.id || "")}">Remove</button>
                         </div>
                     </div>
@@ -519,7 +535,7 @@
                             <span>${priceText}</span>
                             <small>${dateText}</small>
                             <div class="profile-media-actions">
-                                <a href="${resolveUrl(`/product.html?id=${encodeURIComponent(item.id || "")}`)}" class="profile-inline-btn">View Design</a>
+                                <a href="${buildProductUrl(item)}" class="profile-inline-btn">View Design</a>
                                 <button type="button" class="profile-inline-btn" data-download-history="${escapeHtml(item.id || "")}">Download Again</button>
                             </div>
                         </div>
@@ -568,7 +584,7 @@
                 });
 
                 if (!item || !window.AjArtivoPayment || typeof window.AjArtivoPayment.startDownloadFlow !== "function") {
-                    window.location.href = resolveUrl(`/product.html?id=${encodeURIComponent(designId || "")}`);
+                    window.location.href = buildProductUrl(item || { id: designId });
                     return;
                 }
 

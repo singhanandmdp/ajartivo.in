@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSearchResults();
     initQuickCategoryNavigation();
     initHeroSlider();
+    registerRoutingServiceWorker();
 
     if ("requestIdleCallback" in window) {
         window.requestIdleCallback(() => initHeroSearchEnhancements(), { timeout: 1200 });
@@ -52,6 +53,64 @@ function resolveSiteUrl(path) {
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
 
+function slugify(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replace(/['"]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "ajartivo-product";
+}
+
+function getDesignSlug(design) {
+    const item = design || {};
+    return slugify(
+        cleanText(item.slug) ||
+        cleanText(item.title) ||
+        cleanText(item.name) ||
+        cleanText(item.id)
+    );
+}
+
+function buildProductUrl(design) {
+    const slug = getDesignSlug(design);
+    if (slug && shouldUseCleanProductRoute()) {
+        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
+    }
+
+    const id = cleanText(design && design.id);
+    if (slug) {
+        return resolveSiteUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+    }
+
+    return id ? resolveSiteUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product.html");
+}
+
+window.AjArtivoSlugify = slugify;
+window.AjArtivoGetDesignSlug = getDesignSlug;
+window.AjArtivoBuildProductUrl = buildProductUrl;
+
+function shouldUseCleanProductRoute() {
+    const hostname = String(window.location && window.location.hostname || "").trim().toLowerCase();
+    if (!hostname) {
+        return true;
+    }
+
+    return hostname !== "localhost" && hostname !== "127.0.0.1";
+}
+
+function registerRoutingServiceWorker() {
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    const swUrl = resolveSiteUrl("/sw.js");
+    window.addEventListener("load", function () {
+        navigator.serviceWorker.register(swUrl).catch(function (error) {
+            console.warn("AJartivo routing service worker registration failed:", error);
+        });
+    });
+}
+
 function rewriteRootRelativeUrls(container) {
     if (!container) return;
 
@@ -69,6 +128,7 @@ function normalizeAppAnchorHref(value) {
     if (!value || !value.startsWith("/")) return value;
 
     const guardedPrefixes = [
+        "/product/",
         "/product.html",
         "/login.html",
         "/signup.html",
@@ -517,8 +577,8 @@ function renderSearchDesignCards(container, designs) {
     container.innerHTML = designs.map((design) => {
         const title = escapeText(design.title || design.name || "Untitled Design");
         const badge = getDesignBadge(design);
-        const image = escapeText(design.image || "/images/trending1.jpg");
-        const productUrl = resolveSiteUrl(`/product.html?id=${encodeURIComponent(design.id)}`);
+        const image = escapeText(design.image || design.image_url || design.preview_url || "/images/trending1.jpg");
+        const productUrl = buildProductUrl(design);
 
         return `
             <article class="design-card homepage-design-card">
