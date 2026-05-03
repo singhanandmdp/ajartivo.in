@@ -54,7 +54,7 @@
 .tool-placeholder-kicker {
     display: inline-block;
     padding: 8px 20px;
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     color: white;
     font-size: 12px;
     font-weight: 600;
@@ -62,7 +62,7 @@
     letter-spacing: 1.5px;
     border-radius: 24px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
 }
 
 .tool-placeholder-hero h1 {
@@ -204,7 +204,7 @@
 .tools-hub-kicker {
     display: inline-block;
     padding: 10px 24px;
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
     color: white;
     font-size: 13px;
     font-weight: 600;
@@ -212,7 +212,7 @@
     letter-spacing: 2px;
     border-radius: 30px;
     margin-bottom: 24px;
-    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
     position: relative;
     z-index: 1;
 }
@@ -295,7 +295,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #f97316, #3b82f6, #8b5cf6);
+    background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -315,19 +315,19 @@
 .tool-hub-icon {
     width: 64px;
     height: 64px;
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
     border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 24px;
-    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
     transition: all 0.3s ease;
 }
 
 .tool-hub-card:hover .tool-hub-icon {
     transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 12px 32px rgba(249, 115, 22, 0.5);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.35);
 }
 
 .tool-hub-icon svg {

@@ -6,6 +6,15 @@
     <title>AJartivo - The Designer's Haven</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="Favicon.ico" type="image/x-icon">
+    <script>
+        (function () {
+            var path = String(window.location.pathname || "");
+            if (/\/index\.html$/i.test(path)) {
+                var nextPath = path.replace(/\/index\.html$/i, "/");
+                window.location.replace(nextPath + String(window.location.search || "") + String(window.location.hash || ""));
+            }
+        })();
+    </script>
 
     <link rel="stylesheet" href="css/style.css">
 </head>

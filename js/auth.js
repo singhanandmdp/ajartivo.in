@@ -3,7 +3,7 @@
     if (!services || !services.client || !services.client.auth) return;
 
     const supabase = services.client;
-    const HOME_PATH = resolveAppPath("/index.html");
+    const HOME_PATH = resolveAppPath("/");
     const DASHBOARD_PATH = resolveAppPath("/dashboard.html");
     const LOGIN_PATH = resolveAppPath("/login.html");
     const DEFAULT_NEXT = HOME_PATH;
