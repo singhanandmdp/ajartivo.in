@@ -70,7 +70,7 @@
         });
 
         const authContext = await getAuthContext({
-            reason: hasDownloadAccess(item) ? "download" : "buy"
+            reason: isFreeDownload(item) ? "download" : "buy"
         });
         if (!authContext) {
             notifyFlowUi(flowUi, {
@@ -78,6 +78,11 @@
                 message: "Sign in to continue with this design.",
                 state: "idle"
             });
+            return;
+        }
+
+        if (isFreeDownload(item)) {
+            await downloadFile(item, authContext, flowUi);
             return;
         }
 
@@ -707,6 +712,10 @@
     }
 
     async function downloadFile(product, authContext, flowUi) {
+        if (isFreeDownload(product)) {
+            return downloadFreeFile(product, authContext, flowUi);
+        }
+
         const fileName = buildDownloadFileName(product, "");
         return new Promise(function (resolve) {
             let resolvedOnce = false;
@@ -843,6 +852,65 @@
                 };
             }
         });
+    }
+
+    async function downloadFreeFile(product, authContext, flowUi) {
+        const directUrl = cleanText(
+            product && (
+                product.file_url ||
+                product.download_link ||
+                product.downloadUrl ||
+                product.fileUrl
+            )
+        );
+
+        if (!directUrl) {
+            const message = "Free download link is missing.";
+            notifyFlowUi(flowUi, {
+                label: "Unavailable",
+                message: message,
+                state: "error"
+            });
+            alert(message);
+            return null;
+        }
+
+        const fileName = buildDownloadFileName(product, directUrl);
+
+        notifyFlowUi(flowUi, {
+            label: "Processing...",
+            message: "Starting your free download."
+        });
+
+        const popupControls = showDownloadPopup({
+            title: cleanText(product.title) || "Preparing your file",
+            fileName: fileName,
+            waitSeconds: 5,
+            onDownload: async function () {
+                triggerBrowserDownload(directUrl, fileName);
+                services.addDownloadHistoryItem({
+                    ...product,
+                    download_link: fileName
+                });
+                updateSessionDownloadCounters(product, authContext);
+            }
+        });
+
+        if (popupControls) {
+            popupControls.setStatus("Your download popup is open. Countdown has started.");
+        }
+
+        notifyFlowUi(flowUi, {
+            label: "Download Started",
+            message: "Your file download popup is open.",
+            state: "success",
+            autoHideMs: 2200
+        });
+
+        return {
+            started: true,
+            fileName: fileName
+        };
     }
 
     function isPremiumDesign(product) {
@@ -1014,13 +1082,14 @@
 
         const title = cleanText(options && options.title) || "Preparing download";
         const fileName = cleanText(options && options.fileName) || "aj-file";
-        const waitSeconds = normalizeCountdown(options && options.waitSeconds, 8);
+        const autoStart = options && options.autoStart === true;
+        const waitSeconds = autoStart ? 0 : normalizeCountdown(options && options.waitSeconds, 8);
         const onClose = options && typeof options.onClose === "function" ? options.onClose : function () {};
         const onDownload = options && typeof options.onDownload === "function" ? options.onDownload : function () {};
         let downloadStarted = false;
 
         async function startDownload() {
-            if (downloadStarted || downloadPopupState.action.disabled) {
+            if (downloadStarted || (downloadPopupState.action.disabled && !autoStart)) {
                 return;
             }
 
@@ -1036,29 +1105,34 @@
         downloadPopupState.root.hidden = false;
         downloadPopupState.root.style.display = "grid";
         document.body.classList.add("aj-download-open");
-        downloadPopupState.action.disabled = true;
-        downloadPopupState.action.textContent = `Preparing ${waitSeconds}s`;
+        downloadPopupState.action.disabled = !autoStart;
+        downloadPopupState.action.textContent = autoStart ? "Starting..." : `Preparing ${waitSeconds}s`;
 
         if (downloadPopupState.timerId) {
             window.clearInterval(downloadPopupState.timerId);
         }
 
         let remaining = waitSeconds;
-        downloadPopupState.timerId = window.setInterval(function () {
-            remaining -= 1;
-            if (remaining <= 0) {
-                remaining = 0;
-                window.clearInterval(downloadPopupState.timerId);
-                downloadPopupState.timerId = null;
-                downloadPopupState.status.textContent = "Your secure download is starting now.";
-                downloadPopupState.action.disabled = false;
-                downloadPopupState.action.textContent = "Starting...";
-                startDownload();
-            } else {
-                downloadPopupState.action.textContent = `Preparing ${remaining}s`;
-            }
-            downloadPopupState.countdown.textContent = String(remaining);
-        }, 1000);
+        if (!autoStart) {
+            downloadPopupState.timerId = window.setInterval(function () {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    remaining = 0;
+                    window.clearInterval(downloadPopupState.timerId);
+                    downloadPopupState.timerId = null;
+                    downloadPopupState.status.textContent = "Your secure download is starting now.";
+                    downloadPopupState.action.disabled = false;
+                    downloadPopupState.action.textContent = "Starting...";
+                    startDownload();
+                } else {
+                    downloadPopupState.action.textContent = `Preparing ${remaining}s`;
+                }
+                downloadPopupState.countdown.textContent = String(remaining);
+            }, 1000);
+        } else {
+            downloadPopupState.status.textContent = "Your secure download is starting now.";
+            downloadPopupState.countdown.textContent = "0";
+        }
 
         downloadPopupState.action.onclick = async function () {
             if (downloadPopupState.action.disabled) {
@@ -1069,6 +1143,7 @@
         };
 
         return {
+            start: startDownload,
             setStatus: function (message) {
                 downloadPopupState.status.textContent = cleanText(message) || "We are preparing your file.";
             },

@@ -1,207 +1,295 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aj Pixel Cut - AJartivo</title>
-    <meta name="description" content="Remove image backgrounds instantly with Aj Pixel Cut.">
-    <link rel="icon" href="/Favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/tools-hub.css">
-    <link rel="stylesheet" href="/css/aj-pixel-cut.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AJ Pixel Cut</title>
+
+<meta name="aj-pixel-cut-api" content="http://localhost:5000/remove-bg">
+<link rel="stylesheet" href="../style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-<body class="tools-hub-page aj-pixel-cut-dashboard-page">
-    <div id="site-header"></div>
-    <aside class="sidebar" id="sidebarMenu"></aside>
-    <div class="menu-overlay" id="menuOverlay"></div>
 
-    <main class="ajpc-shell" aria-label="AJ Pixel Cut dashboard">
-        <header class="ajpc-hero" aria-label="AJ Pixel Cut hero">
-            <h1>Welcome to AJ Pixel Cut.</h1>
-            <p class="ajpc-subtitle">Premium AI Background Remover Tool</p>
-            <h2>Remove Backgrounds in Seconds <span class="ajpc-rocket" aria-hidden="true">🚀</span></h2>
-        </header>
+<body class="aj-pixel-cut-page">
 
-        <section class="ajpc-upload" aria-label="Upload and remove background">
-            <div class="ajpc-workcard aj-pixel-cut-drop" id="ajPixelCutDrop" role="button" tabindex="0">
-                <header class="ajpc-work-topbar" aria-label="Upload controls">
-                    <div class="ajpc-upload-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                            <path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.2A4 4 0 1 1 17 18H7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                            <path d="M12 12v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                            <path d="M9.5 14.5 12 12l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-                    </div>
+<div id="site-header"></div>
 
-                    <div class="ajpc-upload-copy">
-                        <strong>Drag &amp; drop</strong>
-                        <span>or click to upload image</span>
-                        <div class="aj-pixel-cut-meta" id="ajPixelCutMeta"></div>
-                    </div>
+<aside class="sidebar" id="sidebarMenu"></aside>
+<div class="menu-overlay" id="menuOverlay"></div>
 
-                    <div class="aj-pixel-cut-drop-actions">
-                        <label class="aj-pixel-cut-file-btn" for="ajPixelCutFile">Choose Image</label>
-                        <input class="aj-pixel-cut-file" type="file" id="ajPixelCutFile" accept="image/png,image/jpeg,image/webp">
-                        <button class="aj-pixel-cut-run-btn" id="ajPixelCutRun" type="button">Remove Background</button>
-                    </div>
-                </header>
+<section class="hero">
+    <div class="hero-badge">* * * Background Remover * * *</div>
+    <h1>AJ Pixel Cut</h1>
+    <p>AI Powered Background Remover</p>
+</section>
 
-                <div class="ajpc-workspace" aria-label="Editor workspace">
-                    <section class="ajpc-editor" aria-label="Before and after preview">
-                        <div class="ajpc-view ajpc-view-before" aria-label="Before preview">
-                            <span class="ajpc-view-chip">Before</span>
-                            <div class="ajpc-view-body">
-                                <img id="ajPixelCutBeforeImage" alt="Before preview" />
-                            </div>
-                        </div>
+<section class="tool">
 
-                        <div class="ajpc-view ajpc-view-after" aria-label="After preview">
-                            <div class="ajpc-view-head">
-                                <span class="ajpc-view-chip">After</span>
-                                <div class="ajpc-view-actions">
-                                    <button class="ajpc-icon-btn" id="ajPixelCutReset" type="button" aria-label="Reset output">
-                                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                                            <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                                            <path d="M10 11v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                                            <path d="M14 11v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                                            <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                                            <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="ajpc-view-body">
-                                <canvas id="ajPixelCutAfterCanvas" class="ajpc-canvas" width="1200" height="800"></canvas>
-                            </div>
-                            <div class="ajpc-status-row">
-                                <div class="aj-pixel-cut-status" id="ajPixelCutStatus" aria-live="polite"></div>
-                            </div>
-                        </div>
-                    </section>
+    <div class="card">
 
-                    <aside class="ajpc-controls" aria-label="Edit controls">
-                        <div class="ajpc-controls-top">
-                            <div class="ajpc-bg-picker" aria-label="Background color">
-                                <button class="ajpc-color-dot is-checker" type="button" data-ajpc-bg="transparent" aria-label="Transparent background"></button>
-                                <button class="ajpc-color-dot" type="button" data-ajpc-bg="#000000" style="--dot: #000000" aria-label="Black background"></button>
-                                <button class="ajpc-color-dot" type="button" data-ajpc-bg="#ffffff" style="--dot: #ffffff" aria-label="White background"></button>
-                                <button class="ajpc-color-dot is-custom" type="button" aria-label="Custom background color">
-                                    <input id="ajPixelCutBgColor" type="color" value="#7c3aed" aria-label="Pick background color" />
-                                </button>
-                            </div>
+        <!-- UPLOAD -->
+        <div class="upload" id="uploadBox">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <p>Drag & Drop Image or Click</p>
+            <input type="file" id="fileInput">
+        </div>
 
-                            <label class="ajpc-toggle" aria-label="Light on">
-                                <span class="ajpc-toggle-label">Light on</span>
-                                <input id="ajPixelCutLightToggle" type="checkbox" />
-                                <span class="ajpc-toggle-ui" aria-hidden="true"></span>
-                            </label>
-                        </div>
+        <div class="card-topbar">
+            <button type="button" class="reupload-btn" id="reuploadBtn">
+                <i class="fa-solid fa-upload"></i>
+                Upload Image
+            </button>
+        </div>
 
-                        <button class="ajpc-control-btn" id="ajPixelCutRefineToggle" type="button">Refine</button>
-                        <div class="ajpc-control-panel" id="ajPixelCutRefinePanel" hidden>
-                            <div class="ajpc-row">
-                                <span class="ajpc-row-label">Mode</span>
-                                <div class="ajpc-seg">
-                                    <button class="ajpc-seg-btn is-active" id="ajPixelCutRefineErase" type="button">Erase</button>
-                                    <button class="ajpc-seg-btn" id="ajPixelCutRefineRestore" type="button">Restore</button>
-                                </div>
-                            </div>
-                            <label class="ajpc-row" aria-label="Brush size">
-                                <span class="ajpc-row-label">Brush</span>
-                                <input id="ajPixelCutBrushSize" type="range" min="6" max="90" value="24" />
-                            </label>
-                            <button class="ajpc-secondary-btn" id="ajPixelCutRefineReset" type="button">Reset refine</button>
-                        </div>
+        <!-- RESULT -->
+        <div class="result" id="resultWrapper">
 
-                        <button class="ajpc-control-btn" id="ajPixelCutResizeToggle" type="button">Resize</button>
-                        <div class="ajpc-control-panel" id="ajPixelCutResizePanel" hidden>
-                            <div class="ajpc-row">
-                                <label class="ajpc-dim">
-                                    <span>W</span>
-                                    <input id="ajPixelCutWidth" type="number" min="16" step="1" placeholder="Width" />
-                                </label>
-                                <label class="ajpc-dim">
-                                    <span>H</span>
-                                    <input id="ajPixelCutHeight" type="number" min="16" step="1" placeholder="Height" />
-                                </label>
-                            </div>
-                            <label class="ajpc-check">
-                                <input id="ajPixelCutLockRatio" type="checkbox" checked />
-                                <span>Lock ratio</span>
-                            </label>
-                            <button class="ajpc-secondary-btn" id="ajPixelCutApplyResize" type="button">Apply</button>
-                        </div>
-
-                        <button class="ajpc-download-btn" id="ajPixelCutDownloadBtn" type="button">Download Image</button>
-                        <button class="ajpc-outline-btn" id="ajPixelCutEditMore" type="button">Edit More</button>
-                        <a class="ajpc-hidden" id="ajPixelCutDownload" href="#" download="output.png">Download</a>
-                        <a class="ajpc-backlink" href="/dashboard.html">Back to AJartivo Dashboard</a>
-                    </aside>
+            <!-- BEFORE -->
+            <div class="img-card">
+                <div class="img-card-header">
+                    <span>Before</span>
+                    <span class="size-badge" id="beforeSizeBadge">--</span>
+                </div>
+                <div class="preview-stage" id="beforeStage">
+                    <canvas id="beforeCanvas" class="preview-media"></canvas>
                 </div>
             </div>
-        </section>
 
-        <section class="ajpc-panels" aria-label="Plan and history">
-            <article class="ajpc-panel" aria-label="Your plan">
-                <header class="ajpc-panel-header">
-                    <h3>Your Plan</h3>
-                </header>
-                <div class="ajpc-plan-row">
-                    <div class="ajpc-plan-copy">
-                        <strong id="ajPixelCutPlanName">Free Plan</strong>
-                        <span>HD background removal</span>
+            <!-- AFTER -->
+            <div class="img-card">
+                <div class="img-card-header">
+                    <span>After</span>
+                    <span class="size-badge" id="afterSizeBadge">--</span>
+                </div>
+                <div class="preview-stage img-wrap" id="afterStage">
+                    <canvas id="afterCanvas" class="preview-media"></canvas>
+                    <div class="crop-overlay" id="cropOverlay" style="display:none;">
+                        <div class="crop-box" id="cropBox">
+                            <span class="crop-label">Crop</span>
+                            <div class="crop-handle crop-handle-nw" data-handle="nw"></div>
+                            <div class="crop-handle crop-handle-n" data-handle="n"></div>
+                            <div class="crop-handle crop-handle-ne" data-handle="ne"></div>
+                            <div class="crop-handle crop-handle-e" data-handle="e"></div>
+                            <div class="crop-handle crop-handle-se" data-handle="se"></div>
+                            <div class="crop-handle crop-handle-s" data-handle="s"></div>
+                            <div class="crop-handle crop-handle-sw" data-handle="sw"></div>
+                            <div class="crop-handle crop-handle-w" data-handle="w"></div>
+                        </div>
                     </div>
-                    <a class="ajpc-upgrade-btn" href="/premium.html">Upgrade</a>
+                    <div class="brush-preview" id="brushPreview"></div>
+                    <div class="scan" id="scan"></div>
                 </div>
+            </div>
 
-                <div class="ajpc-plan-metrics" aria-label="Usage metrics">
-                    <div class="ajpc-metric">
-                        <span>Quota</span>
-                        <strong id="ajPixelCutQuotaText">0 / 3 completed</strong>
+        </div>
+
+        <div class="action-row">
+            <a id="downloadBtn">Download Image</a>
+
+            <div class="history-tools" aria-label="History controls">
+                <button class="tool-icon" id="historyUndoBtn" type="button" title="Undo">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button class="tool-icon" id="historyRedoBtn" type="button" title="Redo">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <div class="color-tools" aria-label="Background color options">
+                <div class="color-circle no-fill-circle" data-color="transparent" title="No Fill"></div>
+                <div class="color-circle" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                <div class="color-circle" data-color="#ff0000" style="background:#ff0000;" title="Red"></div>
+                <div class="color-circle" data-color="#ffff00" style="background:#ffff00;" title="Yellow"></div>
+                <div class="color-circle" data-color="#0000ff" style="background:#0000ff;" title="Blue"></div>
+                <input type="color" id="colorPicker" title="Custom color">
+                <button class="color-circle gradient-circle" id="gradientPreset" type="button" title="Gradient"></button>
+            </div>
+
+            <div class="tool-icons" aria-label="Editing tools">
+                <button class="tool-icon" id="refineBtn" type="button" title="Refine Brush">
+                    <i class="fa-solid fa-paintbrush"></i>
+                </button>
+                <button class="tool-icon" id="resizeBtn" type="button" title="Crop / Resize">
+                    <i class="fa-solid fa-crop-simple"></i>
+                </button>
+                <button class="tool-icon" id="textBtn" type="button" title="Add Text">
+                    <i class="fa-solid fa-font"></i>
+                </button>
+                <button class="tool-icon" id="outlineBtn" type="button" title="Outline / Shadow">
+                    <i class="fa-solid fa-border-all"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="control-panels">
+            <div class="control-panel" id="refinePanel">
+                <label>Mode</label>
+                <div class="mode-row">
+                    <button type="button" class="mode-btn active" id="eraseModeBtn">Erase</button>
+                    <button type="button" class="mode-btn" id="restoreModeBtn">Restore</button>
+                    <button type="button" class="mode-btn active" id="restoreRemovedBtn">Removed BG</button>
+                    <button type="button" class="mode-btn" id="restoreOriginalBtn">Original Image</button>
+                </div>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Brush size</label>
+                        <input type="range" id="brushSize" min="6" max="80" value="24">
                     </div>
-                    <div class="ajpc-metric">
-                        <span>Usage</span>
-                        <strong id="ajPixelCutUsageText">0 MB of 200 MB</strong>
+                    <div class="slider-group">
+                        <label>Brush hardness</label>
+                        <input type="range" id="brushHardness" min="0" max="100" value="65">
                     </div>
                 </div>
-
-                <div class="ajpc-progress" aria-label="Usage progress">
-                    <div class="ajpc-progress-bar" id="ajPixelCutUsageBar" style="width: 0%"></div>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Feather</label>
+                        <input type="range" id="brushFeather" min="0" max="100" value="20">
+                    </div>
                 </div>
-            </article>
+                <button type="button" class="panel-close" data-panel="refinePanel">Done</button>
+            </div>
 
-            <article class="ajpc-panel" aria-label="History">
-                <header class="ajpc-panel-header ajpc-panel-header-split">
-                    <h3>History</h3>
-                    <span class="ajpc-history-more" id="ajPixelCutHistoryMore"></span>
-                </header>
-                <div class="ajpc-history" id="ajPixelCutHistoryList" aria-label="Recent exports"></div>
-            </article>
-        </section>
+            <div class="control-panel" id="resizePanel">
+                <label>Crop</label>
+                <p class="panel-help">Drag the box on the image to crop it. Use the handles to resize.</p>
+                <label>Export scale</label>
+                <input type="range" id="resizeScale" min="60" max="140" value="100">
+                <label>Corner radius</label>
+                <input type="range" id="cropRadius" min="0" max="160" value="0">
+                <button type="button" class="panel-close" data-panel="resizePanel">Done</button>
+            </div>
 
-        <section class="ajpc-note" aria-label="API note">
-            <p>
-                Note: This tool needs a background-removal API endpoint. Configure it via
-                <code>&lt;meta name="aj-pixel-cut-api" content="https://your-api/remove-bg"&gt;</code>
-                or implement <code>POST /remove-bg</code> on your backend.
-            </p>
-        </section>
-
-        <section class="ajpc-ad" aria-label="Advertisement">
-            <a class="ajpc-ad-card" href="/premium.html" aria-label="Premium advertisement">
-                <img class="ajpc-ad-img" src="../icon/background_pixel.jpg" alt="" loading="lazy" />
-                <div class="ajpc-ad-overlay">
-                    <strong>Make edits pop</strong>
-                    <span>Refine edges, change backgrounds, and export fast.</span>
-                    <span class="ajpc-ad-cta">Explore Premium</span>
+            <div class="control-panel" id="textPanel">
+                <label>Text</label>
+                <textarea id="textInput" placeholder="Type your caption here..."></textarea>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Text size</label>
+                        <input type="range" id="textSize" min="16" max="180" value="64">
+                    </div>
+                    <div class="slider-group">
+                        <label>Text color</label>
+                        <input type="color" id="textColor" value="#ffffff">
+                    </div>
                 </div>
-            </a>
-        </section>
-    </main>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Position X</label>
+                        <input type="range" id="textPosX" min="0" max="100" value="50">
+                    </div>
+                    <div class="slider-group">
+                        <label>Position Y</label>
+                        <input type="range" id="textPosY" min="0" max="100" value="50">
+                    </div>
+                </div>
+                <div class="mode-row">
+                    <button type="button" class="mode-btn active" id="textBoldBtn">Bold</button>
+                    <button type="button" class="mode-btn" id="textItalicBtn">Italic</button>
+                    <button type="button" class="mode-btn" id="textUnderlineBtn">Underline</button>
+                </div>
+                <button type="button" class="panel-close" data-panel="textPanel">Done</button>
+            </div>
 
-    <div id="site-footer"></div>
+            <div class="control-panel" id="outlinePanel">
+                <label>Outline mode</label>
+                <div class="segmented-toggle" role="tablist" aria-label="Outline mode">
+                    <button type="button" class="mode-btn active" id="outlineShadowBtn">Shadow</button>
+                    <button type="button" class="mode-btn" id="outlineHardBtn">Hard outline</button>
+                </div>
+                <label>Outline size</label>
+                <input type="range" id="outlineSize" min="0" max="24" value="8">
+                <label>Outline color</label>
+                <input type="color" id="outlineColor" value="#ffffff">
+                <button type="button" class="panel-close" data-panel="outlinePanel">Done</button>
+            </div>
 
-    <script src="/js/script.js?v=20260411-1"></script>
-    <script src="/js/aj-pixel-cut.js?v=20260411-1"></script>
+            <div class="control-panel" id="gradientPanel">
+                <label>Gradient start</label>
+                <input type="color" id="gradientStart" value="#ffffff">
+                <label>Gradient end</label>
+                <input type="color" id="gradientEnd" value="#7c3aed">
+                <label>Angle</label>
+                <input type="range" id="gradientAngle" min="0" max="360" value="135">
+                <button type="button" class="panel-close" data-panel="gradientPanel">Done</button>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<section class="intro-grid">
+    <div class="intro-copy">
+        <div class="section-kicker">Premium background removal</div>
+        <h2>Clean backgrounds. Professional results. Faster edits.</h2>
+        <p>
+            Remove backgrounds, refine edges, add text, outline your subject, and export a polished image
+            in one smooth workflow made for creators, brands, and fast social media work.
+        </p>
+        <div class="feature-chips" aria-label="Key features">
+            <span>One-click remove</span>
+            <span>Soft edge refine</span>
+            <span>Text + outline tools</span>
+            <span>Crop and export</span>
+        </div>
+    </div>
+
+    <div class="steps-card">
+        <div class="steps-card-header">
+            <div>
+                <span class="section-kicker">How to use</span>
+                <h3>3 simple steps</h3>
+            </div>
+            <div class="steps-badge">Beginner friendly</div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div>
+                    <h4>Upload your image</h4>
+                    <p>Drag and drop a photo or click upload to start background removal.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div>
+                    <h4>Edit the cutout</h4>
+                    <p>Use crop, restore, text, and outline tools to fine-tune the result.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div>
+                    <h4>Download the image</h4>
+                    <p>Pick your background style, then save the final premium-looking PNG.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="ad-section">
+
+    <div class="ad-card">
+
+        <div class="ad-text">
+            <h2>Clean Backgrounds. Professional Results.</h2>
+            <p>Create stunning visuals for your brand, portfolio, or business in seconds.</p>
+        </div>
+
+        <img src="../icon/background_pixel.jpg" class="ad-image">
+
+    </div>
+
+</section>
+
+<div class="page-spacer"></div>
+
+<div id="site-footer"></div>
+
+<script src="../../../js/script.js"></script>
+<script src="aj-pixel-cut.js"></script>
+
 </body>
 </html>

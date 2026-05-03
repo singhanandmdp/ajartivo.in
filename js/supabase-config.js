@@ -119,22 +119,23 @@
         }
 
         const cachedDesign = getCachedDesignById(designId);
-        if (cachedDesign) {
-            preloadDesigns();
-            return cachedDesign;
-        }
-
         const result = await readSingleDesign("designs", designId);
 
         if (result.error) {
             console.error("Supabase design fetch failed:", result.error);
+            if (cachedDesign) {
+                preloadDesigns();
+                return cachedDesign;
+            }
             return null;
         }
         const normalizedDesign = result.data ? normalizeDesign(result.data) : null;
         if (normalizedDesign) {
             upsertDesignCache(normalizedDesign);
+            return normalizedDesign;
         }
-        return normalizedDesign;
+
+        return cachedDesign || null;
     }
 
     async function fetchRelatedDesigns(currentId, limit) {
@@ -209,12 +210,11 @@
         const hasExplicitPrice = rawPrice !== null && typeof rawPrice !== "undefined" && String(rawPrice).trim() !== "";
         const price = Number(design.price || 0);
         const normalizedPrice = Number.isFinite(price) ? price : 0;
-        const isFree = hasExplicitPrice
-            ? normalizedPrice <= 0
-            : design.is_free === true || (design.is_premium !== true && design.is_paid !== true);
-        const isPremium = hasExplicitPrice
-            ? normalizedPrice > 0
-            : design.is_premium === true || design.is_paid === true;
+        const premiumFlag = design.is_premium === true || design.is_paid === true;
+        const freeFlag = design.is_free === true;
+        const priceBasedPremium = hasExplicitPrice ? normalizedPrice > 0 : false;
+        const isPremium = premiumFlag || priceBasedPremium;
+        const isFree = isPremium ? false : (freeFlag || (hasExplicitPrice ? normalizedPrice <= 0 : true));
         const isPaid = isPremium === true || normalizedPrice > 0;
         const isPurchased = design.isPurchased === true || design.is_purchased === true;
         const hasAccess = design.has_access === true || isPurchased;

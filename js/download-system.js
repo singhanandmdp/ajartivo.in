@@ -34,16 +34,6 @@
                 return;
             }
 
-            const cachedDesign = typeof services.getCachedDesignById === "function"
-                ? services.getCachedDesignById(designId)
-                : null;
-
-            if (cachedDesign) {
-                currentDesign = services.normalizeDesign(cachedDesign);
-                renderDesign(currentDesign);
-                bindActionButton(currentDesign, deriveInitialAccessState(currentDesign));
-            }
-
             currentDesign = await services.fetchDesignById(designId);
 
             if (!currentDesign) {
@@ -56,11 +46,20 @@
             currentDesign = services.normalizeDesign(currentDesign);
             renderDesign(currentDesign);
 
-            await Promise.all([
+            const asyncTasks = [
                 loadRelatedDesigns(currentDesign.id),
-                bindWishlistButton(currentDesign),
-                refreshDesignAccess(currentDesign)
-            ]);
+                bindWishlistButton(currentDesign)
+            ];
+
+            if (!isFreeDesign(currentDesign)) {
+                asyncTasks.push(refreshDesignAccess(currentDesign));
+            } else {
+                currentAccessState = deriveInitialAccessState(currentDesign);
+                currentDesign = applyAccessState(currentDesign, currentAccessState);
+                updateAccessUi(currentDesign, currentAccessState);
+            }
+
+            await Promise.all(asyncTasks);
         } catch (error) {
             console.error("Design load failed:", error);
             setText("productTitle", "Unable to load design");
@@ -120,11 +119,25 @@
                 return;
             }
 
+            if (isFreeDesign(currentDesign)) {
+                currentAccessState = deriveInitialAccessState(currentDesign);
+                currentDesign = applyAccessState(currentDesign, currentAccessState);
+                updateAccessUi(currentDesign, currentAccessState);
+                return;
+            }
+
             refreshDesignAccess(currentDesign);
         });
 
         window.addEventListener("ajartivo:account-updated", function () {
             if (!currentDesign) {
+                return;
+            }
+
+            if (isFreeDesign(currentDesign)) {
+                currentAccessState = deriveInitialAccessState(currentDesign);
+                currentDesign = applyAccessState(currentDesign, currentAccessState);
+                updateAccessUi(currentDesign, currentAccessState);
                 return;
             }
 
@@ -139,8 +152,14 @@
         const type = String(product.category || "OTHER").toUpperCase();
         const price = Number(product.price || 0);
         const amount = isFreeDesign(product) ? "Free" : `Rs. ${price}`;
+        const seoImage = getSeoImageUrl(product, title);
 
         document.title = `${title} - AJartivo`;
+        updateProductSeo(product, {
+            title: title,
+            description: product.description || "Creative design ready for instant access.",
+            image: seoImage
+        });
         setText("productTitle", title);
         setText("productDescription", product.description || "Creative design ready for instant access.");
         setText("productTypeChip", type);
@@ -158,6 +177,14 @@
 
     async function refreshDesignAccess(product) {
         const normalizedProduct = services.normalizeDesign(product);
+        if (isFreeDesign(normalizedProduct)) {
+            currentAccessState = deriveInitialAccessState(normalizedProduct);
+            currentDesign = applyAccessState(normalizedProduct, currentAccessState);
+            updateAccessUi(currentDesign, currentAccessState);
+            currentAccessPromise = null;
+            return currentDesign;
+        }
+
         const requestId = accessRequestId + 1;
         accessRequestId = requestId;
 
@@ -423,7 +450,7 @@
                     <article class="design-card homepage-design-card">
                         <a href="${designUrl}" class="card-link homepage-card-link">
                             <div class="homepage-card-media">
-                                <img src="${image}" alt="${title}" class="homepage-card-image">
+                                <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
                                 <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
                             </div>
                         </a>
@@ -527,6 +554,138 @@
         });
     }
 
+    function updateProductSeo(product, overrides) {
+        const title = cleanText(overrides && overrides.title) || cleanText(product && product.title) || "AJartivo Product";
+        const description = cleanText(overrides && overrides.description) || cleanText(product && product.description) || "AJartivo design product.";
+        const image = cleanText(overrides && overrides.image) || getSeoImageUrl(product, title);
+        const absoluteImage = toAbsoluteUrl(image);
+        const absoluteUrl = stripUrlHash(window.location.href);
+        const seoTitle = `${title} - AJartivo`;
+
+        document.title = seoTitle;
+        setMetaTag("name", "description", description);
+        setMetaTag("property", "og:type", "product");
+        setMetaTag("property", "og:title", seoTitle);
+        setMetaTag("property", "og:description", description);
+        setMetaTag("property", "og:image", absoluteImage);
+        setMetaTag("property", "og:image:alt", title);
+        setMetaTag("property", "og:url", absoluteUrl);
+        setMetaTag("property", "og:site_name", "AJartivo");
+        setMetaTag("name", "twitter:card", "summary_large_image");
+        setMetaTag("name", "twitter:title", seoTitle);
+        setMetaTag("name", "twitter:description", description);
+        setMetaTag("name", "twitter:image", absoluteImage);
+        setMetaTag("name", "twitter:image:alt", title);
+        updateCanonicalLink(absoluteUrl);
+        updateProductJsonLd(product, {
+            title: title,
+            description: description,
+            image: absoluteImage,
+            url: absoluteUrl
+        });
+    }
+
+    function updateProductJsonLd(product, data) {
+        const script = document.getElementById("productJsonLd");
+        if (!script) return;
+
+        const title = cleanText(data && data.title) || cleanText(product && product.title) || "AJartivo Product";
+        const description = cleanText(data && data.description) || cleanText(product && product.description) || "";
+        const image = cleanText(data && data.image) || toAbsoluteUrl(getSeoImageUrl(product, title));
+        const url = cleanText(data && data.url) || stripUrlHash(window.location.href);
+
+        const schema = {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": title,
+            "image": image,
+            "description": description,
+            "brand": {
+                "@type": "Brand",
+                "name": "AJartivo"
+            },
+            "url": url
+        };
+
+        script.textContent = JSON.stringify(schema);
+    }
+
+    function setMetaTag(attributeName, attributeValue, content) {
+        const selector = `meta[${attributeName}="${cssEscape(attributeValue)}"]`;
+        let tag = document.head.querySelector(selector);
+
+        if (!tag) {
+            tag = document.createElement("meta");
+            tag.setAttribute(attributeName, attributeValue);
+            document.head.appendChild(tag);
+        }
+
+        tag.setAttribute("content", content);
+    }
+
+    function updateCanonicalLink(url) {
+        if (!url) return;
+
+        let link = document.head.querySelector('link[rel="canonical"]');
+        if (!link) {
+            link = document.createElement("link");
+            link.rel = "canonical";
+            document.head.appendChild(link);
+        }
+
+        link.href = url;
+    }
+
+    function getSeoImageUrl(product, fallbackTitle) {
+        const candidate = cleanText(
+            product && (
+                product.image_url ||
+                product.preview_url ||
+                product.image ||
+                (Array.isArray(product.gallery) && product.gallery[0]) ||
+                (Array.isArray(product.previewImages) && product.previewImages[0])
+            )
+        );
+
+        if (candidate) {
+            return candidate;
+        }
+
+        const slug = slugify(fallbackTitle || cleanText(product && product.title) || "ajartivo-product");
+        return `/images/${slug}.jpg`;
+    }
+
+    function slugify(value) {
+        return String(value || "")
+            .toLowerCase()
+            .replace(/['"]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "ajartivo-product";
+    }
+
+    function toAbsoluteUrl(value) {
+        const text = cleanText(value);
+        if (!text) return stripUrlHash(window.location.href);
+
+        try {
+            return new URL(text, window.location.href).href;
+        } catch (_error) {
+            return stripUrlHash(window.location.href);
+        }
+    }
+
+    function stripUrlHash(value) {
+        return String(value || window.location.href).split("#")[0];
+    }
+
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === "function") {
+            return window.CSS.escape(String(value));
+        }
+
+        return String(value).replace(/"/g, '\\"');
+    }
+
     function setMainPreviewImage(src, title) {
         const previewBox = document.getElementById("previewTrigger");
         const mainImage = document.getElementById("mainImage");
@@ -586,24 +745,13 @@
         button.textContent = buttonState.idleText;
         button.classList.remove("is-loading");
         button.dataset.mode = buttonState.mode;
-        button.setAttribute("aria-busy", accessState && accessState.loading ? "true" : "false");
+        button.setAttribute("aria-busy", "false");
 
         button.onclick = async function () {
             const requestId = actionSequence + 1;
             actionSequence = requestId;
             let activeProduct = currentDesign ? services.normalizeDesign(currentDesign) : currentItem;
             let activeState = resolveActionButtonState(activeProduct);
-            const busyLabel = activeState.mode === "buy-now" ? "Processing..." : "Processing...";
-
-            setActionButtonBusy(button, busyLabel);
-            updateActionFeedback({
-                visible: true,
-                state: "loading",
-                label: "Preparing your download...",
-                message: activeState.mode === "buy-now"
-                    ? "We are checking your access and opening secure checkout."
-                    : "We are checking your access and preparing secure delivery."
-            });
 
             if (currentAccessPromise) {
                 try {
@@ -667,8 +815,7 @@
         if (!button) return;
         button.disabled = true;
         button.textContent = cleanText(label) || "Processing...";
-        button.classList.add("is-loading");
-        button.setAttribute("aria-busy", "true");
+        button.setAttribute("aria-busy", "false");
     }
 
     function restoreActionButton(button, buttonState, isCheckingAccess) {

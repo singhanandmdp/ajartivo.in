@@ -76,7 +76,7 @@
                 <article class="design-card homepage-design-card" data-design-id="${escapeHtml(design.id)}">
                     <a href="${designUrl}" class="card-link homepage-card-link">
                         <div class="homepage-card-media">
-                            <img src="${image}" alt="${title}" class="homepage-card-image">
+                            <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
                             <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
                         </div>
                     </a>

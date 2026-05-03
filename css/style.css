@@ -2835,7 +2835,7 @@ textarea {
         radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 48%),
         linear-gradient(180deg, rgba(12, 25, 43, 0.92), rgba(9, 19, 34, 0.98));
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 34px;
+    border-radius: 24px;
     overflow: hidden;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 28px 50px rgba(2, 6, 23, 0.3);
     cursor: zoom-in;
@@ -2854,7 +2854,7 @@ textarea {
     position: relative;
     inset: auto;
     display: block;
-    border-radius: 30px 30px 72px 30px;
+    border-radius: 20px 20px 40px 20px;
     overflow: hidden;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(226, 232, 240, 0.88)),
@@ -2909,7 +2909,7 @@ textarea {
     transition: transform 0.28s ease, opacity 0.24s ease;
     transform-origin: center center;
     transform: translate3d(0, 0, 0) scale(1);
-    border-radius: 30px 30px 72px 30px;
+    border-radius: 20px 20px 40px 20px;
     z-index: 3;
 }
 
@@ -3210,23 +3210,8 @@ textarea {
 
 .price-card .download-btn.is-loading,
 .price-card .download-btn[aria-busy="true"] {
-    position: relative;
-    opacity: 0.9;
-    cursor: wait;
-}
-
-.price-card .download-btn.is-loading::before,
-.price-card .download-btn[aria-busy="true"]::before {
-    content: "";
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    margin-right: 10px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.38);
-    border-top-color: #ffffff;
-    vertical-align: -3px;
-    animation: productActionSpin 0.7s linear infinite;
+    opacity: 0.98;
+    cursor: pointer;
 }
 
 .product-action-status {
@@ -3725,12 +3710,12 @@ textarea {
 
     .preview-box {
         padding: 16px;
-        border-radius: 28px;
+        border-radius: 20px;
     }
 
     .preview-stage,
     .preview-box img {
-        border-radius: 24px 24px 52px 24px;
+        border-radius: 16px 16px 32px 16px;
     }
 
     .preview-badge {

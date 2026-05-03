@@ -2,22 +2,24 @@
     "use strict";
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const LIVE_BACKEND_BASE_URL = "https://pixel-cut-backend.onrender.com";
     const HISTORY_KEY = "ajpc_history_v1";
     const USAGE_KEY = "ajpc_usage_v1";
 
-    const dropZone = document.getElementById("ajPixelCutDrop");
-    const fileInput = document.getElementById("ajPixelCutFile");
-    const runButton = document.getElementById("ajPixelCutRun");
+    const dropZone = document.getElementById("ajPixelCutDrop") || document.getElementById("uploadBox");
+    const fileInput = document.getElementById("ajPixelCutFile") || document.getElementById("fileInput");
+    const runButton = document.getElementById("ajPixelCutRun") || document.getElementById("reuploadBtn");
     const statusEl = document.getElementById("ajPixelCutStatus");
     const metaEl = document.getElementById("ajPixelCutMeta");
     const beforeImgEl = document.getElementById("ajPixelCutBeforeImage");
-    const afterCanvasEl = document.getElementById("ajPixelCutAfterCanvas");
+    const beforeCanvasEl = document.getElementById("beforeCanvas");
+    const afterCanvasEl = document.getElementById("ajPixelCutAfterCanvas") || document.getElementById("afterCanvas");
     const resetBtn = document.getElementById("ajPixelCutReset");
-    const downloadBtn = document.getElementById("ajPixelCutDownloadBtn");
-    const downloadEl = document.getElementById("ajPixelCutDownload");
+    const downloadBtn = document.getElementById("ajPixelCutDownloadBtn") || document.getElementById("downloadBtn");
+    const downloadEl = document.getElementById("ajPixelCutDownload") || document.getElementById("downloadBtn");
     const bgColorEl = document.getElementById("ajPixelCutBgColor");
     const lightToggleEl = document.getElementById("ajPixelCutLightToggle");
+    const lightToggleTriggerEl = document.getElementById("ajPixelCutLightToggleTrigger");
     const refineToggleEl = document.getElementById("ajPixelCutRefineToggle");
     const refinePanelEl = document.getElementById("ajPixelCutRefinePanel");
     const refineEraseEl = document.getElementById("ajPixelCutRefineErase");
@@ -31,8 +33,9 @@
     const lockRatioEl = document.getElementById("ajPixelCutLockRatio");
     const applyResizeEl = document.getElementById("ajPixelCutApplyResize");
     const editMoreEl = document.getElementById("ajPixelCutEditMore");
+    const resultWrapper = document.getElementById("resultWrapper");
 
-    if (!dropZone || !fileInput || !runButton || !statusEl || !metaEl || !beforeImgEl || !afterCanvasEl || !downloadBtn || !downloadEl) {
+    if (!dropZone || !fileInput || !runButton || !afterCanvasEl || !downloadBtn || !downloadEl) {
         return;
     }
 
@@ -43,6 +46,7 @@
     const historyMoreEl = document.getElementById("ajPixelCutHistoryMore");
     const afterCtx = afterCanvasEl.getContext("2d", { willReadFrequently: true });
     if (!afterCtx) return;
+    const beforeCtx = beforeCanvasEl ? beforeCanvasEl.getContext("2d", { willReadFrequently: true }) : null;
 
     let selectedFile = null;
     let selectedFileUrl = "";
@@ -66,6 +70,10 @@
     }
 
     function resolveBackendBaseUrl() {
+        if (isLocalRuntime()) {
+            return LOCAL_BACKEND_BASE_URL;
+        }
+
         const globalConfigured = cleanText(window.AJARTIVO_BACKEND_URL);
         if (globalConfigured) {
             return globalConfigured.replace(/\/+$/, "");
@@ -79,10 +87,6 @@
         const meta = document.querySelector('meta[name="ajartivo-backend-url"]');
         const content = meta ? cleanText(meta.content) : "";
         if (content) return content.replace(/\/+$/, "");
-
-        if (isLocalRuntime()) {
-            return LOCAL_BACKEND_BASE_URL;
-        }
 
         return LIVE_BACKEND_BASE_URL;
     }
@@ -101,12 +105,19 @@
         return `${backendBase.replace(/\/+$/, "")}/remove-bg`;
     }
 
+    function resolveSmartRemoveBgUrl() {
+        const baseUrl = resolveBackendBaseUrl().replace(/\/+$/, "");
+        return `${baseUrl}/smart-remove-bg`;
+    }
+
     function setStatus(message, kind) {
+        if (!statusEl) return;
         statusEl.textContent = cleanText(message);
         statusEl.classList.toggle("is-error", kind === "error");
     }
 
     function setMeta(message) {
+        if (!metaEl) return;
         metaEl.textContent = cleanText(message);
     }
 
@@ -114,6 +125,39 @@
         runButton.disabled = Boolean(isBusy);
         runButton.textContent = isBusy ? "Processing..." : "Remove Background";
         if (downloadBtn) downloadBtn.disabled = Boolean(isBusy);
+    }
+
+    function clearBeforePreview() {
+        if (beforeImgEl) {
+            beforeImgEl.classList.remove("is-visible");
+            beforeImgEl.removeAttribute("src");
+            return;
+        }
+
+        if (beforeCtx && beforeCanvasEl) {
+            beforeCtx.clearRect(0, 0, beforeCanvasEl.width, beforeCanvasEl.height);
+        }
+    }
+
+    function renderBeforePreview(url) {
+        if (beforeImgEl) {
+            beforeImgEl.src = url;
+            beforeImgEl.classList.add("is-visible");
+            return;
+        }
+
+        if (!beforeCtx || !beforeCanvasEl) return;
+
+        const img = new Image();
+        img.onload = () => {
+            const w = Math.max(1, img.naturalWidth || img.width || 1);
+            const h = Math.max(1, img.naturalHeight || img.height || 1);
+            beforeCanvasEl.width = w;
+            beforeCanvasEl.height = h;
+            beforeCtx.clearRect(0, 0, w, h);
+            beforeCtx.drawImage(img, 0, 0, w, h);
+        };
+        img.src = url;
     }
 
     function safeParseJson(raw, fallback) {
@@ -232,6 +276,8 @@
         sourceCutoutCanvas = null;
         workingCutoutCanvas = null;
         exportSize = { width: 0, height: 0 };
+        if (widthEl) widthEl.value = "";
+        if (heightEl) heightEl.value = "";
         renderAfter();
     }
 
@@ -240,18 +286,27 @@
 
         revokeUrl(selectedFileUrl);
         selectedFileUrl = "";
-        beforeImgEl.classList.remove("is-visible");
-        beforeImgEl.removeAttribute("src");
+        clearBeforePreview();
         resetOutput();
 
         if (!selectedFile) {
             setMeta("No file selected.");
+            dropZone.classList.add("is-empty");
+            dropZone.classList.remove("has-file");
+            if (resultWrapper) {
+                resultWrapper.style.display = "none";
+            }
             return;
         }
 
+        dropZone.classList.remove("is-empty");
+        dropZone.classList.add("has-file");
+        if (resultWrapper) {
+            resultWrapper.style.display = "flex";
+        }
+
         selectedFileUrl = URL.createObjectURL(selectedFile);
-        beforeImgEl.src = selectedFileUrl;
-        beforeImgEl.classList.add("is-visible");
+        renderBeforePreview(selectedFileUrl);
         setMeta(`${selectedFile.name} - ${Math.max(1, Math.round(selectedFile.size / 1024))} KB`);
 
         const probe = new Image();
@@ -440,31 +495,44 @@
             return;
         }
 
-        const url = resolveRemoveBgUrl();
         const formData = new FormData();
         formData.append("image", selectedFile);
+        const candidateUrls = [resolveSmartRemoveBgUrl(), resolveRemoveBgUrl()];
 
         setBusy(true);
         setStatus("Uploading image...", "info");
 
         try {
-            const response = await fetch(url, {
-                method: "POST",
-                body: formData
-            });
+            let response = null;
+            let lastErrorMessage = "";
 
-            if (!response.ok) {
-                let errorMessage = `Request failed (${response.status}).`;
-                try {
-                    const data = await response.json();
-                    if (data && data.error) {
-                        errorMessage = cleanText(data.error);
-                    }
-                } catch (_error) {
-                    // ignore JSON parse errors
+            for (const url of candidateUrls) {
+                response = await fetch(url, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (response.ok) {
+                    break;
                 }
 
-                setStatus(errorMessage, "error");
+                lastErrorMessage = `Request failed (${response.status}) from ${url}.`;
+
+                if (response.status !== 404) {
+                    try {
+                        const data = await response.json();
+                        if (data && data.error) {
+                            lastErrorMessage = cleanText(data.error);
+                        }
+                    } catch (_error) {
+                        // ignore JSON parse errors
+                    }
+                    break;
+                }
+            }
+
+            if (!response || !response.ok) {
+                setStatus(lastErrorMessage || "Could not reach the Pixel Cut backend.", "error");
                 return;
             }
 
@@ -597,9 +665,10 @@
         out.toBlob((blob) => {
             if (!blob) return;
             const url = URL.createObjectURL(blob);
-            downloadEl.href = url;
-            downloadEl.download = "output.png";
-            downloadEl.click();
+            const target = downloadEl === downloadBtn ? document.createElement("a") : downloadEl;
+            target.href = url;
+            target.download = "output.png";
+            target.click();
             window.setTimeout(() => revokeUrl(url), 1200);
         }, "image/png");
     }
@@ -745,11 +814,23 @@
             resizeToggleEl.addEventListener("click", () => togglePanel(resizePanelEl));
         }
 
+        if (lightToggleTriggerEl && lightToggleEl) {
+            lightToggleTriggerEl.addEventListener("click", () => {
+                lightToggleEl.checked = !lightToggleEl.checked;
+                setLightOn(lightToggleEl.checked);
+            });
+        }
+
         if (widthEl) widthEl.addEventListener("input", () => updateOtherDimension("w"));
         if (heightEl) heightEl.addEventListener("input", () => updateOtherDimension("h"));
         if (applyResizeEl) applyResizeEl.addEventListener("click", applyResize);
 
-        if (downloadBtn) downloadBtn.addEventListener("click", downloadCurrent);
+        if (downloadBtn) {
+            downloadBtn.addEventListener("click", (event) => {
+                event.preventDefault();
+                downloadCurrent();
+            });
+        }
 
         if (resetBtn) {
             resetBtn.addEventListener("click", () => {
@@ -777,7 +858,14 @@
         updateSelectedFile(file);
     });
 
-    runButton.addEventListener("click", uploadAndRemoveBackground);
+    runButton.addEventListener("click", () => {
+        if (!selectedFile) {
+            fileInput.click();
+            return;
+        }
+
+        uploadAndRemoveBackground();
+    });
 
     window.addEventListener("resize", () => renderAfter());
 
