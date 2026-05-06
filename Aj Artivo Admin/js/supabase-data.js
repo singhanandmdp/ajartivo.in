@@ -10,11 +10,21 @@ window.AdminData = {
   getPayments: getPayments,
   addPayment: addPayment,
   getUsers: getUsers,
+  getAdminUsers: getAdminUsers,
+  getPlans: getPlans,
   addUser: addUser,
   deleteUser: deleteUser,
+  grantPremiumMembership: grantPremiumMembership,
+  revokePremiumMembership: revokePremiumMembership,
+  setUserBanState: setUserBanState,
   updateCurrentAdminProfile: updateCurrentAdminProfile,
-  updateCurrentAdminPassword: updateCurrentAdminPassword
+  updateCurrentAdminPassword: updateCurrentAdminPassword,
+  uploadCurrentAdminAvatar: uploadCurrentAdminAvatar
 };
+
+const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
+const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+const BASE_URL = resolveBackendBaseUrl();
 
 async function getDesigns() {
   let result = await client.from("designs").select("*");
@@ -34,6 +44,7 @@ async function addDesign(payload) {
   await requireAuthenticatedUser();
 
   const normalized = normalizeDesign(payload);
+  normalized.slug = await resolveUniqueSlug(normalized.slug || normalized.title, null);
   const fullRecord = buildDesignInsertRecord(normalized, false);
 
   try {
@@ -55,6 +66,7 @@ async function updateDesign(id, payload) {
   await requireAuthenticatedUser();
 
   const normalized = normalizeDesign(payload);
+  normalized.slug = await resolveUniqueSlug(normalized.slug || normalized.title, id);
   const fullRecord = buildDesignUpdateRecord(normalized, false);
 
   try {
@@ -130,6 +142,16 @@ async function getUsers() {
   return (Array.isArray(data) ? data : []).map(normalizeUser).sort(sortByCreatedAtDesc);
 }
 
+async function getAdminUsers(limit) {
+  const response = await requestBackendJson(`/admin/users?limit=${Math.max(1, Number(limit || 50))}`);
+  return Array.isArray(response && response.users) ? response.users.map(normalizeUser) : [];
+}
+
+async function getPlans() {
+  const response = await requestBackendJson("/plans", { auth: false });
+  return Array.isArray(response && response.plans) ? response.plans : [];
+}
+
 async function addUser(payload) {
   await requireAuthenticatedUser();
 
@@ -151,6 +173,40 @@ async function deleteUser(id) {
   await requireAuthenticatedUser();
   const { error } = await client.from("profiles").delete().eq("id", id);
   if (error) throw toReadableError(error);
+}
+
+async function grantPremiumMembership(userId, planId) {
+  const response = await requestBackendJson("/admin/subscriptions/grant", {
+    method: "POST",
+    payload: {
+      user_id: cleanText(userId),
+      plan_id: cleanText(planId)
+    }
+  });
+
+  return normalizeUser(response && response.user);
+}
+
+async function revokePremiumMembership(userId) {
+  const response = await requestBackendJson("/admin/subscriptions/revoke", {
+    method: "POST",
+    payload: {
+      user_id: cleanText(userId)
+    }
+  });
+
+  return normalizeUser(response && response.result && response.result.profile);
+}
+
+async function setUserBanState(userId, isBanned) {
+  const response = await requestBackendJson(`/admin/users/${encodeURIComponent(cleanText(userId))}/ban`, {
+    method: "POST",
+    payload: {
+      is_banned: isBanned === true
+    }
+  });
+
+  return normalizeUser(response && response.user);
 }
 
 async function updateCurrentAdminProfile(payload) {
@@ -217,6 +273,65 @@ async function updateCurrentAdminPassword(payload) {
   return data && data.user ? data.user : null;
 }
 
+async function uploadCurrentAdminAvatar(file) {
+  const user = await requireAuthenticatedUser();
+  const imageFile = file instanceof File ? file : null;
+
+  if (!imageFile) {
+    throw new Error("Please choose a valid image file.");
+  }
+
+  if (!/\.(png|jpe?g|webp)$/i.test(cleanText(imageFile.name))) {
+    throw new Error("Profile image must be PNG, JPG, JPEG, or WEBP.");
+  }
+
+  if (Number(imageFile.size || 0) > 10 * 1024 * 1024) {
+    throw new Error("Profile image must be 10 MB or smaller.");
+  }
+
+  const result = await client.auth.getSession();
+  if (result.error) throw toReadableError(result.error);
+
+  const accessToken = cleanText(result.data && result.data.session && result.data.session.access_token);
+  if (!accessToken) {
+    throw new Error("Admin session expired. Please log in again.");
+  }
+
+  const response = await fetch(`${BASE_URL}/account/avatar`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": cleanText(imageFile.type) || "application/octet-stream",
+      "X-File-Name": encodeURIComponent(imageFile.name),
+      "X-File-Type": encodeURIComponent(cleanText(imageFile.type) || "application/octet-stream")
+    },
+    body: imageFile
+  });
+
+  const payload = await response.json().catch(function () {
+    return {};
+  });
+
+  if (!response.ok) {
+    throw new Error(cleanText(payload && payload.error) || `Avatar upload failed with status ${response.status}.`);
+  }
+
+  const avatarUrl = cleanText(payload && payload.avatar_url);
+  if (!avatarUrl) {
+    throw new Error("Avatar upload completed but no image URL was returned.");
+  }
+
+  const existing = await findCurrentAdminRecord(user);
+  return normalizeUser({
+    ...(existing || {}),
+    id: cleanText(existing && existing.id) || cleanText(user && user.id),
+    email: cleanText(existing && existing.email) || cleanText(user && user.email).toLowerCase(),
+    name: cleanText(existing && existing.name) || cleanText(user && user.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)),
+    role: cleanText(existing && existing.role) || "admin",
+    avatar_url: avatarUrl
+  });
+}
+
 async function insertDesignRecord(record) {
   const { data, error } = await client.from("designs").insert(record).select("*").single();
   if (error) throw error;
@@ -274,15 +389,28 @@ function normalizeDesign(record) {
     ? item.gallery
     : [];
 
+  const rawPrice = typeof item.price !== "undefined" ? item.price : item.Price;
+  const hasExplicitPrice = rawPrice !== null && typeof rawPrice !== "undefined" && String(rawPrice).trim() !== "";
+  const normalizedPrice = Number(item.price || item.Price || 0);
+  const price = Number.isFinite(normalizedPrice) ? normalizedPrice : 0;
+  const slug = normalizeSlug(item.slug, item.title || item.name);
+  const isPremium = hasExplicitPrice
+    ? price > 0
+    : item.is_premium === true || item.is_paid === true || price > 0;
+  const isFree = isPremium ? false : (hasExplicitPrice
+    ? price <= 0
+    : item.is_free === true || (item.is_premium !== true && item.is_paid !== true));
+
   return {
     ...item,
     id: String(item.id || "").trim(),
     name: cleanText(item.name || item.title) || "Untitled Design",
     title: cleanText(item.title || item.name) || "Untitled Design",
+    slug: slug,
     category: cleanText(item.category).toUpperCase() || "OTHER",
-    paymentMode: resolvePaymentMode(item),
-    price: Number(item.price || item.Price || 0),
-    Price: Number(item.Price || item.price || 0),
+    paymentMode: isFree ? "free" : "paid",
+    price: price,
+    Price: price,
     description: cleanText(item.description),
     tags: normalizeTags(item.tags, item.title || item.name),
     previewUrl: cleanText(item.previewUrl || item.preview_url || item.image_url || item.image),
@@ -296,9 +424,42 @@ function normalizeDesign(record) {
     gallery: extraImages.filter(Boolean),
     downloadCount: Number(item.downloadCount || item.downloads || 0),
     downloads: Number(item.downloads || item.downloadCount || 0),
+    is_free: isFree,
+    is_premium: isPremium,
+    is_paid: isPremium,
     createdAt: cleanText(item.createdAt || item.created_at) || new Date().toISOString(),
     created_at: cleanText(item.created_at || item.createdAt) || new Date().toISOString()
   };
+}
+
+async function resolveUniqueSlug(value, currentId) {
+  const baseSlug = slugify(cleanText(value)) || "design";
+  const { data, error } = await client.from("designs").select("id,slug,title");
+
+  if (error) {
+    return baseSlug;
+  }
+
+  const currentRecordId = cleanText(currentId);
+  const existingSlugs = new Set(
+    (Array.isArray(data) ? data : [])
+      .filter(function (item) {
+        return !currentRecordId || String(item && item.id || "").trim() !== currentRecordId;
+      })
+      .map(function (item) {
+        return slugify(cleanText(item && (item.slug || item.title || item.name)));
+      })
+      .filter(Boolean)
+  );
+
+  let nextSlug = baseSlug;
+  let counter = 1;
+  while (existingSlugs.has(nextSlug)) {
+    nextSlug = `${baseSlug}-${counter}`;
+    counter += 1;
+  }
+
+  return nextSlug;
 }
 
 function buildDesignInsertRecord(payload, compatibleMode) {
@@ -307,8 +468,9 @@ function buildDesignInsertRecord(payload, compatibleMode) {
   const baseRecord = buildBaseDesignRecord(normalized);
 
   if (compatibleMode) {
+    const { slug: _slug, ...compatibleRecord } = baseRecord;
     return {
-      ...baseRecord,
+      ...compatibleRecord,
       created_at: timestamp
     };
   }
@@ -329,7 +491,8 @@ function buildDesignUpdateRecord(payload, compatibleMode) {
   const baseRecord = buildBaseDesignRecord(normalized);
 
   if (compatibleMode) {
-    return baseRecord;
+    const { slug: _slug, ...compatibleRecord } = baseRecord;
+    return compatibleRecord;
   }
 
   return {
@@ -345,8 +508,11 @@ function buildDesignUpdateRecord(payload, compatibleMode) {
 function buildBaseDesignRecord(normalized) {
   return {
     title: normalized.title,
+    slug: normalized.slug,
     category: normalized.category,
     price: normalized.price,
+    is_free: normalized.paymentMode !== "paid",
+    is_premium: normalized.paymentMode === "paid",
     is_paid: normalized.paymentMode === "paid",
     description: normalized.description,
     tags: normalized.tags,
@@ -389,11 +555,15 @@ function mapPaymentForInsert(payload) {
 
 function normalizeUser(record) {
   const item = record || {};
+  const firstName = cleanText(item.first_name);
+  const lastName = cleanText(item.last_name);
+  const displayName = cleanText(item.name) || [firstName, lastName].filter(Boolean).join(" ");
   return {
     ...item,
     id: String(item.id || "").trim(),
-    name: cleanText(item.name) || "User",
+    name: displayName || cleanText(item.email).split("@")[0] || "User",
     email: cleanText(item.email).toLowerCase(),
+    avatar_url: cleanText(item.avatar_url),
     role: normalizeProfileRole(item.role),
     status: cleanText(item.status) || "Active",
     createdAt: cleanText(item.createdAt || item.created_at) || new Date().toISOString()
@@ -457,6 +627,18 @@ function normalizeTags(value, fallbackTitle) {
   return fallback ? [fallback] : [];
 }
 
+function normalizeSlug(value, fallbackTitle) {
+  return slugify(cleanText(value) || cleanText(fallbackTitle)) || slugify(cleanText(fallbackTitle)) || "design";
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function isMissingColumnError(error) {
   const message = getErrorMessage(error);
   const code = String(error && error.code || "").trim().toUpperCase();
@@ -493,4 +675,50 @@ function toReadableError(error) {
 
 function getErrorMessage(error) {
   return String(error && (error.message || error.details || error.hint) || "").trim().toLowerCase();
+}
+
+function resolveBackendBaseUrl() {
+  const configuredUrl = cleanText(
+    window.AJARTIVO_BACKEND_URL ||
+    (document.querySelector('meta[name="ajartivo-backend-url"]') || {}).content
+  );
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, "");
+  }
+
+  const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return LOCAL_BACKEND_BASE_URL;
+  }
+
+  return LIVE_BACKEND_BASE_URL;
+}
+
+async function requestBackendJson(path, options) {
+  const settings = options || {};
+  const token = settings.auth === false ? "" : await getAccessToken();
+  const headers = {
+    ...(settings.method === "POST" ? { "Content-Type": "application/json" } : {})
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: settings.method || "GET",
+    headers: headers,
+    body: settings.method === "POST"
+      ? JSON.stringify(settings.payload || {})
+      : undefined
+  });
+  const payload = await response.json().catch(function () {
+    return {};
+  });
+
+  if (!response.ok) {
+    throw new Error(cleanText(payload && payload.error) || `Request failed with status ${response.status}.`);
+  }
+
+  return payload;
 }

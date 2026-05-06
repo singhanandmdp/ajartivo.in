@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Designer Tools - AJartivo</title>
+    <meta name="description" content="Use AJ Pixel Cut, Enhancer, Resizer, Converter, and AJ Print Layout Pro inside AJartivo.">
+    <link rel="icon" href="Favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tools.css">
+</head>
+<body class="aj-tools-page">
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="tools-shell">
+        <section class="tools-hero">
+            <div class="tools-copy">
+                <span class="tools-kicker">Designer Tools</span>
+                <h1>One workspace for cleanup, enhancement, export, and print layout</h1>
+                <p>Run AJ Pixel Cut, AJ Pixel Enhancer, Image Resizer, Image Converter, and AJ Print Layout Pro in one clean production workspace.</p>
+                <div class="tools-pill-row">
+                    <span>Pixel Cut</span>
+                    <span>Enhancer</span>
+                    <span>Resizer</span>
+                    <span>Converter</span>
+                    <span>Print Layout Pro</span>
+                </div>
+            </div>
+            <div class="tools-account-card">
+                <p class="tools-label">Active Access</p>
+                <strong id="toolsPlanName">Free</strong>
+                <p id="toolsPlanMeta">Login to unlock designer tools.</p>
+                <div class="tools-stat-grid">
+                    <article>
+                        <span>Tool Runs Left</span>
+                        <strong id="toolsUsageRemaining">0</strong>
+                    </article>
+                    <article>
+                        <span>Print Layout</span>
+                        <strong id="toolsPrintLimit">Starter</strong>
+                    </article>
+                </div>
+                <p id="toolsStatus" class="tools-status" hidden></p>
+            </div>
+        </section>
+
+        <section class="tools-workspace">
+            <div class="tools-upload-card">
+                <div>
+                    <p class="tools-label">Step 1</p>
+                    <h2>Upload your image</h2>
+                    <p>Use one source file and move it across tools without re-uploading every time.</p>
+                </div>
+                <label class="tools-upload-drop" for="toolsImageInput">
+                    <input id="toolsImageInput" type="file" accept="image/png,image/jpeg,image/webp">
+                    <span>Select image</span>
+                    <small>PNG, JPG, JPEG, or WEBP</small>
+                </label>
+                <div class="tools-preview-grid">
+                    <div class="tools-preview-card">
+                        <span>Original</span>
+                        <canvas id="toolsOriginalCanvas"></canvas>
+                    </div>
+                    <div class="tools-preview-card">
+                        <span>Output</span>
+                        <canvas id="toolsResultCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tools-grid">
+                <section class="tool-card">
+                    <div class="tool-head">
+                        <div>
+                            <p class="tools-label">AJ Pixel Cut</p>
+                            <h3>Background Remover</h3>
+                        </div>
+                        <span class="tool-tag">Transparent PNG</span>
+                    </div>
+                    <label class="tool-field">
+                        <span>Tolerance</span>
+                        <input id="bgTolerance" type="range" min="10" max="180" value="70">
+                    </label>
+                    <button id="runBgCut" class="tool-btn" type="button">Remove Background</button>
+                </section>
+
+                <section class="tool-card">
+                    <div class="tool-head">
+                        <div>
+                            <p class="tools-label">AJ Pixel Enhancer</p>
+                            <h3>Upscale + Sharpen</h3>
+                        </div>
+                        <span class="tool-tag">HD / 4K feel</span>
+                    </div>
+                    <label class="tool-field">
+                        <span>Scale</span>
+                        <select id="enhanceScale">
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                        </select>
+                    </label>
+                    <button id="runEnhancer" class="tool-btn" type="button">Enhance Image</button>
+                </section>
+
+                <section class="tool-card">
+                    <div class="tool-head">
+                        <div>
+                            <p class="tools-label">Image Resizer</p>
+                            <h3>Resize for any output</h3>
+                        </div>
+                        <span class="tool-tag">Responsive export</span>
+                    </div>
+                    <div class="tool-inline-grid">
+                        <label class="tool-field">
+                            <span>Width</span>
+                            <input id="resizeWidth" type="number" min="1" placeholder="1080">
+                        </label>
+                        <label class="tool-field">
+                            <span>Height</span>
+                            <input id="resizeHeight" type="number" min="1" placeholder="1080">
+                        </label>
+                    </div>
+                    <label class="tool-check">
+                        <input id="resizeLockRatio" type="checkbox" checked>
+                        <span>Maintain aspect ratio</span>
+                    </label>
+                    <button id="runResizer" class="tool-btn" type="button">Resize Image</button>
+                </section>
+
+                <section class="tool-card">
+                    <div class="tool-head">
+                        <div>
+                            <p class="tools-label">Image Converter</p>
+                            <h3>Change output format</h3>
+                        </div>
+                        <span class="tool-tag">PNG / JPG / WEBP</span>
+                    </div>
+                    <label class="tool-field">
+                        <span>Format</span>
+                        <select id="convertFormat">
+                            <option value="image/png">PNG</option>
+                            <option value="image/jpeg">JPG</option>
+                            <option value="image/webp">WEBP</option>
+                        </select>
+                    </label>
+                    <label class="tool-field">
+                        <span>Quality</span>
+                        <input id="convertQuality" type="range" min="50" max="100" value="92">
+                    </label>
+                    <button id="runConverter" class="tool-btn" type="button">Convert Image</button>
+                </section>
+
+                <section class="tool-card tool-card-wide">
+                    <div class="tool-head">
+                        <div>
+                            <p class="tools-label">AJ Print Layout Pro</p>
+                            <h3>Auto arrange multiple copies on print paper</h3>
+                        </div>
+                        <span class="tool-tag">Print-ready layout</span>
+                    </div>
+                    <div class="tool-inline-grid tool-inline-grid-3">
+                        <label class="tool-field">
+                            <span>Paper Size</span>
+                            <select id="paperPreset">
+                                <option value="12x18">12 x 18 in</option>
+                                <option value="13x19">13 x 19 in</option>
+                                <option value="a4">A4</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </label>
+                        <label class="tool-field">
+                            <span>Design Width (in)</span>
+                            <input id="layoutWidth" type="number" min="0.5" step="0.1" value="3.5">
+                        </label>
+                        <label class="tool-field">
+                            <span>Design Height (in)</span>
+                            <input id="layoutHeight" type="number" min="0.5" step="0.1" value="2">
+                        </label>
+                    </div>
+                    <div class="tool-inline-grid tool-inline-grid-3">
+                        <label class="tool-field">
+                            <span>Gap (in)</span>
+                            <input id="layoutGap" type="number" min="0" step="0.05" value="0.15">
+                        </label>
+                        <label class="tool-field">
+                            <span>Custom Paper Width</span>
+                            <input id="customPaperWidth" type="number" min="1" step="0.1" value="12">
+                        </label>
+                        <label class="tool-field">
+                            <span>Custom Paper Height</span>
+                            <input id="customPaperHeight" type="number" min="1" step="0.1" value="18">
+                        </label>
+                    </div>
+                    <button id="runLayout" class="tool-btn" type="button">Generate Print Layout</button>
+                </section>
+            </div>
+
+            <div class="tools-actions">
+                <button id="downloadResultBtn" class="tool-btn tool-btn-secondary" type="button">Download Current Output</button>
+                <span id="layoutSummary" class="layout-summary">Upload an image to begin.</span>
+            </div>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js?v=20260410-2"></script>
+    <script src="js/auth.js?v=20260410-2"></script>
+    <script src="js/script.js?v=20260410-2"></script>
+    <script src="js/designer-tools.js?v=20260410-1"></script>
+</body>
+</html>

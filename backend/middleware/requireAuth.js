@@ -28,6 +28,12 @@ async function requireAuthenticatedUser(req, _res, next) {
             )
         };
 
+        const profile = await findProfileForUser(supabase, req.authUser);
+        if (profile && profile.is_banned === true) {
+            return next(createHttpError(403, "This account has been restricted by AJartivo."));
+        }
+
+        req.authProfile = profile || null;
         req.authToken = token;
         next();
     } catch (error) {

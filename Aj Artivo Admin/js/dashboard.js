@@ -63,6 +63,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const displayName = getDisplayName(activeSession);
     const email = String(activeSession && activeSession.email || "-").trim();
     const role = String(activeSession && activeSession.role || "admin").trim();
+    const avatarUrl = String(activeSession && (activeSession.avatarUrl || activeSession.avatar_url) || "").trim();
 
     const nameNodes = [
       document.getElementById("adminName"),
@@ -83,6 +84,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     const roleNode = document.getElementById("adminRoleLabel");
     if (roleNode) {
       roleNode.textContent = formatRoleLabel(role);
+    }
+
+    const avatarNode = document.getElementById("adminAvatar");
+    if (avatarNode) {
+      avatarNode.src = avatarUrl || "images/anand.jpg";
     }
 
     const nameInput = document.getElementById("adminProfileName");
@@ -160,6 +166,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     const passwordForm = document.getElementById("passwordForm");
     const profileStatus = document.getElementById("profileStatus");
     const passwordStatus = document.getElementById("passwordStatus");
+    const avatarStatus = document.getElementById("avatarStatus");
+    const avatarInput = document.getElementById("adminAvatarInput");
+    const avatarButton = document.getElementById("adminAvatarButton");
 
     if (profileForm) {
       profileForm.addEventListener("submit", async function (event) {
@@ -189,6 +198,47 @@ document.addEventListener("DOMContentLoaded", async function () {
           setStatus(profileStatus, "danger", error && error.message ? error.message : "Could not update admin name.");
         } finally {
           setButtonLoading(submitButton, false, "Save Name", "Saving...");
+        }
+      });
+    }
+
+    if (avatarButton && avatarInput) {
+      renderAdminAvatarButton(avatarButton, false);
+      avatarButton.addEventListener("click", function () {
+        avatarInput.click();
+      });
+
+      avatarInput.addEventListener("change", async function () {
+        const file = avatarInput.files && avatarInput.files[0] ? avatarInput.files[0] : null;
+        const store = window.AdminData || { connected: false };
+
+        if (!file) {
+          return;
+        }
+
+        if (!(store.connected && typeof store.uploadCurrentAdminAvatar === "function")) {
+          setStatus(avatarStatus, "danger", "Avatar upload is not available right now.");
+          avatarInput.value = "";
+          return;
+        }
+
+        setStatus(avatarStatus, "warning", "Uploading avatar...");
+        renderAdminAvatarButton(avatarButton, true);
+
+        try {
+          const updated = await store.uploadCurrentAdminAvatar(file);
+          if (window.AdminApp && typeof window.AdminApp.updateSession === "function") {
+            window.AdminApp.updateSession({
+              avatarUrl: updated && updated.avatar_url ? updated.avatar_url : ""
+            });
+          }
+          syncAdminIdentity();
+          setStatus(avatarStatus, "success", "Admin avatar updated successfully.");
+        } catch (error) {
+          setStatus(avatarStatus, "danger", error && error.message ? error.message : "Could not upload admin avatar.");
+        } finally {
+          avatarInput.value = "";
+          renderAdminAvatarButton(avatarButton, false);
         }
       });
     }
@@ -226,6 +276,20 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
       });
     }
+  }
+
+  function renderAdminAvatarButton(button, isLoading) {
+    if (!button) {
+      return;
+    }
+
+    button.disabled = isLoading;
+    if (isLoading) {
+      button.textContent = "...";
+      return;
+    }
+
+    button.innerHTML = '<img src="icons/upload_img.svg" alt="Upload Admin Image">';
   }
 
   async function getDesignsSafe() {

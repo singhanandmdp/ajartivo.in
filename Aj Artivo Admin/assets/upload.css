@@ -200,6 +200,50 @@
   line-height: 1.55;
 }
 
+.segmented-access {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.segmented-access-option {
+  cursor: pointer;
+}
+
+.segmented-access-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented-access-option span {
+  min-height: 92px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #d6e2f4;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fbfdff, #f2f7ff);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.segmented-access-option strong {
+  font-size: 15px;
+}
+
+.segmented-access-option small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.segmented-access-option input:checked + span {
+  border-color: rgba(17, 85, 204, 0.38);
+  box-shadow: 0 16px 34px rgba(17, 85, 204, 0.14);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #edf4ff, #dfeeff);
+}
+
 .toggle-card {
   display: flex;
   align-items: center;

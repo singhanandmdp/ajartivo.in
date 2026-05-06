@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="Favicon.ico" type="image/x-icon">
   <title>AjArtivo User Access</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -30,51 +31,32 @@
       <header class="panel hero">
         <div>
           <h1>Profiles Access Control</h1>
-          <p>Manage profile roles from the existing <code>profiles.role</code> column.</p>
+          <p>View members, grant premium manually, remove premium access, and ban or unban accounts from the existing profile system.</p>
         </div>
         <div><span class="badge">Access Manager</span></div>
       </header>
 
       <section class="panel">
         <div class="section-head">
-          <h2>Add Profile Access</h2>
+          <h2>Manual Premium Control</h2>
         </div>
-        <p class="panel-note">
-          This keeps access in the existing <code>profiles</code> table only. It does not create or reset that person's Supabase Auth password.
-        </p>
-        <form id="userForm" class="form-grid">
+        <div class="admin-toolbar">
           <div class="field">
-            <label for="userName">Name</label>
-            <input id="userName" name="userName" type="text" required>
+            <label for="grantPlanSelect">Plan to grant</label>
+            <select id="grantPlanSelect"></select>
           </div>
-          <div class="field">
-            <label for="userEmail">Email</label>
-            <input id="userEmail" name="userEmail" type="email" required>
+          <div class="field admin-toolbar-note">
+            <label>How it works</label>
+            <p class="panel-note">Grant applies through <code>plans_master</code> and <code>user_subscriptions</code>. Ban also removes active premium access immediately.</p>
           </div>
-          <div class="field">
-            <label for="userRole">Role</label>
-            <select id="userRole" name="userRole">
-              <option value="user">User</option>
-              <option value="moderator">Moderator</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="userStatus">Status</label>
-            <select id="userStatus" name="userStatus">
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Blocked">Blocked</option>
-            </select>
-          </div>
-          <div class="field full row">
-            <button type="submit" class="btn btn-primary">Add User</button>
-          </div>
-        </form>
+        </div>
+        <p id="usersStatus" class="status-pill" hidden></p>
       </section>
 
       <section class="panel">
         <div class="section-head">
           <h2>Current Profiles</h2>
+          <span id="usersCount">0 users</span>
         </div>
         <div class="table-wrap">
           <table>
@@ -82,9 +64,10 @@
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Role</th>
+                <th>Plan</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Premium Cycle</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="usersTable"></tbody>

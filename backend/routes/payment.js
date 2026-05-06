@@ -18,9 +18,19 @@ const {
     savePurchaseRecord
 } = require("../services/purchaseService");
 const { activatePremiumMembership, ensureUserProfile } = require("../services/userService");
+const { listPlans } = require("../services/planService");
 const { asyncHandler, createHttpError } = require("../utils/http");
 
 const router = express.Router();
+
+router.get("/plans", asyncHandler(async function (_req, res) {
+    const plans = await listPlans();
+
+    res.json({
+        success: true,
+        plans: plans
+    });
+}));
 
 router.post("/test/create-order", requireRazorpayConfigured, asyncHandler(async function (req, res) {
     const description = cleanText(req.body && req.body.description) || "AJartivo Razorpay Test Payment";
@@ -160,38 +170,48 @@ router.post("/create-order", requirePaymentConfigured, requireAuthenticatedUser,
 
 router.post("/create-premium-order", requirePaymentConfigured, requireAuthenticatedUser, asyncHandler(async function (req, res) {
     const userProfile = await ensureUserProfile(req.authUser);
+    const selectedPlan = await resolvePremiumPlan(req.body && req.body.plan_id);
+    const currentPlanId = cleanText(userProfile.active_plan_id || userProfile.current_plan_id);
+    const isSameActivePlan = userProfile.premium_active === true && currentPlanId === selectedPlan.id;
+    const isUpgrade = userProfile.premium_active === true && !isSameActivePlan;
 
-    if (userProfile.premium_active === true) {
+    if (isSameActivePlan) {
         return res.json({
             success: true,
             alreadyPremium: true,
             premium_expiry: cleanText(userProfile.premium_expiry),
-            amount: Math.round(config.premiumPlan.amountInRupees * 100),
-            plan_name: config.premiumPlan.name
+            amount: Math.round(selectedPlan.amountInRupees * 100),
+            plan_id: selectedPlan.id,
+            plan_name: selectedPlan.name,
+            duration_days: selectedPlan.durationDays
         });
     }
 
     const razorpay = getRazorpayClient();
-    const amountInPaise = Math.round(config.premiumPlan.amountInRupees * 100);
+    const amountInPaise = Math.round(selectedPlan.amountInRupees * 100);
     const order = await razorpay.orders.create({
         amount: amountInPaise,
         currency: "INR",
-        receipt: buildPremiumReceipt(req.authUser.id),
+        receipt: buildPremiumReceipt(req.authUser.id, selectedPlan.id),
         notes: {
             purchase_type: "premium_subscription",
-            user_id: req.authUser.id
+            user_id: req.authUser.id,
+            plan_id: selectedPlan.id,
+            duration_days: String(selectedPlan.durationDays)
         }
     });
 
     res.json({
         success: true,
         alreadyPremium: false,
+        is_upgrade: isUpgrade,
         key: config.razorpay.keyId,
         order_id: cleanText(order.id),
         amount: Number(order.amount || 0),
         currency: cleanText(order.currency) || "INR",
-        plan_name: config.premiumPlan.name,
-        duration_days: config.limits.premiumDurationDays
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.name,
+        duration_days: selectedPlan.durationDays
     });
 }));
 
@@ -261,7 +281,8 @@ router.post("/verify-payment", requirePaymentConfigured, requireAuthenticatedUse
     const purchaseRecord = await savePurchaseRecord({
         authUser: req.authUser,
         design: design,
-        payment: finalizedPayment
+        payment: finalizedPayment,
+        orderId: cleanText(razorpayOrder.id)
     });
 
     res.json({
@@ -308,7 +329,8 @@ router.post("/verify-premium-payment", requirePaymentConfigured, requireAuthenti
         throw createHttpError(403, "Authenticated user does not match this premium order.");
     }
 
-    const expectedAmount = Math.round(config.premiumPlan.amountInRupees * 100);
+    const selectedPlan = await resolvePremiumPlan(razorpayOrder.notes && razorpayOrder.notes.plan_id);
+    const expectedAmount = Math.round(selectedPlan.amountInRupees * 100);
     if (Number(razorpayOrder.amount || 0) !== expectedAmount) {
         throw createHttpError(400, "Premium order amount mismatch.");
     }
@@ -318,18 +340,42 @@ router.post("/verify-premium-payment", requirePaymentConfigured, requireAuthenti
         throw createHttpError(400, "Premium payment is not successful.");
     }
 
-    const updatedProfile = await activatePremiumMembership(req.authUser);
+    const updatedProfile = await activatePremiumMembership(req.authUser, selectedPlan, {
+        paymentId: cleanText(finalizedPayment.id),
+        orderId: cleanText(razorpayOrder.id),
+        metadata: {
+            purchase_type: "premium_subscription"
+        }
+    });
 
     res.json({
         success: true,
         payment_id: cleanText(finalizedPayment.id),
         order_id: cleanText(razorpayOrder.id),
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.name,
         premium_expiry: cleanText(updatedProfile.premium_expiry),
         account: {
+            role: cleanText(updatedProfile.role),
+            is_banned: updatedProfile.is_banned === true,
             is_premium: updatedProfile.is_premium,
             premium_active: updatedProfile.premium_active,
+            active_plan_id: cleanText(updatedProfile.active_plan_id),
+            active_plan_name: cleanText(updatedProfile.active_plan_name),
+            monthly_download_limit: Number(updatedProfile.monthly_download_limit || 0),
+            downloads_used_month: Number(updatedProfile.downloads_used_month || 0),
+            downloads_remaining_month: Number(updatedProfile.downloads_remaining_month || 0),
+            source_access: cleanText(updatedProfile.source_access),
+            library_access_percent: Number(updatedProfile.library_access_percent || 0),
+            daily_ai_limit: Number(updatedProfile.daily_ai_limit || 0),
+            ai_generations_used_today: Number(updatedProfile.ai_generations_used_today || 0),
+            ai_remaining_today: Number(updatedProfile.ai_remaining_today || 0),
+            tools_access: updatedProfile.tools_access || {},
+            print_layout_limit: cleanText(updatedProfile.print_layout_limit),
+            free_download_limit: Number(updatedProfile.free_download_limit || 0),
             free_download_count: Number(updatedProfile.free_download_count || 0),
             free_download_remaining: Number(updatedProfile.free_download_remaining || 0),
+            premium_download_limit: Number(updatedProfile.weekly_premium_download_limit || updatedProfile.monthly_download_limit || 0),
             weekly_premium_download_count: Number(updatedProfile.weekly_premium_download_count || 0),
             weekly_premium_remaining: Number(updatedProfile.weekly_premium_remaining || 0),
             weekly_reset_date: cleanText(updatedProfile.weekly_reset_date)
@@ -396,8 +442,66 @@ function buildTestReceipt() {
     return `aj_test_${Date.now()}`.slice(0, 40);
 }
 
-function buildPremiumReceipt(userId) {
-    return `aj_premium_${cleanText(userId)}_${Date.now()}`.slice(0, 40);
+function buildPremiumReceipt(userId, planId) {
+    return `aj_premium_${cleanText(planId || "plan")}_${cleanText(userId)}_${Date.now()}`.slice(0, 40);
+}
+
+async function resolvePremiumPlan(planId) {
+    const normalizedPlanId = cleanText(planId);
+    const plans = await listPlans();
+    const selectedPlan = normalizedPlanId
+        ? plans.find(function (plan) {
+            return cleanText(plan.plan_id || plan.id) === normalizedPlanId;
+        })
+        : plans[0];
+
+    if (normalizedPlanId && !selectedPlan) {
+        throw createHttpError(400, "Selected premium plan was not found.");
+    }
+
+    if (selectedPlan) {
+        return {
+            plan_id: cleanText(selectedPlan.plan_id || selectedPlan.id),
+            id: cleanText(selectedPlan.plan_id || selectedPlan.id),
+            name: cleanText(selectedPlan.name),
+            amountInRupees: Number(selectedPlan.price || 0) || config.premiumPlan.amountInRupees,
+            duration_days: Number(selectedPlan.duration_days || 0) || config.limits.premiumDurationDays,
+            durationDays: Number(selectedPlan.duration_days || 0) || config.limits.premiumDurationDays,
+            premium_download_limit: Number(selectedPlan.monthly_download_limit || selectedPlan.premium_download_limit || 0),
+            monthly_download_limit: Number(selectedPlan.monthly_download_limit || selectedPlan.premium_download_limit || 0),
+            monthlyDownloadLimit: Number(selectedPlan.monthly_download_limit || selectedPlan.premium_download_limit || 0),
+            daily_ai_limit: Number(selectedPlan.daily_ai_limit || 0),
+            dailyAiLimit: Number(selectedPlan.daily_ai_limit || 0),
+            source_access: cleanText(selectedPlan.source_access),
+            sourceAccess: cleanText(selectedPlan.source_access),
+            library_access_percent: Number(selectedPlan.library_access_percent || 0) || 0,
+            libraryAccessPercent: Number(selectedPlan.library_access_percent || 0) || 0,
+            print_layout_limit: cleanText(selectedPlan.print_layout_limit),
+            printLayoutLimit: cleanText(selectedPlan.print_layout_limit),
+            toolsAccess: selectedPlan.tools_access || {}
+        };
+    }
+
+    return {
+        plan_id: "starter_149_15d",
+        id: "starter_149_15d",
+        name: config.premiumPlan.name,
+        amountInRupees: config.premiumPlan.amountInRupees,
+        duration_days: config.limits.premiumDurationDays,
+        durationDays: config.limits.premiumDurationDays,
+        premium_download_limit: 10,
+        monthly_download_limit: 10,
+        monthlyDownloadLimit: 10,
+        daily_ai_limit: 2,
+        dailyAiLimit: 2,
+        source_access: "none",
+        sourceAccess: "none",
+        library_access_percent: 10,
+        libraryAccessPercent: 10,
+        print_layout_limit: "very_limited",
+        printLayoutLimit: "very_limited",
+        toolsAccess: {}
+    };
 }
 
 module.exports = router;

@@ -50,12 +50,14 @@ function buildPurchasePayload(context) {
     const authUser = context && context.authUser ? context.authUser : {};
     const design = context && context.design ? context.design : {};
     const payment = context && context.payment ? context.payment : {};
+    const orderId = cleanText(context && context.orderId || payment.order_id);
 
     const rawAmountInPaise = Number(payment.amount || design.amount_in_paise || 0);
     const payload = {
         user_id: cleanText(authUser.id),
         design_id: cleanText(design.id),
         payment_id: cleanText(payment.id),
+        order_id: orderId,
         amount: Number.isFinite(rawAmountInPaise) ? rawAmountInPaise / 100 : 0,
         created_at: new Date().toISOString()
     };

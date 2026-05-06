@@ -18,6 +18,7 @@ function setProfile(user, role, profile) {
       id: String(user && user.id || ""),
       username: normalizeEmail(user.email),
       name: resolveProfileName(user, profile),
+      avatarUrl: String(profile && profile.avatar_url || user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture) || "").trim(),
       email: normalizeEmail(user.email),
       role: normalizeRole(role),
       isLoggedIn: true,

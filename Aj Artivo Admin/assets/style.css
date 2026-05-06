@@ -259,6 +259,60 @@ th {
   color: var(--danger);
 }
 
+.admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.admin-toolbar-note {
+  align-self: stretch;
+}
+
+.panel-note {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-warning {
+  background: #fff4e8;
+  color: var(--warn);
+}
+
+.user-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.user-subline {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.plan-stack small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+code {
+  background: #eef4ff;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -560,6 +614,13 @@ textarea:focus {
   border: 1px solid #d9e5f7;
 }
 
+.admin-avatar-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex: 0 0 88px;
+}
+
 .admin-avatar {
   width: 88px;
   height: 88px;
@@ -580,6 +641,30 @@ textarea:focus {
 
 .admin-profile-copy span {
   color: var(--muted);
+}
+
+.admin-icon-btn {
+  position: absolute;
+  right: 16px;
+  bottom: -8px;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.admin-icon-btn img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  filter: none;
 }
 
 .admin-role-chip {
@@ -994,6 +1079,10 @@ textarea:focus {
   }
 
   .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-toolbar {
     grid-template-columns: 1fr;
   }
 

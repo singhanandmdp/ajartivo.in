@@ -1,13 +1,15 @@
 import { supabase } from "./supabase-auth.js";
 
 const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-const LIVE_BACKEND_BASE_URL = "https://ajartivo-in.onrender.com";
+const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+const BASE_URL = resolveBackendBaseUrl();
 const MAX_DESIGN_FILE_MB = 50;
 const MAX_PREVIEW_FILE_MB = 10;
 const DESIGN_FILE_TYPES = [".png", ".jpg", ".jpeg", ".zip", ".psd", ".ai", ".cdr"];
 const PREVIEW_FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"];
 const DEFAULT_DESCRIPTION = "High-quality design file with clean and professional layout.\nEasy to use and suitable for personal, business, and print purposes.\n\nInstant download available after login.";
 const WATERMARK_IMAGE_PATH = "./images/watermark.png";
+const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
 
 let previewObjectUrl = "";
 let uploadedPreviewAsset = null;
@@ -21,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("designForm");
   const titleInput = document.getElementById("title");
   const priceInput = document.getElementById("price");
+  const priceNote = document.getElementById("priceNote");
   const categoryInput = document.getElementById("category");
   const designFileInput = document.getElementById("designFile");
   const designUrlInput = document.getElementById("designUrl");
@@ -30,7 +33,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const previewFileInput = document.getElementById("previewFile");
   const descriptionInput = document.getElementById("description");
   const tagsInput = document.getElementById("tags");
-  const premiumInput = document.getElementById("isPremium");
+  const accessTypeFreeInput = document.getElementById("accessTypeFree");
+  const accessTypePaidInput = document.getElementById("accessTypePaid");
   const formMessage = document.getElementById("formMessage");
   const submitButton = document.getElementById("submitButton");
   const uploadStatus = document.getElementById("uploadStatus");
@@ -54,7 +58,12 @@ document.addEventListener("DOMContentLoaded", function () {
   form.addEventListener("submit", handleSubmit);
   designFileInput.addEventListener("change", handleDesignFileChange);
   previewFileInput.addEventListener("change", handlePreviewFileChange);
-  premiumInput.addEventListener("change", updateSummary);
+  if (accessTypeFreeInput) {
+    accessTypeFreeInput.addEventListener("change", handleAccessTypeChange);
+  }
+  if (accessTypePaidInput) {
+    accessTypePaidInput.addEventListener("change", handleAccessTypeChange);
+  }
   priceInput.addEventListener("input", updateSummary);
   if (designUrlInput) {
     designUrlInput.addEventListener("input", updateSummary);
@@ -68,6 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
   updateSummary();
+  syncAccessTypeUi();
   renderEmptyState("Loading recent uploads...");
   loadLatestDesigns();
 
@@ -85,6 +95,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setFormMessage(`${isEditing ? "Updated" : "Saved"} "${savedDesign.title}" successfully.`, "success");
       uploadStatus.textContent = isEditing ? "Updated" : "Published";
       backendState.textContent = isEditing ? "Update complete" : "Upload complete";
+      broadcastDesignRefresh();
       resetForm();
       await loadLatestDesigns();
     } catch (error) {
@@ -126,12 +137,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function buildPayload() {
     const title = String(titleInput.value || "").trim();
+    const slug = await resolveUniqueSlug(title, activeEditDesign && activeEditDesign.id);
     const designFile = designFileInput.files && designFileInput.files[0];
     const designUrlValue = cleanText(designUrlInput && designUrlInput.value);
     const previewFile = previewFileInput.files && previewFileInput.files[0];
     const descriptionValue = String(descriptionInput.value || "").trim();
     const tagsValue = String(tagsInput.value || "").trim();
-    const price = normalizePrice(priceInput.value);
+    const enteredPrice = normalizePrice(priceInput.value);
+    const isPaid = getSelectedAccessType() === "paid" || enteredPrice > 0;
+    const price = isPaid ? enteredPrice : 0;
 
     if (!title) {
       throw new Error("Title is required.");
@@ -139,6 +153,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (price < 0) {
       throw new Error("Price negative nahi ho sakta.");
+    }
+
+    if (isPaid && price <= 0) {
+      throw new Error("Paid design ke liye valid price dena zaroori hai.");
     }
 
     if (!designFile && !designUrlValue && !(activeEditDesign && activeEditDesign.file_url)) {
@@ -161,7 +179,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setFormMessage("Uploading main design...", "warning");
       backendState.textContent = "Uploading design";
 
-      const designUploadResult = await uploadBinaryFile(designFile, "design");
+      const designUploadResult = await uploadBinaryFile(designFile, "design", slug);
       fileUrl = String(designUploadResult.file_url || "").trim();
       category = String(designUploadResult.category || inferCategoryFromName(designFile.name)).trim();
       if (categoryInput) {
@@ -180,7 +198,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setFormMessage("Uploading merged preview image...", "warning");
       backendState.textContent = "Uploading preview";
 
-      const previewUploadResult = await uploadBinaryFile(preparedPreviewAsset.file, "preview");
+      const previewUploadResult = await uploadBinaryFile(preparedPreviewAsset.file, "preview", slug);
       imageUrl = String(previewUploadResult.file_url || "").trim();
 
       uploadedPreviewAsset = {
@@ -201,13 +219,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     return {
       title: title,
+      slug: slug,
       price: price,
       image_url: imageUrl,
       file_url: fileUrl,
       category: category,
       description: normalizedDescription,
       tags: normalizedTags,
-      is_premium: premiumInput.checked === true
+      is_premium: isPaid
     };
   }
 
@@ -251,24 +270,28 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     designCards.innerHTML = designs.map(function (design) {
+      const normalizedPrice = normalizePrice(design.price);
+      const isPaid = design.is_premium === true || design.is_paid === true || normalizedPrice > 0;
       const title = escapeHtml(design.title || "Untitled Design");
       const image = escapeHtml(design.image_url || "");
       const fileUrl = escapeHtml(design.file_url || "#");
-      const premiumClass = design.is_premium ? "premium-chip" : "free-chip";
-      const premiumLabel = design.is_premium ? "Premium" : "Free";
+      const premiumClass = isPaid ? "premium-chip" : "free-chip";
+      const premiumLabel = isPaid ? "Paid" : "Free";
       const category = escapeHtml(design.category || "FILE");
       const createdAt = escapeHtml(formatDate(design.created_at));
-      const priceText = escapeHtml(formatPrice(design.price));
+      const priceText = escapeHtml(formatPrice(normalizedPrice));
       const designPayload = escapeHtml(JSON.stringify({
         id: design.id,
         title: design.title || "",
-        price: normalizePrice(design.price),
+        slug: design.slug || slugify(design.title || ""),
+        price: normalizedPrice,
         image_url: design.image_url || "",
         file_url: design.file_url || design.download_link || "",
         category: design.category || "FILE",
         description: design.description || "",
         tags: Array.isArray(design.tags) ? design.tags : [],
-        is_premium: design.is_premium === true
+        is_premium: isPaid,
+        is_paid: isPaid
       }));
 
       return (
@@ -417,10 +440,11 @@ document.addEventListener("DOMContentLoaded", function () {
       ? inferCategoryFromName(designFile.name)
       : String(categoryInput && categoryInput.value || "").trim();
     const normalizedPrice = normalizePrice(priceInput.value);
+    const isPaid = getSelectedAccessType() === "paid" || normalizedPrice > 0;
 
     summaryCategory.textContent = selectedCategory || "Not selected";
-    summaryPremium.textContent = premiumInput.checked ? "Premium" : "Free";
-    summaryPrice.textContent = formatPrice(normalizedPrice);
+    summaryPremium.textContent = isPaid ? "Paid" : "Free";
+    summaryPrice.textContent = isPaid && normalizedPrice <= 0 ? "Enter price" : formatPrice(normalizedPrice);
     summaryMode.textContent = "Upload to R2";
 
     if (previewFileInput.files && previewFileInput.files[0]) {
@@ -462,12 +486,13 @@ document.addEventListener("DOMContentLoaded", function () {
     updateSummary();
   }
 
-  async function uploadBinaryFile(file, uploadKind) {
+  async function uploadBinaryFile(file, uploadKind, slugBase) {
+    const safeBaseName = buildSeoFileName(slugBase || file.name, file.name);
     const response = await apiRequest("/upload", {
       method: "POST",
       headers: {
         "Content-Type": file.type || "application/octet-stream",
-        "X-File-Name": encodeURIComponent(file.name),
+        "X-File-Name": encodeURIComponent(safeBaseName),
         "X-File-Type": encodeURIComponent(file.type || "application/octet-stream"),
         "X-Upload-Kind": uploadKind
       },
@@ -495,7 +520,7 @@ document.addEventListener("DOMContentLoaded", function () {
       requestOptions.headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${resolveBackendBaseUrl()}${path}`, requestOptions);
+    const response = await fetch(`${BASE_URL}${path}`, requestOptions);
     const payload = await response.json().catch(function () {
       return {};
     });
@@ -568,6 +593,7 @@ document.addEventListener("DOMContentLoaded", function () {
     clearPreviewUploadState();
     priceInput.value = "0";
     clearEditModeState();
+    setSelectedAccessType("free");
     updatePreviewPanel();
     uploadStatus.textContent = "Ready";
   }
@@ -586,7 +612,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     descriptionInput.value = String(activeEditDesign.description || "").trim();
     tagsInput.value = Array.isArray(activeEditDesign.tags) ? activeEditDesign.tags.join(", ") : "";
-    premiumInput.checked = activeEditDesign.is_premium === true;
+    setSelectedAccessType(activeEditDesign.is_premium === true || normalizePrice(activeEditDesign.price) > 0 ? "paid" : "free");
+    if (activeEditDesign.is_premium === true || normalizePrice(activeEditDesign.price) > 0) {
+      priceInput.value = String(Math.max(1, normalizePrice(activeEditDesign.price)));
+    }
 
     const imageUrl = String(activeEditDesign.image_url || "").trim();
     if (designUrlInput) {
@@ -648,6 +677,73 @@ document.addEventListener("DOMContentLoaded", function () {
     mergedPreviewAsset = null;
   }
 
+  function broadcastDesignRefresh() {
+    const stamp = String(Date.now());
+    try {
+      localStorage.setItem(DESIGN_REFRESH_KEY, stamp);
+    } catch (_error) {
+      // ignore storage write failures
+    }
+
+    window.dispatchEvent(new CustomEvent("ajartivo:designs-changed", {
+      detail: {
+        change: { type: "upload-refresh", stamp: stamp },
+        receivedAt: new Date().toISOString()
+      }
+    }));
+  }
+
+  function buildSeoFileName(slugBase, originalFileName) {
+    const base = slugify(slugBase);
+    const extension = readExtension(originalFileName);
+    return `${base || "upload"}${extension}`;
+  }
+
+  async function resolveUniqueSlug(title, currentId) {
+    const baseSlug = slugify(title);
+    const designs = await loadDesignsForSlugCheck();
+    const currentRecordId = String(currentId || "").trim();
+    const existingSlugs = new Set();
+
+    designs.forEach(function (design) {
+      if (!design) return;
+      const designId = String(design.id || "").trim();
+      if (currentRecordId && designId === currentRecordId) {
+        return;
+      }
+
+      const normalizedSlug = slugify(design.slug || design.title || design.name || "");
+      if (normalizedSlug) {
+        existingSlugs.add(normalizedSlug);
+      }
+    });
+
+    let nextSlug = baseSlug || "design";
+    let counter = 1;
+    while (existingSlugs.has(nextSlug)) {
+      nextSlug = `${baseSlug || "design"}-${counter}`;
+      counter += 1;
+    }
+
+    return nextSlug;
+  }
+
+  async function loadDesignsForSlugCheck() {
+    const adminStore = window.AdminData || { connected: false };
+
+    try {
+      if (adminStore.connected && typeof adminStore.getDesigns === "function") {
+        const designs = await adminStore.getDesigns();
+        return Array.isArray(designs) ? designs : [];
+      }
+
+      const response = await apiRequest("/designs?limit=1000", { method: "GET" });
+      return Array.isArray(response && response.designs) ? response.designs : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
   function toggleDesignUrlField() {
     if (!designUrlWrap || !designUrlToggle) {
       return;
@@ -668,8 +764,52 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function getSelectedAccessType() {
+    return accessTypePaidInput && accessTypePaidInput.checked ? "paid" : "free";
+  }
+
+  function setSelectedAccessType(value) {
+    const nextValue = value === "paid" ? "paid" : "free";
+    if (accessTypeFreeInput) {
+      accessTypeFreeInput.checked = nextValue === "free";
+    }
+    if (accessTypePaidInput) {
+      accessTypePaidInput.checked = nextValue === "paid";
+    }
+    syncAccessTypeUi();
+  }
+
+  function handleAccessTypeChange() {
+    syncAccessTypeUi();
+    updateSummary();
+  }
+
+  function syncAccessTypeUi() {
+    const isPaid = getSelectedAccessType() === "paid";
+    if (priceInput) {
+      if (!isPaid) {
+        priceInput.value = "0";
+      }
+      priceInput.readOnly = !isPaid;
+      priceInput.required = isPaid;
+    }
+    if (priceNote) {
+      priceNote.textContent = isPaid
+        ? "Paid mode requires a valid price greater than Rs. 0."
+        : "Free mode keeps the price locked to Rs. 0.";
+    }
+  }
+
   window.toggleDesignUrlField = toggleDesignUrlField;
 });
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "upload";
+}
 
 function validateFile(file, allowedExtensions, maxSizeMb, label) {
   const extension = readExtension(file && file.name);

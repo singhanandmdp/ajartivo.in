@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="ajartivo-backend-url" content="http://localhost:5000">
+  <link rel="icon" href="Favicon.ico" type="image/x-icon">
+  <meta name="ajartivo-backend-url" content="">
   <title>AjArtivo Upload Panel</title>
   <link rel="stylesheet" href="assets/upload.css">
 </head>
@@ -65,25 +66,35 @@
             </div>
 
             <div class="field">
+              <label>Access Type</label>
+              <div class="segmented-access" id="accessTypeGroup">
+                <label class="segmented-access-option">
+                  <input id="accessTypeFree" name="accessType" type="radio" value="free" checked>
+                  <span>
+                    <strong>Free</strong>
+                    <small>Price auto set to Rs. 0</small>
+                  </span>
+                </label>
+                <label class="segmented-access-option">
+                  <input id="accessTypePaid" name="accessType" type="radio" value="paid">
+                  <span>
+                    <strong>Paid</strong>
+                    <small>Price is required before publish</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
               <label for="price">Price (INR)</label>
               <input id="price" name="price" type="number" min="0" step="1" value="0" placeholder="499" required>
-              <p class="field-note">Free design ke liye `0` rakho. Paid design ke liye actual amount dalo.</p>
+              <p class="field-note" id="priceNote">Free mode keeps the price locked to Rs. 0.</p>
             </div>
 
             <div class="field">
               <label for="category">Category</label>
               <input id="category" name="category" type="text" placeholder="PNG" readonly>
               <p class="field-note">Design file extension ke hisaab se automatically set hota hai.</p>
-            </div>
-
-            <div class="field">
-              <label class="toggle-card" for="isPremium">
-                <input id="isPremium" name="isPremium" type="checkbox">
-                <span>
-                  <strong>Mark as premium design</strong>
-                  <small>When enabled, the saved record sets <code>is_premium = true</code>.</small>
-                </span>
-              </label>
             </div>
 
             <div class="field">

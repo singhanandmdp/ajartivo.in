@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="Favicon.ico" type="image/x-icon">
   <title>AjArtivo Admin Dashboard</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -89,7 +90,13 @@
           </div>
 
           <div class="admin-profile-card">
-            <img class="admin-avatar" src="images/anand.jpg" alt="Anand admin profile photo">
+            <div class="admin-avatar-wrap">
+              <img class="admin-avatar" id="adminAvatar" src="images/anand.jpg" alt="Admin profile photo">
+              <input id="adminAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+              <button id="adminAvatarButton" type="button" class="btn btn-outline admin-icon-btn" aria-label="Upload Admin Image">
+                <img src="icons/upload_img.svg" alt="Upload Admin Image">
+              </button>
+            </div>
             <div class="admin-profile-copy">
               <strong id="adminDisplayName">Admin</strong>
               <span id="adminEmail">-</span>
@@ -108,6 +115,7 @@
           </form>
 
           <div class="status-pill" id="profileStatus" style="display: none;"></div>
+          <div class="status-pill" id="avatarStatus" style="display: none;"></div>
         </article>
 
         <article class="panel admin-security-panel">

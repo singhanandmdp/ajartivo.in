@@ -5,6 +5,16 @@ const { requireR2Configured, requireSupabaseConfigured } = require("../middlewar
 const { requireAdminUser, requireAuthenticatedUser } = require("../middleware/requireAuth");
 const { listLatestDesigns, saveDesignRecord } = require("../services/adminDesignService");
 const { inferCategory, isAllowedUploadExtension, uploadBufferToR2 } = require("../services/r2Service");
+const {
+    activatePremiumMembership,
+    ensureUserProfile,
+    getUserAdminSummary,
+    listUsersForAdmin,
+    revokePremiumMembership,
+    setUserBanState
+} = require("../services/userService");
+const { getPlanById, listPlans } = require("../services/planService");
+const { getSupabaseAdminClient } = require("../supabaseClient");
 const { asyncHandler, createHttpError } = require("../utils/http");
 const { parseMultipartRequest } = require("../utils/multipart");
 
@@ -26,8 +36,107 @@ router.get("/designs", requireSupabaseConfigured, asyncHandler(async function (r
     });
 }));
 
+router.get("/admin/overview", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (_req, res) {
+    const users = await listUsersForAdmin(100);
+    const plans = await listPlans();
+    const totals = users.reduce(function (summary, user) {
+        summary.users += 1;
+        if (user.premium_active === true) {
+            summary.premium_active += 1;
+        }
+        if (user.is_banned === true) {
+            summary.banned += 1;
+        }
+        return summary;
+    }, {
+        users: 0,
+        premium_active: 0,
+        banned: 0
+    });
+
+    res.json({
+        success: true,
+        overview: {
+            totals: totals,
+            plans: plans
+        }
+    });
+}));
+
+router.get("/admin/users", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (req, res) {
+    const users = await listUsersForAdmin(req.query && req.query.limit);
+
+    res.json({
+        success: true,
+        users: users
+    });
+}));
+
+router.get("/admin/users/:userId", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (req, res) {
+    const summary = await getUserAdminSummary(req.params.userId);
+    if (!summary) {
+        throw createHttpError(404, "User not found.");
+    }
+
+    res.json({
+        success: true,
+        user: summary.profile,
+        subscriptions: summary.subscriptions
+    });
+}));
+
+router.post("/admin/users/:userId/ban", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (req, res) {
+    const updatedUser = await setUserBanState(req.params.userId, req.body && req.body.is_banned === true);
+
+    res.json({
+        success: true,
+        user: updatedUser
+    });
+}));
+
+router.post("/admin/subscriptions/grant", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (req, res) {
+    const userId = cleanText(req.body && req.body.user_id);
+    const planId = cleanText(req.body && req.body.plan_id);
+    const plan = await getPlanById(planId);
+
+    if (!userId || !plan) {
+        throw createHttpError(400, "Valid user ID and plan ID are required.");
+    }
+
+    const targetUser = await getTargetAuthUser(userId);
+    if (!targetUser) {
+        throw createHttpError(404, "Target user was not found.");
+    }
+
+    const updatedUser = await activatePremiumMembership(targetUser, plan, {
+        grantedBy: cleanText(req.authUser && req.authUser.id),
+        metadata: {
+            source: "admin_manual_grant"
+        }
+    });
+
+    res.json({
+        success: true,
+        user: updatedUser
+    });
+}));
+
+router.post("/admin/subscriptions/revoke", requireSupabaseConfigured, requireAuthenticatedUser, requireAdminUser, asyncHandler(async function (req, res) {
+    const userId = cleanText(req.body && req.body.user_id);
+    if (!userId) {
+        throw createHttpError(400, "User ID is required.");
+    }
+
+    const result = await revokePremiumMembership(userId);
+
+    res.json({
+        success: true,
+        result: result
+    });
+}));
+
 router.post(
-    "/upload",
+    "/admin/upload",
     requireSupabaseConfigured,
     requireR2Configured,
     requireAuthenticatedUser,
@@ -91,7 +200,7 @@ router.post(
 );
 
 router.post(
-    "/save",
+    "/admin/designs",
     requireSupabaseConfigured,
     requireAuthenticatedUser,
     requireAdminUser,
@@ -104,7 +213,7 @@ router.post(
         const category = cleanText(payload.category).toUpperCase() || inferCategory(fileUrl || title);
         const description = cleanText(payload.description);
         const tags = normalizeTags(payload.tags);
-        const isPremium = payload.is_premium === true;
+        const isPremium = price > 0;
 
         if (!title) {
             throw createHttpError(400, "Title is required.");
@@ -139,6 +248,26 @@ router.post(
         });
     })
 );
+
+async function getTargetAuthUser(userId) {
+    const profile = await getUserAdminSummary(userId);
+    if (!profile || !profile.profile) {
+        return null;
+    }
+
+    const user = profile.profile;
+    return {
+        id: cleanText(user.id),
+        email: cleanText(user.email).toLowerCase(),
+        user_metadata: {
+            full_name: cleanText(user.name),
+            first_name: cleanText(user.first_name),
+            last_name: cleanText(user.last_name),
+            address: cleanText(user.address),
+            mobile_number: cleanText(user.mobile_number)
+        }
+    };
+}
 
 function cleanUploadKind(value) {
     return cleanText(value).toLowerCase() === "preview" ? "preview" : "design";

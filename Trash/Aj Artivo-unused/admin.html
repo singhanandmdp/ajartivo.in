@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - AJartivo</title>
+    <meta name="description" content="Manage users, premium access, bans, and design publishing inside AJartivo Admin.">
+    <link rel="icon" href="Favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="aj-admin-page">
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="admin-shell">
+        <section class="admin-hero">
+            <div>
+                <p class="admin-kicker">AJartivo Admin</p>
+                <h1>Control subscriptions, users, bans, and design publishing</h1>
+                <p>Use this workspace to manage the marketplace and SaaS entitlements without touching the database manually.</p>
+            </div>
+            <p id="adminStatus" class="admin-status" hidden></p>
+        </section>
+
+        <section class="admin-stats" id="adminStats">
+            <article><span>Total Users</span><strong id="statUsers">0</strong></article>
+            <article><span>Premium Active</span><strong id="statPremium">0</strong></article>
+            <article><span>Banned Users</span><strong id="statBanned">0</strong></article>
+        </section>
+
+        <section class="admin-grid">
+            <section class="admin-card">
+                <div class="admin-card-head">
+                    <div>
+                        <p class="admin-kicker">Users</p>
+                        <h2>Member Management</h2>
+                    </div>
+                    <button id="refreshAdminBtn" class="admin-btn admin-btn-secondary" type="button">Refresh</button>
+                </div>
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Plan</th>
+                                <th>Status</th>
+                                <th>Downloads</th>
+                                <th>AI Today</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUsersTable">
+                            <tr><td colspan="6">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="admin-card">
+                <div class="admin-card-head">
+                    <div>
+                        <p class="admin-kicker">Publishing</p>
+                        <h2>Add Marketplace Design</h2>
+                    </div>
+                </div>
+                <form id="adminDesignForm" class="admin-form">
+                    <label>
+                        <span>Title</span>
+                        <input id="adminDesignTitle" type="text" required>
+                    </label>
+                    <label>
+                        <span>Description</span>
+                        <textarea id="adminDesignDescription" rows="4"></textarea>
+                    </label>
+                    <div class="admin-form-grid">
+                        <label>
+                            <span>Price</span>
+                            <input id="adminDesignPrice" type="number" min="0" value="0">
+                        </label>
+                        <label>
+                            <span>Category</span>
+                            <input id="adminDesignCategory" type="text" placeholder="PSD / CDR / AI">
+                        </label>
+                    </div>
+                    <label>
+                        <span>Preview Image URL</span>
+                        <input id="adminDesignImageUrl" type="url" required>
+                    </label>
+                    <label>
+                        <span>Download File URL</span>
+                        <input id="adminDesignFileUrl" type="url" required>
+                    </label>
+                    <label>
+                        <span>Tags (comma separated)</span>
+                        <input id="adminDesignTags" type="text" placeholder="festival,banner,psd">
+                    </label>
+                    <label class="admin-check">
+                        <input id="adminDesignPremium" type="checkbox">
+                        <span>Mark as premium / paid design</span>
+                    </label>
+                    <button class="admin-btn" type="submit">Publish Design</button>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js?v=20260410-2"></script>
+    <script src="js/auth.js?v=20260410-2"></script>
+    <script src="js/script.js?v=20260410-2"></script>
+    <script src="js/admin-panel.js?v=20260410-1"></script>
+</body>
+</html>
