@@ -17,6 +17,9 @@ const beforeStage = document.getElementById("beforeStage");
 const afterStage = document.getElementById("afterStage");
 const beforeSizeBadge = document.getElementById("beforeSizeBadge");
 const afterSizeBadge = document.getElementById("afterSizeBadge");
+const demoCompareSlider = document.getElementById("demoCompareSlider");
+const demoDivider = document.getElementById("demoDivider");
+const demoAfterWrap = document.getElementById("demoAfterWrap");
 
 const colorCircles = document.querySelectorAll(".color-circle[data-color]");
 const colorPicker = document.getElementById("colorPicker");
@@ -35,6 +38,9 @@ const restoreRemovedBtn = document.getElementById("restoreRemovedBtn");
 const restoreOriginalBtn = document.getElementById("restoreOriginalBtn");
 const historyUndoBtn = document.getElementById("historyUndoBtn");
 const historyRedoBtn = document.getElementById("historyRedoBtn");
+const backendApiMeta = document.querySelector('meta[name="aj-pixel-cut-api"]');
+const pixelCutApiBase = (backendApiMeta?.content || "https://pixel-cut-backend.onrender.com").replace(/\/$/, "");
+const pixelCutRemoveBgUrl = `${pixelCutApiBase}/smart-remove-bg`;
 
 const refinePanel = document.getElementById("refinePanel");
 const resizePanel = document.getElementById("resizePanel");
@@ -170,6 +176,19 @@ function applyPreviewTransforms(){
     }
     if(afterStage){
         applyStageTransform(afterStage, sharedZoom, beforePanX, beforePanY);
+    }
+}
+
+function syncDemoCompareSlider(){
+    if(!demoAfterWrap || !demoCompareSlider){
+        return;
+    }
+
+    const hiddenLeft = Math.min(100, Math.max(0, Number(demoCompareSlider.value) || 0));
+    demoAfterWrap.style.clipPath = `inset(0 0 0 ${hiddenLeft}%)`;
+
+    if(demoDivider){
+        demoDivider.style.left = `${hiddenLeft}%`;
     }
 }
 
@@ -1319,7 +1338,6 @@ async function handleFile(file){
     originalCtx.drawImage(originalImage, 0, 0);
     setSizeBadges(originalCanvas.width, originalCanvas.height);
     renderBeforeCanvas();
-
     uploadBox.style.display = "none";
     reuploadBtn.parentElement.style.display = "flex";
     resultWrapper.style.display = "flex";
@@ -1332,7 +1350,7 @@ async function handleFile(file){
     formData.append("image", file);
 
     try{
-        const res = await fetch("http://127.0.0.1:5000/smart-remove-bg", {
+        const res = await fetch(pixelCutRemoveBgUrl, {
             method: "POST",
             body: formData,
             signal: activeUploadController.signal
@@ -1876,3 +1894,8 @@ downloadBtn.addEventListener("click", (e)=>{
     e.preventDefault();
     downloadWithBackground();
 });
+
+if(demoCompareSlider){
+    demoCompareSlider.addEventListener("input", syncDemoCompareSlider);
+    syncDemoCompareSlider();
+}

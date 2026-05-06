@@ -3,43 +3,63 @@
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
         : function (path) { return path; };
+
     if (!services) return;
 
     const trendingGrid = document.getElementById("trendingGrid");
     const popularGrid = document.getElementById("popularDesignGrid");
+    const PERF_PREFIX = "[AJartivo Perf][homepage]";
+    const CACHE_TTL_MS = 5 * 60 * 1000;
     let refreshTimerId = null;
+    let inFlightPromise = null;
 
     if (!trendingGrid && !popularGrid) return;
 
-    loadHomepageDesigns();
+    hydrateFromCache();
+    loadHomepageDesigns("initial");
     bindLiveRefresh();
 
-    async function loadHomepageDesigns() {
-        try {
-            const designs = await services.fetchDesigns();
-            const latestDesigns = [...designs]
-                .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
+    function hydrateFromCache() {
+        const cachedDesigns = typeof services.getCachedDesigns === "function"
+            ? services.getCachedDesigns({ maxAgeMs: CACHE_TTL_MS })
+            : [];
 
-            if (trendingGrid) {
-                renderDesignCards(trendingGrid, latestDesigns.slice(0, 6));
-            }
-
-            if (popularGrid) {
-                const popularDesigns = [...designs]
-                    .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
-                    .slice(0, 6);
-
-                renderDesignCards(popularGrid, popularDesigns);
-            }
-        } catch (error) {
-            console.error("Failed to load homepage designs:", error);
-            if (trendingGrid) {
-                trendingGrid.innerHTML = '<div class="empty-state">Could not load designs right now.</div>';
-            }
-            if (popularGrid) {
-                popularGrid.innerHTML = '<div class="empty-state">Could not load popular designs right now.</div>';
-            }
+        if (!cachedDesigns.length) {
+            return;
         }
+
+        logPerf("cache-render", cachedDesigns.length);
+        renderHomepageDesigns(cachedDesigns, "cache");
+    }
+
+    async function loadHomepageDesigns(source) {
+        if (inFlightPromise) {
+            logPerf("deduped-fetch", source || "unknown");
+            return inFlightPromise;
+        }
+
+        inFlightPromise = (async function () {
+            const startedAt = performance.now();
+            try {
+                const designs = await services.fetchDesigns({
+                    source: `homepage-${source || "unknown"}`,
+                    preferCache: true,
+                    cacheTtlMs: CACHE_TTL_MS
+                });
+
+                renderHomepageDesigns(designs, source || "unknown");
+                logPerf("fetch-complete", source || "unknown", `${Math.round(performance.now() - startedAt)}ms`, designs.length);
+                return designs;
+            } catch (error) {
+                console.error("Failed to load homepage designs:", error);
+                showHomepageError();
+                return [];
+            } finally {
+                inFlightPromise = null;
+            }
+        })();
+
+        return inFlightPromise;
     }
 
     function bindLiveRefresh() {
@@ -53,36 +73,82 @@
             }
 
             refreshTimerId = window.setTimeout(function () {
-                loadHomepageDesigns();
+                loadHomepageDesigns("realtime");
             }, 250);
         });
 
         document.body.dataset.homeDesignsLiveBound = "true";
     }
 
-    function renderDesignCards(container, designs) {
+    function renderHomepageDesigns(designs, source) {
+        const latestDesigns = [...designs].sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
+        const popularDesigns = [...designs]
+            .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
+            .slice(0, 6);
+
+        if (trendingGrid) {
+            renderDesignCards(trendingGrid, latestDesigns.slice(0, 6), "trending", source);
+        }
+
+        if (popularGrid) {
+            renderDesignCards(popularGrid, popularDesigns, "popular", source);
+        }
+    }
+
+    function renderDesignCards(container, designs, bucket, source) {
         if (!designs.length) {
-            container.innerHTML = '<div class="empty-state">No designs found yet.</div>';
+            container.replaceChildren(buildEmptyState("No designs found yet."));
+            container.dataset.renderSignature = "";
             return;
         }
 
-        container.innerHTML = designs.map(function (design) {
-            const title = escapeHtml(design.title);
+        const signature = `${bucket}:${designs.map((design) => `${design.id}:${design.created_at || design.createdAt || ""}:${design.downloads || 0}`).join("|")}`;
+        if (container.dataset.renderSignature === signature) {
+            logPerf("render-skipped", bucket, source || "unknown", designs.length);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        designs.forEach(function (design) {
+            const title = escapeHtml(design.title || design.name || "Untitled Design");
             const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
             const designUrl = buildProductUrl(design);
             const badge = getDesignBadge(design);
+            const article = document.createElement("article");
 
-            return `
-                <article class="design-card homepage-design-card" data-design-id="${escapeHtml(design.id)}">
-                    <a href="${designUrl}" class="card-link homepage-card-link">
-                        <div class="homepage-card-media">
-                            <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
-                            <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
-                        </div>
-                    </a>
-                </article>
+            article.className = "design-card homepage-design-card";
+            article.dataset.designId = escapeHtml(design.id);
+            article.innerHTML = `
+                <a href="${designUrl}" class="card-link homepage-card-link">
+                    <div class="homepage-card-media">
+                        <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
+                        <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
+                    </div>
+                </a>
             `;
-        }).join("");
+            fragment.appendChild(article);
+        });
+
+        container.replaceChildren(fragment);
+        container.dataset.renderSignature = signature;
+        logPerf("rendered", bucket, source || "unknown", designs.length);
+    }
+
+    function buildEmptyState(message) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = message;
+        return empty;
+    }
+
+    function showHomepageError() {
+        if (trendingGrid) {
+            trendingGrid.replaceChildren(buildEmptyState("Could not load designs right now."));
+        }
+        if (popularGrid) {
+            popularGrid.replaceChildren(buildEmptyState("Could not load popular designs right now."));
+        }
     }
 
     function buildProductUrl(design) {
@@ -150,5 +216,15 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
+    }
+
+    function logPerf() {
+        if (!window.console || typeof window.console.log !== "function") {
+            return;
+        }
+
+        const parts = Array.prototype.slice.call(arguments).filter(Boolean);
+        if (!parts.length) return;
+        window.console.log.apply(window.console, [PERF_PREFIX].concat(parts));
     }
 })();

@@ -4,7 +4,7 @@
     const SESSION_KEY = "ajartivo_session";
     const WISHLIST_KEY = "ajartivo_wishlist";
     const DOWNLOAD_HISTORY_KEY = "ajartivo_download_history";
-    const DESIGNS_CACHE_KEY = "ajartivo_designs_cache_v1";
+    const DESIGNS_CACHE_KEY = "ajartivo_designs_cache_v2";
     const TEMPORARY_USER_DATA_RESET_VERSION = "20260403-new-user-experience";
     const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
@@ -12,13 +12,22 @@
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,slug,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGNS_CACHE_TTL_MS = 5 * 60 * 1000;
     const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
-    const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v1";
+    const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v2";
+    const DESIGN_FETCH_LOG_PREFIX = "[AJartivo Perf][designs]";
+    const AUTH_FETCH_LOG_PREFIX = "[AJartivo Perf][auth]";
     let designsChannel = null;
     let designsCache = [];
     let designsCacheLoaded = false;
+    let designsCacheLoadedAt = 0;
     let designsPreloadPromise = null;
+    let designsFetchPromise = null;
+    let authSessionPromise = null;
+    let authSessionCache = null;
+    let authSessionCachedAt = 0;
+    const isPerfDebugEnabled = /localhost|127\.0\.0\.1/i.test(String(window.location && window.location.hostname || "")) || /[?&]debug(?:=1)?(?:&|$)/i.test(String(window.location && window.location.search || ""));
 
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
         console.error("Supabase CDN failed to load.");
@@ -40,11 +49,17 @@
     window.AJARTIVO_BACKEND_URL = BASE_URL;
 
     window.AjArtivoSupabase = {
-        client: supabase,        fetchDesigns: fetchDesigns,        fetchDesignById: fetchDesignById,        fetchDesignBySlug: fetchDesignBySlug,        fetchRelatedDesigns: fetchRelatedDesigns,
+        client: supabase,
+        fetchDesigns: fetchDesigns,
+        fetchDesignById: fetchDesignById,
+        fetchDesignBySlug: fetchDesignBySlug,
+        fetchRelatedDesigns: fetchRelatedDesigns,
         preloadDesigns: preloadDesigns,
+        getCachedDesigns: getCachedDesigns,
         getCachedDesignById: getCachedDesignById,
         getCachedDesignBySlug: getCachedDesignBySlug,
-        hasPurchasedDesign: hasPurchasedDesign,        normalizeDesign: normalizeDesign,
+        hasPurchasedDesign: hasPurchasedDesign,
+        normalizeDesign: normalizeDesign,
         invalidateDesignCache: invalidateDesignCache,
         getSession: getSession,
         getAuthSession: getAuthSession,
@@ -67,7 +82,8 @@
         removeWishlistItem: removeWishlistItem,
         isWishlisted: isWishlisted,
         addDownloadHistoryItem: addDownloadHistoryItem,
-        resetStoredUserData: resetStoredUserData,        subscribeToDesignChanges: subscribeToDesignChanges
+        resetStoredUserData: resetStoredUserData,
+        subscribeToDesignChanges: subscribeToDesignChanges
     };
 
     initializeApp();
@@ -88,8 +104,11 @@
                 });
             }
         });
-        supabase.auth.onAuthStateChange(function (_event, session) {
+        supabase.auth.onAuthStateChange(function (event, session) {
             const syncedSession = syncSessionFromAuth(session);
+            if (isPerfDebugEnabled) {
+                console.log(AUTH_FETCH_LOG_PREFIX, "auth-state-change", event || "unknown");
+            }
             if (syncedSession && cleanText(syncedSession.accessToken)) {
                 refreshAccountSummary({
                     timeoutMs: ACCOUNT_SUMMARY_TIMEOUT_MS,
@@ -103,38 +122,91 @@
 
     async function fetchDesigns(options) {
         syncDesignCacheRefreshState();
-        let result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
 
-        if (result.error || !Array.isArray(result.data) || !result.data.length) {
-            const fallback = await supabase.from("designs").select("*");
-            if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length) {
-                result = fallback;
-            }
+        const requestOptions = options || {};
+        const source = cleanText(requestOptions.source) || "unknown";
+        const preferCache = requestOptions.preferCache !== false;
+        const forceRefresh = requestOptions.forceRefresh === true;
+        const cacheTtlMs = Number(requestOptions.cacheTtlMs) || DESIGNS_CACHE_TTL_MS;
+        const cachedDesigns = getCachedDesigns({
+            maxAgeMs: cacheTtlMs,
+            skipMemoryCache: false,
+            limit: Number(requestOptions.limit) > 0 ? Number(requestOptions.limit) : 0
+        });
+
+        if (preferCache && cachedDesigns.length && !forceRefresh) {
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "cache-hit", source, cachedDesigns.length);
+            return cachedDesigns;
         }
 
-        if (result.error) {
-            console.error("Supabase designs fetch failed:", result.error);
-            const backendDesigns = await fetchDesignsFromBackend(options);
-            if (backendDesigns.length) {
-                setDesignsCache(backendDesigns);
-                return backendDesigns;
-            }
-            if (designsCacheLoaded && designsCache.length) {
-                return designsCache.slice();
-            }
-            return [];
+        if (designsFetchPromise && !forceRefresh) {
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "deduped-inflight", source);
+            return designsFetchPromise;
         }
 
-        const normalizedDesigns = Array.isArray(result.data) ? result.data.map(normalizeDesign) : [];
-        if (!normalizedDesigns.length) {
-            const backendDesigns = await fetchDesignsFromBackend(options);
-            if (backendDesigns.length) {
-                setDesignsCache(backendDesigns);
-                return backendDesigns;
+        designsFetchPromise = (async function () {
+            const startedAt = Date.now();
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "fetch-start", source);
+
+            try {
+                const limit = Number(requestOptions.limit) > 0 ? Number(requestOptions.limit) : null;
+                let result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
+
+                if (result.error || !Array.isArray(result.data) || !result.data.length) {
+                    const fallback = await supabase.from("designs").select("*");
+                    if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length) {
+                        result = fallback;
+                    }
+                }
+
+                if (result.error) {
+                    throw result.error;
+                }
+
+                const normalizedDesigns = Array.isArray(result.data)
+                    ? (limit ? result.data.slice(0, limit) : result.data).map(normalizeDesign)
+                    : [];
+
+                if (normalizedDesigns.length) {
+                    setDesignsCache(normalizedDesigns, source);
+                    logPerf(DESIGN_FETCH_LOG_PREFIX, "fetch-success", source, normalizedDesigns.length, `${Date.now() - startedAt}ms`);
+                    return normalizedDesigns;
+                }
+
+                const backendDesigns = await fetchDesignsFromBackend(requestOptions);
+                if (backendDesigns.length) {
+                    setDesignsCache(backendDesigns, source);
+                    logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fallback", source, backendDesigns.length, `${Date.now() - startedAt}ms`);
+                    return backendDesigns;
+                }
+
+                if (cachedDesigns.length) {
+                    logPerf(DESIGN_FETCH_LOG_PREFIX, "cache-reused-after-empty", source, cachedDesigns.length);
+                    return cachedDesigns;
+                }
+
+                return [];
+            } catch (error) {
+                console.error("Supabase designs fetch failed:", error);
+                const backendDesigns = await fetchDesignsFromBackend(requestOptions);
+                if (backendDesigns.length) {
+                    setDesignsCache(backendDesigns, source);
+                    logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-recovery", source, backendDesigns.length);
+                    return backendDesigns;
+                }
+
+                if (cachedDesigns.length) {
+                    logPerf(DESIGN_FETCH_LOG_PREFIX, "cache-reused-after-error", source, cachedDesigns.length);
+                    return cachedDesigns;
+                }
+
+                return [];
+            } finally {
+                designsFetchPromise = null;
             }
-        }
-        setDesignsCache(normalizedDesigns);
-        return normalizedDesigns;
+        })();
+
+        return designsFetchPromise;
     }
 
     async function fetchDesignById(id) {
@@ -223,6 +295,7 @@
         const backendUrl = new URL(resolveBackendUrl(`/designs?limit=${encodeURIComponent(String(limit))}`), window.location.href).href;
 
         try {
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-start", limit);
             const response = await fetch(backendUrl, {
                 method: "GET",
                 credentials: "omit",
@@ -234,7 +307,8 @@
             }
 
             const payload = await response.json();
-            const items = Array.isArray(payload && payload.designs) ? payload.designs : [];
+            const items = readDesignListPayload(payload);
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-success", items.length);
             return items.map(normalizeDesign);
         } catch (error) {
             console.error("Backend designs fetch failed:", error);
@@ -276,7 +350,21 @@
             return designsPreloadPromise;
         }
 
-        designsPreloadPromise = fetchDesigns()
+        const cachedDesigns = getCachedDesigns({
+            maxAgeMs: DESIGNS_CACHE_TTL_MS,
+            skipMemoryCache: false
+        });
+
+        if (cachedDesigns.length) {
+            logPerf(DESIGN_FETCH_LOG_PREFIX, "preload-cache-hit", cachedDesigns.length);
+            return Promise.resolve(cachedDesigns);
+        }
+
+        designsPreloadPromise = fetchDesigns({
+            source: "preload",
+            preferCache: true,
+            cacheTtlMs: DESIGNS_CACHE_TTL_MS
+        })
             .catch(function (error) {
                 console.error("Supabase design preload failed:", error);
                 return designsCache.slice();
@@ -288,10 +376,42 @@
         return designsPreloadPromise;
     }
 
+    function getCachedDesigns(options) {
+        const requestOptions = options || {};
+        const maxAgeMs = Number(requestOptions.maxAgeMs) || DESIGNS_CACHE_TTL_MS;
+        const skipMemoryCache = requestOptions.skipMemoryCache === true;
+        const limit = Number(requestOptions.limit) > 0 ? Number(requestOptions.limit) : 0;
+
+        if (!skipMemoryCache && designsCacheLoaded && designsCache.length) {
+            if (designsCacheLoadedAt && Date.now() - designsCacheLoadedAt > maxAgeMs) {
+                designsCacheLoaded = false;
+            } else {
+                return limit > 0 ? designsCache.slice(0, limit) : designsCache.slice();
+            }
+        }
+
+        const cached = readSessionJson(DESIGNS_CACHE_KEY, null);
+        if (!cached || !Array.isArray(cached.items) || !cached.items.length) {
+            return [];
+        }
+
+        const cachedAt = Number(cached.cachedAt) || 0;
+        if (cachedAt && Date.now() - cachedAt > maxAgeMs) {
+            return [];
+        }
+
+        designsCache = cached.items.map(normalizeDesign);
+        designsCacheLoaded = true;
+        designsCacheLoadedAt = Number(cached.cachedAt) || Date.now();
+        return limit > 0 ? designsCache.slice(0, limit) : designsCache.slice();
+    }
+
     function invalidateDesignCache() {
         designsCache = [];
         designsCacheLoaded = false;
+        designsCacheLoadedAt = 0;
         designsPreloadPromise = null;
+        designsFetchPromise = null;
         try {
             sessionStorage.removeItem(DESIGNS_CACHE_KEY);
             sessionStorage.removeItem(DESIGNS_CACHE_MARKER_KEY);
@@ -368,10 +488,10 @@
     function normalizeDesign(record) {
         const design = record || {};
         const normalizedId = String(design.id || "").trim();
-        const title = cleanText(design.title) || "Untitled Design";
+        const title = cleanText(design.title || design.name || design.product_name) || "Untitled Design";
         const slug = getDesignSlug(design);
         const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || "/images/preview1.jpg";
-        const category = cleanText(design.category).toUpperCase();
+        const category = cleanText(design.category || design.type || design.format || design.fileType).toUpperCase();
         const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
         const rawPrice = design.price;
         const hasExplicitPrice = rawPrice !== null && typeof rawPrice !== "undefined" && String(rawPrice).trim() !== "";
@@ -442,15 +562,48 @@
     }
 
     async function getAuthSession(options) {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-            console.error("Supabase auth session read failed:", error);
-            return null;
+        const requestOptions = options || {};
+        const syncSession = requestOptions.sync !== false;
+        const forceRefresh = requestOptions.forceRefresh === true;
+        const cacheMaxAgeMs = Number(requestOptions.cacheMaxAgeMs) || 10 * 1000;
+
+        if (!forceRefresh && authSessionCache && Date.now() - authSessionCachedAt < cacheMaxAgeMs) {
+            if (syncSession) {
+                syncSessionFromAuth(authSessionCache);
+            }
+            return authSessionCache;
         }
 
-        const session = data ? data.session : null;
-        const shouldSync = !options || options.sync !== false;
-        if (shouldSync) {
+        if (authSessionPromise && !forceRefresh) {
+            return authSessionPromise;
+        }
+
+        authSessionPromise = (async function () {
+            const startedAt = Date.now();
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) {
+                    console.error("Supabase auth session read failed:", error);
+                    return null;
+                }
+
+                const session = data ? data.session : null;
+                authSessionCache = session || null;
+                authSessionCachedAt = Date.now();
+                if (isPerfDebugEnabled) {
+                    console.log(AUTH_FETCH_LOG_PREFIX, "session-read", `${Date.now() - startedAt}ms`);
+                }
+                return session;
+            } catch (error) {
+                console.error("Supabase auth session read failed:", error);
+                return null;
+            } finally {
+                authSessionPromise = null;
+            }
+        })();
+
+        const session = await authSessionPromise;
+        if (syncSession) {
             syncSessionFromAuth(session);
         }
         return session;
@@ -462,7 +615,10 @@
     }
 
     async function refreshSession(options) {
-        const session = await getAuthSession();
+        const session = await getAuthSession({
+            sync: true,
+            forceRefresh: options && options.forceRefresh === true
+        });
         if (!session) {
             return null;
         }
@@ -958,6 +1114,19 @@
         return String(value || "").trim();
     }
 
+    function logPerf() {
+        if (!isPerfDebugEnabled || !window.console || typeof window.console.log !== "function") {
+            return;
+        }
+
+        const parts = Array.prototype.slice.call(arguments).filter(Boolean);
+        if (!parts.length) {
+            return;
+        }
+
+        window.console.log.apply(window.console, parts);
+    }
+
     async function applyTemporaryUserDataReset() {
         const currentVersion = readStorageText(USER_DATA_RESET_MARKER_KEY);
         if (currentVersion === TEMPORARY_USER_DATA_RESET_VERSION) {
@@ -970,8 +1139,12 @@
         }
 
         try {
-            const authResult = await supabase.auth.getSession();
-            if (authResult && authResult.data && authResult.data.session) {
+            const session = await getAuthSession({
+                sync: false,
+                forceRefresh: true,
+                cacheMaxAgeMs: 0
+            });
+            if (session) {
                 writeStorageText(USER_DATA_RESET_MARKER_KEY, TEMPORARY_USER_DATA_RESET_VERSION);
                 return;
             }
@@ -1015,8 +1188,12 @@
         let hadSession = Boolean(getSession());
 
         try {
-            const authResult = await supabase.auth.getSession();
-            hadSession = hadSession || Boolean(authResult && authResult.data && authResult.data.session);
+            const session = await getAuthSession({
+                sync: false,
+                forceRefresh: true,
+                cacheMaxAgeMs: 0
+            });
+            hadSession = hadSession || Boolean(session);
         } catch (error) {
             console.warn("Supabase auth session check failed during reset:", error);
         }
@@ -1083,20 +1260,26 @@
 
     function hydrateDesignCache() {
         syncDesignCacheRefreshState();
-        const cached = readSessionJson(DESIGNS_CACHE_KEY, []);
-        if (!Array.isArray(cached) || !cached.length) {
+        const cached = readSessionJson(DESIGNS_CACHE_KEY, null);
+        if (!cached || !Array.isArray(cached.items) || !cached.items.length) {
             return;
         }
 
-        designsCache = cached.map(normalizeDesign);
+        designsCache = cached.items.map(normalizeDesign);
         designsCacheLoaded = true;
+        designsCacheLoadedAt = Number(cached.cachedAt) || Date.now();
     }
 
-    function setDesignsCache(items) {
+    function setDesignsCache(items, source) {
         designsCache = Array.isArray(items) ? items.map(normalizeDesign) : [];
         designsCacheLoaded = true;
-        writeSessionJson(DESIGNS_CACHE_KEY, designsCache);
+        designsCacheLoadedAt = Date.now();
+        writeSessionJson(DESIGNS_CACHE_KEY, {
+            cachedAt: designsCacheLoadedAt,
+            items: designsCache
+        });
         writeSessionText(DESIGNS_CACHE_MARKER_KEY, readStorageText(DESIGN_REFRESH_KEY));
+        logPerf(DESIGN_FETCH_LOG_PREFIX, "cache-updated", source || "unknown", designsCache.length);
     }
 
     function upsertDesignCache(item) {
@@ -1182,9 +1365,14 @@
             ? design.extraImages
             : Array.isArray(design && design.gallery)
             ? design.gallery
+            : Array.isArray(design && design.previewImages)
+            ? design.previewImages
             : [];
 
         return [primaryImage]
+            .concat(cleanText(design && design.preview1))
+            .concat(cleanText(design && design.preview2))
+            .concat(cleanText(design && design.preview3))
             .concat(extraImages)
             .map(cleanText)
             .filter(Boolean)
@@ -1243,6 +1431,40 @@
         return slugify(source);
     }
 
+    function readDesignListPayload(payload) {
+        if (Array.isArray(payload)) {
+            return payload;
+        }
+
+        if (!payload || typeof payload !== "object") {
+            return [];
+        }
+
+        return Array.isArray(payload.designs)
+            ? payload.designs
+            : Array.isArray(payload.products)
+            ? payload.products
+            : Array.isArray(payload.items)
+            ? payload.items
+            : Array.isArray(payload.data)
+            ? payload.data
+            : [];
+    }
+
+    function resolveBackendUrl(path) {
+        const baseUrl = String(BASE_URL || "").replace(/\/+$/, "");
+        const nextPath = String(path || "");
+        if (!baseUrl) {
+            return nextPath;
+        }
+
+        if (!nextPath) {
+            return baseUrl;
+        }
+
+        return `${baseUrl}${nextPath.startsWith("/") ? "" : "/"}${nextPath}`;
+    }
+
     function slugify(value) {
         return String(value || "")
             .toLowerCase()
@@ -1259,7 +1481,9 @@
     }
 
     async function hydrateSession() {
-        const session = await getAuthSession();
+        const session = await getAuthSession({
+            sync: true
+        });
         if (!session || !session.user) {
             return null;
         }
@@ -1306,6 +1530,10 @@
         }
 
         const normalizedUser = normalizeAuthUser(user, session);
+        if (isSameSessionState(previousSession, normalizedUser)) {
+            return previousSession;
+        }
+
         setSession(normalizedUser);
         if (!isSameSessionState(previousSession, normalizedUser)) {
             dispatchSessionChange(normalizedUser);

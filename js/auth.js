@@ -119,34 +119,31 @@
     }
 
     async function resolveRouteAuthState() {
-        let authUser = null;
-        let rawSession = await readSupabaseSession();
+        const cachedSession = services.getSession ? services.getSession() : null;
+        let rawSession = await readSupabaseSession({
+            forceRefresh: !cachedSession
+        });
 
         if (!rawSession && hasActiveAuthCallback()) {
             rawSession = await waitForSupabaseSession(6000);
         }
 
-        if (rawSession && rawSession.user) {
-            authUser = rawSession.user;
-        }
-
-        const session = rawSession && services.refreshSession
-            ? await services.refreshSession({
-                awaitAccountSummary: false,
-                timeoutMs: 4000
-            })
-            : rawSession && services.getSession
-                ? services.getSession()
-                : null;
-
         return {
-            authUser: authUser,
-            session: session
+            authUser: rawSession && rawSession.user ? rawSession.user : null,
+            session: rawSession || cachedSession
         };
     }
 
-    async function readSupabaseSession() {
+    async function readSupabaseSession(options) {
         try {
+            if (services.getAuthSession) {
+                return await services.getAuthSession({
+                    sync: false,
+                    forceRefresh: Boolean(options && options.forceRefresh),
+                    cacheMaxAgeMs: Boolean(options && options.forceRefresh) ? 0 : 2000
+                });
+            }
+
             const authResult = await supabase.auth.getSession();
             return authResult && authResult.data ? authResult.data.session : null;
         } catch (error) {
@@ -159,7 +156,9 @@
         const deadline = Date.now() + Math.max(500, Number(timeoutMs) || 0);
 
         while (Date.now() < deadline) {
-            const session = await readSupabaseSession();
+            const session = await readSupabaseSession({
+                forceRefresh: true
+            });
             if (session && session.user) {
                 return session;
             }
@@ -262,7 +261,13 @@
 
                 await ensureProfileExists(user);
 
-                if (services.refreshSession) {
+                if (services.getAuthSession) {
+                    await services.getAuthSession({
+                        sync: true,
+                        forceRefresh: true,
+                        cacheMaxAgeMs: 0
+                    });
+                } else if (services.refreshSession) {
                     await services.refreshSession({
                         awaitAccountSummary: false,
                         timeoutMs: 4000
@@ -356,7 +361,13 @@
                     return;
                 }
 
-                if (services.refreshSession) {
+                if (services.getAuthSession) {
+                    await services.getAuthSession({
+                        sync: true,
+                        forceRefresh: true,
+                        cacheMaxAgeMs: 0
+                    });
+                } else if (services.refreshSession) {
                     await services.refreshSession({
                         awaitAccountSummary: false,
                         timeoutMs: 4000
@@ -752,7 +763,13 @@
 
             await ensureProfileExists(data && data.session && data.session.user);
 
-            const session = services.refreshSession
+            const session = services.getAuthSession
+                ? await services.getAuthSession({
+                    sync: true,
+                    forceRefresh: true,
+                    cacheMaxAgeMs: 0
+                })
+                : services.refreshSession
                 ? await services.refreshSession({
                     awaitAccountSummary: false,
                     timeoutMs: 4000
@@ -927,9 +944,11 @@
             return null;
         }
 
+        const payload = buildProfilePayload(authUser, fallbackName);
+
         const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("*")
+            .select("id")
             .eq("id", authUser.id)
             .maybeSingle();
 
@@ -940,26 +959,16 @@
         if (!profile) {
             const { error: insertError } = await supabase
                 .from("profiles")
-                .insert([
-                    buildProfilePayload(authUser, fallbackName)
-                ]);
+                .insert([payload]);
 
             if (insertError) {
                 throw insertError;
             }
+
+            return payload;
         }
 
-        const { data: finalProfile, error: finalProfileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", authUser.id)
-            .single();
-
-        if (finalProfileError) {
-            throw finalProfileError;
-        }
-
-        return finalProfile;
+        return profile;
     }
 
     function buildProfilePayload(user, fallbackName) {

@@ -1,18 +1,23 @@
+const AJARTIVO_BOOT_KEY = "__ajartivoScriptBooted";
+const AJARTIVO_PARTIAL_CACHE_VERSION = "20260506-1";
+const AJARTIVO_PARTIAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const AJARTIVO_PARTIAL_CACHE_PREFIX = "ajartivo_partial_html_";
+const AJARTIVO_PERF_LOG_PREFIX = "[AJartivo Perf]";
+const partialHtmlPromises = new Map();
+
 document.addEventListener("DOMContentLoaded", () => {
+    if (window[AJARTIVO_BOOT_KEY]) {
+        return;
+    }
+
+    window[AJARTIVO_BOOT_KEY] = true;
+
     loadHeader();
-    loadFooter();
-    loadSidebar();
     initSearch();
     initSearchResults();
     initQuickCategoryNavigation();
-    initHeroSlider();
+    scheduleIdleWork();
     registerRoutingServiceWorker();
-
-    if ("requestIdleCallback" in window) {
-        window.requestIdleCallback(() => initHeroSearchEnhancements(), { timeout: 1200 });
-    } else {
-        window.setTimeout(initHeroSearchEnhancements, 700);
-    }
 });
 
 function cleanText(value) {
@@ -52,6 +57,104 @@ function resolveSiteUrl(path) {
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
+
+function scheduleIdleWork() {
+    const runIdle = function (callback, timeout) {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(callback, { timeout: timeout || 1200 });
+            return;
+        }
+
+        window.setTimeout(callback, timeout || 700);
+    };
+
+    runIdle(loadFooter, 900);
+    runIdle(loadSidebar, 900);
+    runIdle(initHeroSlider, 1200);
+    runIdle(initHeroSearchEnhancements, 1200);
+}
+
+function logPerf() {
+    if (!window.console || typeof window.console.log !== "function") {
+        return;
+    }
+
+    const parts = Array.prototype.slice.call(arguments).filter(Boolean);
+    if (!parts.length) {
+        return;
+    }
+
+    window.console.log.apply(window.console, parts);
+}
+
+function getPartialCacheKey(cacheName) {
+    return `${AJARTIVO_PARTIAL_CACHE_PREFIX}${cacheName}_${AJARTIVO_PARTIAL_CACHE_VERSION}`;
+}
+
+function readCachedPartial(cacheKey) {
+    try {
+        const raw = localStorage.getItem(cacheKey);
+        if (!raw) return "";
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.html !== "string") return "";
+        if (Number(parsed.expiresAt) && Number(parsed.expiresAt) < Date.now()) return "";
+
+        return parsed.html;
+    } catch (error) {
+        return "";
+    }
+}
+
+function writeCachedPartial(cacheKey, html) {
+    try {
+        localStorage.setItem(cacheKey, JSON.stringify({
+            expiresAt: Date.now() + AJARTIVO_PARTIAL_CACHE_TTL_MS,
+            html: html
+        }));
+    } catch (error) {
+        console.warn("AJartivo partial cache write failed:", error);
+    }
+}
+
+function fetchCachedPartial(path, cacheName, source) {
+    const resolvedPath = resolveSiteUrl(path);
+    const cacheKey = getPartialCacheKey(cacheName);
+    const cached = readCachedPartial(cacheKey);
+
+    if (cached) {
+        logPerf(AJARTIVO_PERF_LOG_PREFIX, "partial-cache-hit", cacheName, source || "unknown");
+        return Promise.resolve(cached);
+    }
+
+    if (partialHtmlPromises.has(cacheKey)) {
+        logPerf(AJARTIVO_PERF_LOG_PREFIX, "partial-deduped", cacheName, source || "unknown");
+        return partialHtmlPromises.get(cacheKey);
+    }
+
+    const request = fetch(resolvedPath, {
+        cache: "force-cache"
+    })
+        .then((res) => {
+            if (!res.ok) {
+                throw new Error(`Failed to load ${cacheName} (${res.status})`);
+            }
+
+            return res.text();
+        })
+        .then((html) => {
+            writeCachedPartial(cacheKey, html);
+            logPerf(AJARTIVO_PERF_LOG_PREFIX, "partial-fetched", cacheName, source || "unknown");
+            return html;
+        })
+        .finally(() => {
+            partialHtmlPromises.delete(cacheKey);
+        });
+
+    partialHtmlPromises.set(cacheKey, request);
+    logPerf(AJARTIVO_PERF_LOG_PREFIX, "partial-fetch-start", cacheName, source || "unknown");
+    return request;
+}
 
 function slugify(value) {
     return String(value || "")
@@ -238,10 +341,14 @@ function ensureStylesheet(href) {
 function loadHeader() {
     const container = document.getElementById("site-header");
     if (!container) return;
+    if (container.dataset.partialLoaded === "true") return;
 
-    fetch(resolveSiteUrl("/pages/header.html"))
-        .then((res) => res.text())
+    fetchCachedPartial("/pages/header.html", "header", "header")
         .then((data) => {
+            if (container.dataset.partialLoaded === "true" && container.dataset.partialVersion === AJARTIVO_PARTIAL_CACHE_VERSION) {
+                return;
+            }
+
             container.innerHTML = data;
             rewriteRootRelativeUrls(container);
             initSearch();
@@ -250,6 +357,9 @@ function loadHeader() {
             initSidebarMenu();
             initProfileDropdown();
             initAuthUI();
+            container.dataset.partialLoaded = "true";
+            container.dataset.partialVersion = AJARTIVO_PARTIAL_CACHE_VERSION;
+            logPerf(AJARTIVO_PERF_LOG_PREFIX, "header-rendered");
         })
         .catch((err) => console.log("Header load error:", err));
 }
@@ -257,14 +367,17 @@ function loadHeader() {
 function loadFooter() {
     const container = document.getElementById("site-footer");
     if (!container) return;
+    if (container.dataset.partialLoaded === "true") return;
 
     ensureStylesheet("/css/style.css");
 
-    fetch(resolveSiteUrl("/pages/footer.html"))
-        .then((res) => res.text())
+    fetchCachedPartial("/pages/footer.html", "footer", "footer")
         .then((data) => {
             container.innerHTML = data;
             rewriteRootRelativeUrls(container);
+            container.dataset.partialLoaded = "true";
+            container.dataset.partialVersion = AJARTIVO_PARTIAL_CACHE_VERSION;
+            logPerf(AJARTIVO_PERF_LOG_PREFIX, "footer-rendered");
         })
         .catch((err) => console.log("Footer load error:", err));
 }
@@ -272,11 +385,11 @@ function loadFooter() {
 function loadSidebar() {
     const sidebar = document.getElementById("sidebarMenu");
     if (!sidebar) return;
+    if (sidebar.dataset.partialLoaded === "true") return;
 
     ensureStylesheet("/css/sidebar.css");
 
-    fetch(resolveSiteUrl("/pages/sidebar.html"))
-        .then((res) => res.text())
+    fetchCachedPartial("/pages/sidebar.html", "sidebar", "sidebar")
         .then((data) => {
             sidebar.innerHTML = data;
             rewriteRootRelativeUrls(sidebar);
@@ -286,6 +399,9 @@ function loadSidebar() {
             } else {
                 window.setTimeout(updateSidebarDesignCounts, 900);
             }
+            sidebar.dataset.partialLoaded = "true";
+            sidebar.dataset.partialVersion = AJARTIVO_PARTIAL_CACHE_VERSION;
+            logPerf(AJARTIVO_PERF_LOG_PREFIX, "sidebar-rendered");
         })
         .catch((err) => console.log("Sidebar load error:", err));
 }
@@ -300,7 +416,16 @@ async function updateSidebarDesignCounts() {
     if (!services) return;
 
     try {
-        const designs = await services.fetchDesigns();
+        const cachedDesigns = typeof services.getCachedDesigns === "function"
+            ? services.getCachedDesigns({ maxAgeMs: 5 * 60 * 1000 })
+            : [];
+        const designs = cachedDesigns.length
+            ? cachedDesigns
+            : await services.fetchDesigns({
+                source: "sidebar-counts",
+                preferCache: true,
+                cacheTtlMs: 5 * 60 * 1000
+            });
         const counts = { psd: 0, cdr: 0, ai: 0 };
 
         designs.forEach((design) => {
@@ -482,7 +607,11 @@ function initSearchResults() {
     });
     container.innerHTML = '<div class="empty-state">Loading designs...</div>';
 
-    services.fetchDesigns()
+    services.fetchDesigns({
+        source: "search-results",
+        preferCache: true,
+        cacheTtlMs: 5 * 60 * 1000
+    })
         .then((designsResult) => {
             let designs = Array.isArray(designsResult) ? [...designsResult] : [];
 
@@ -574,23 +703,32 @@ function renderSearchDesignCards(container, designs) {
         return;
     }
 
-    container.innerHTML = designs.map((design) => {
+    const signature = designs.map((design) => `${design.id}:${design.created_at || design.createdAt || ""}`).join("|");
+    if (container.dataset.renderSignature === signature) {
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    designs.forEach((design) => {
         const title = escapeText(design.title || design.name || "Untitled Design");
         const badge = getDesignBadge(design);
         const image = escapeText(design.image || design.image_url || design.preview_url || "/images/trending1.jpg");
         const productUrl = buildProductUrl(design);
-
-        return `
-            <article class="design-card homepage-design-card">
-                <a href="${productUrl}" class="card-link homepage-card-link">
-                    <div class="homepage-card-media">
-                        <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
-                        <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
-                    </div>
-                </a>
-            </article>
+        const article = document.createElement("article");
+        article.className = "design-card homepage-design-card";
+        article.innerHTML = `
+            <a href="${productUrl}" class="card-link homepage-card-link">
+                <div class="homepage-card-media">
+                    <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
+                    <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
+                </div>
+            </a>
         `;
-    }).join("");
+        fragment.appendChild(article);
+    });
+
+    container.replaceChildren(fragment);
+    container.dataset.renderSignature = signature;
 }
 
 function bindSearchFilterControls(state) {
@@ -1036,6 +1174,7 @@ function initHeroSearchEnhancements() {
 async function initHeroSlider() {
     const hero = document.getElementById("heroHome");
     if (!hero) return;
+    if (hero.dataset.heroSliderReady === "true") return;
 
     const slider = document.getElementById("heroSlider");
     const dotsContainer = document.getElementById("heroDots");
@@ -1176,17 +1315,26 @@ async function initHeroSlider() {
 
     hero.addEventListener("mouseenter", stopAutoplay);
     hero.addEventListener("mouseleave", startAutoplay);
+    window.addEventListener("pagehide", function () {
+        stopAutoplay();
+        if (preloadTimerId) {
+            window.clearTimeout(preloadTimerId);
+            preloadTimerId = null;
+        }
+    }, { once: true });
 
     setActiveSlide(activeIndex);
     startAutoplay();
     queueNextPreload(1800);
+    hero.dataset.heroSliderReady = "true";
+    logPerf(AJARTIVO_PERF_LOG_PREFIX, "hero-slider-ready", slides.length);
 }
 
 async function loadHeroImages() {
     const fallbackImages = ["images/Hero/hero-bg.jpg"];
 
     try {
-        const response = await fetch("images/Hero/manifest.json", { cache: "no-store" });
+        const response = await fetch("images/Hero/manifest.json", { cache: "force-cache" });
         if (!response.ok) return fallbackImages;
 
         const manifest = await response.json();
