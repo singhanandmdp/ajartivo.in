@@ -14,6 +14,17 @@
     <meta property="og:site_name" content="AJartivo">
     <meta name="twitter:card" content="summary_large_image">
     <script id="productJsonLd" type="application/ld+json"></script>
+    <script>
+        (function () {
+            var pathname = String(window.location.pathname || "");
+            var productIndex = pathname.toLowerCase().indexOf("/product/");
+            var basePath = productIndex >= 0 ? pathname.slice(0, productIndex) : pathname.replace(/\/[^/]*$/, "");
+            var baseHref = basePath ? (basePath.replace(/\/+$/, "") + "/") : "/";
+            var base = document.createElement("base");
+            base.href = baseHref;
+            document.head.appendChild(base);
+        })();
+    </script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 

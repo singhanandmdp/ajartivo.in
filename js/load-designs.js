@@ -8,16 +8,30 @@
 
     const trendingGrid = document.getElementById("trendingGrid");
     const popularGrid = document.getElementById("popularDesignGrid");
+    const loadMoreButton = document.getElementById("homepageLoadMoreBtn");
+    const paginationContainer = document.getElementById("homepagePagination");
+    const metaElement = document.getElementById("homepageDesignMeta");
+    const activeFilterRow = document.getElementById("homepageActiveFilterRow");
+    const clearFiltersButton = document.getElementById("homepageClearFiltersBtn");
     const PERF_PREFIX = "[AJartivo Perf][homepage]";
     const CACHE_TTL_MS = 5 * 60 * 1000;
+    const PAGE_SIZE = 20;
+    const INITIAL_VISIBLE_COUNT = 12;
+    const LOAD_MORE_STEP = 8;
     let refreshTimerId = null;
     let inFlightPromise = null;
+    let allDesigns = [];
+    let activePageItems = [];
+    let currentState = readStateFromUrl();
+    let visibleCount = INITIAL_VISIBLE_COUNT;
 
-    if (!trendingGrid && !popularGrid) return;
+    if (!trendingGrid) return;
 
+    bindFilterControls();
     hydrateFromCache();
     loadHomepageDesigns("initial");
     bindLiveRefresh();
+    bindHistoryNavigation();
 
     function hydrateFromCache() {
         const cachedDesigns = typeof services.getCachedDesigns === "function"
@@ -28,8 +42,9 @@
             return;
         }
 
+        allDesigns = cachedDesigns.slice();
+        renderHomepageDesigns("cache");
         logPerf("cache-render", cachedDesigns.length);
-        renderHomepageDesigns(cachedDesigns, "cache");
     }
 
     async function loadHomepageDesigns(source) {
@@ -47,9 +62,10 @@
                     cacheTtlMs: CACHE_TTL_MS
                 });
 
-                renderHomepageDesigns(designs, source || "unknown");
-                logPerf("fetch-complete", source || "unknown", `${Math.round(performance.now() - startedAt)}ms`, designs.length);
-                return designs;
+                allDesigns = Array.isArray(designs) ? designs.slice() : [];
+                renderHomepageDesigns(source || "unknown");
+                logPerf("fetch-complete", source || "unknown", `${Math.round(performance.now() - startedAt)}ms`, allDesigns.length);
+                return allDesigns;
             } catch (error) {
                 console.error("Failed to load homepage designs:", error);
                 showHomepageError();
@@ -80,36 +96,182 @@
         document.body.dataset.homeDesignsLiveBound = "true";
     }
 
-    function renderHomepageDesigns(designs, source) {
-        const latestDesigns = [...designs].sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
-        const popularDesigns = [...designs]
-            .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
-            .slice(0, 6);
+    function bindHistoryNavigation() {
+        window.addEventListener("popstate", function () {
+            currentState = readStateFromUrl();
+            visibleCount = INITIAL_VISIBLE_COUNT;
+            renderHomepageDesigns("popstate");
+        });
+    }
 
-        if (trendingGrid) {
-            renderDesignCards(trendingGrid, latestDesigns.slice(0, 6), "trending", source);
+    function bindFilterControls() {
+        const controls = getFilterControls();
+        const values = currentState;
+
+        if (controls.fileTypeFilter) controls.fileTypeFilter.value = values.category || "";
+        if (controls.licenseFilter) controls.licenseFilter.value = values.price || "";
+        if (controls.aiFilter) controls.aiFilter.value = values.ai || "";
+        if (controls.orientationFilter) controls.orientationFilter.value = values.orientation || "";
+        if (controls.colorFilter) controls.colorFilter.value = values.color || "";
+        if (controls.sortFilter) controls.sortFilter.value = values.sort || "latest";
+
+        const selectControls = [
+            controls.fileTypeFilter,
+            controls.licenseFilter,
+            controls.aiFilter,
+            controls.orientationFilter,
+            controls.colorFilter,
+            controls.sortFilter
+        ];
+
+        selectControls.forEach(function (control) {
+            if (!control || control.dataset.bound === "true") {
+                return;
+            }
+
+            control.addEventListener("change", function () {
+                currentState = readStateFromControls();
+                currentState.page = 1;
+                visibleCount = INITIAL_VISIBLE_COUNT;
+                updateUrlFromState({ push: true });
+                renderHomepageDesigns("filters");
+            });
+
+            control.dataset.bound = "true";
+        });
+
+        if (clearFiltersButton && clearFiltersButton.dataset.bound !== "true") {
+            clearFiltersButton.addEventListener("click", function () {
+                clearFilterControls();
+                currentState = {
+                    category: "",
+                    price: "",
+                    sort: "latest",
+                    ai: "",
+                    orientation: "",
+                    color: "",
+                    page: 1
+                };
+                visibleCount = INITIAL_VISIBLE_COUNT;
+                updateUrlFromState({ push: true, clear: true });
+                renderHomepageDesigns("filters-cleared");
+            });
+
+            clearFiltersButton.dataset.bound = "true";
         }
 
-        if (popularGrid) {
-            renderDesignCards(popularGrid, popularDesigns, "popular", source);
+        if (loadMoreButton && loadMoreButton.dataset.bound !== "true") {
+            loadMoreButton.addEventListener("click", function () {
+                visibleCount = Math.min(visibleCount + LOAD_MORE_STEP, PAGE_SIZE, activePageItems.length);
+                renderHomepageDesigns("load-more");
+            });
+            loadMoreButton.dataset.bound = "true";
         }
     }
 
-    function renderDesignCards(container, designs, bucket, source) {
+    function clearFilterControls() {
+        const controls = getFilterControls();
+        if (controls.fileTypeFilter) controls.fileTypeFilter.value = "";
+        if (controls.licenseFilter) controls.licenseFilter.value = "";
+        if (controls.aiFilter) controls.aiFilter.value = "";
+        if (controls.orientationFilter) controls.orientationFilter.value = "";
+        if (controls.colorFilter) controls.colorFilter.value = "";
+        if (controls.sortFilter) controls.sortFilter.value = "latest";
+    }
+
+    function getFilterControls() {
+        return {
+            fileTypeFilter: document.getElementById("homepageFileTypeFilter"),
+            licenseFilter: document.getElementById("homepageLicenseFilter"),
+            sortFilter: document.getElementById("homepageSortFilter"),
+            aiFilter: document.getElementById("homepageAiFilter"),
+            orientationFilter: document.getElementById("homepageOrientationFilter"),
+            colorFilter: document.getElementById("homepageColorFilter")
+        };
+    }
+
+    function readStateFromControls() {
+        const controls = getFilterControls();
+        return {
+            category: cleanText(controls.fileTypeFilter && controls.fileTypeFilter.value).toUpperCase(),
+            price: cleanText(controls.licenseFilter && controls.licenseFilter.value).toLowerCase(),
+            sort: cleanText(controls.sortFilter && controls.sortFilter.value).toLowerCase() || "latest",
+            ai: cleanText(controls.aiFilter && controls.aiFilter.value).toLowerCase(),
+            orientation: cleanText(controls.orientationFilter && controls.orientationFilter.value).toLowerCase(),
+            color: cleanText(controls.colorFilter && controls.colorFilter.value).toLowerCase(),
+            page: Math.max(1, Number(currentState && currentState.page) || 1)
+        };
+    }
+
+    function readStateFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            category: cleanText(params.get("category")).toUpperCase(),
+            price: cleanText(params.get("price")).toLowerCase(),
+            sort: cleanText(params.get("sort")).toLowerCase() || "latest",
+            ai: cleanText(params.get("ai")).toLowerCase(),
+            orientation: cleanText(params.get("orientation")).toLowerCase(),
+            color: cleanText(params.get("color")).toLowerCase(),
+            page: Math.max(1, Number(params.get("page") || 1))
+        };
+    }
+
+    function updateUrlFromState(options) {
+        const params = new URLSearchParams();
+        const state = currentState || {};
+        const shouldClear = Boolean(options && options.clear);
+
+        if (!shouldClear && state.category) params.set("category", state.category);
+        if (!shouldClear && state.price) params.set("price", state.price);
+        if (!shouldClear && state.sort && state.sort !== "latest") params.set("sort", state.sort);
+        if (!shouldClear && state.ai) params.set("ai", state.ai);
+        if (!shouldClear && state.orientation) params.set("orientation", state.orientation);
+        if (!shouldClear && state.color) params.set("color", state.color);
+        if (!shouldClear && Number(state.page) > 1) params.set("page", String(state.page));
+
+        const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash || ""}`;
+        const method = options && options.push ? "pushState" : "replaceState";
+        window.history[method]({}, "", nextUrl);
+    }
+
+    function renderHomepageDesigns(source) {
+        const filteredDesigns = applyHomepageFilters(allDesigns, currentState);
+        const pageCount = Math.max(1, Math.ceil(filteredDesigns.length / PAGE_SIZE));
+        currentState.page = Math.min(Math.max(1, Number(currentState.page) || 1), pageCount);
+        const start = (currentState.page - 1) * PAGE_SIZE;
+        activePageItems = filteredDesigns.slice(start, start + PAGE_SIZE);
+        const renderCount = Math.min(visibleCount, activePageItems.length);
+        const itemsToRender = activePageItems.slice(0, renderCount);
+
+        renderHomepageCards(trendingGrid, itemsToRender);
+        renderMeta(filteredDesigns.length, start, renderCount);
+        renderActiveFilterChips(activeFilterRow, currentState);
+        renderLoadMoreButton(activePageItems.length, renderCount);
+        renderPagination(pageCount, currentState.page, paginationContainer);
+        updateUrlFromState();
+
+        if (popularGrid && popularGrid.parentElement && popularGrid.parentElement.hidden !== true) {
+            popularGrid.parentElement.hidden = true;
+        }
+
+        logPerf("rendered", source || "unknown", itemsToRender.length, filteredDesigns.length, `page ${currentState.page}/${pageCount}`);
+    }
+
+    function renderHomepageCards(container, designs) {
+        if (!container) return;
+
         if (!designs.length) {
             container.replaceChildren(buildEmptyState("No designs found yet."));
             container.dataset.renderSignature = "";
             return;
         }
 
-        const signature = `${bucket}:${designs.map((design) => `${design.id}:${design.created_at || design.createdAt || ""}:${design.downloads || 0}`).join("|")}`;
+        const signature = designs.map((design) => `${design.id}:${design.created_at || design.createdAt || ""}:${design.downloads || 0}`).join("|");
         if (container.dataset.renderSignature === signature) {
-            logPerf("render-skipped", bucket, source || "unknown", designs.length);
             return;
         }
 
         const fragment = document.createDocumentFragment();
-
         designs.forEach(function (design) {
             const title = escapeHtml(design.title || design.name || "Untitled Design");
             const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
@@ -132,7 +294,318 @@
 
         container.replaceChildren(fragment);
         container.dataset.renderSignature = signature;
-        logPerf("rendered", bucket, source || "unknown", designs.length);
+    }
+
+    function renderMeta(total, start, renderCount) {
+        if (!metaElement) return;
+
+        if (!total) {
+            metaElement.textContent = "No matching designs";
+            return;
+        }
+
+        const first = start + 1;
+        const last = start + renderCount;
+        metaElement.textContent = `Showing ${first}-${last} of ${total} designs`;
+    }
+
+    function renderLoadMoreButton(totalOnPage, renderedCount) {
+        if (!loadMoreButton) return;
+
+        const hasMore = renderedCount < totalOnPage;
+        loadMoreButton.hidden = !hasMore;
+        loadMoreButton.textContent = hasMore
+            ? `Load More ${Math.min(LOAD_MORE_STEP, totalOnPage - renderedCount)}`
+            : "Load More";
+    }
+
+    function renderPagination(pageCount, currentPage, container) {
+        if (!container) return;
+
+        if (pageCount <= 1) {
+            container.innerHTML = "";
+            return;
+        }
+
+        const buttons = [];
+        const maxWindow = 7;
+        const half = Math.floor(maxWindow / 2);
+        const start = Math.max(1, currentPage - half);
+        const end = Math.min(pageCount, start + maxWindow - 1);
+        const adjustedStart = Math.max(1, end - maxWindow + 1);
+
+        buttons.push(renderPageButton("Prev", Math.max(1, currentPage - 1), currentPage === 1));
+        if (adjustedStart > 1) {
+            buttons.push(renderPageButton("1", 1, false, currentPage === 1));
+            if (adjustedStart > 2) {
+                buttons.push('<span class="page-dots">...</span>');
+            }
+        }
+
+        for (let page = adjustedStart; page <= end; page += 1) {
+            buttons.push(renderPageButton(String(page), page, false, page === currentPage));
+        }
+
+        if (end < pageCount) {
+            if (end < pageCount - 1) {
+                buttons.push('<span class="page-dots">...</span>');
+            }
+            buttons.push(renderPageButton(String(pageCount), pageCount, false, currentPage === pageCount));
+        }
+
+        buttons.push(renderPageButton("Next", Math.min(pageCount, currentPage + 1), currentPage === pageCount));
+
+        container.innerHTML = buttons.join("");
+        container.querySelectorAll("button[data-page]").forEach((button) => {
+            button.addEventListener("click", function () {
+                if (button.disabled) return;
+                const nextPage = Number(button.dataset.page || 1);
+                currentState.page = nextPage;
+                visibleCount = INITIAL_VISIBLE_COUNT;
+                updateUrlFromState({ push: true });
+                renderHomepageDesigns("pagination");
+            });
+        });
+    }
+
+    function renderPageButton(label, page, disabled, active) {
+        const activeClass = active ? " active" : "";
+        const disabledAttr = disabled ? " disabled" : "";
+        return `<button type="button" data-page="${page}" class="${activeClass.trim()}"${disabledAttr}>${label}</button>`;
+    }
+
+    function renderActiveFilterChips(container, state) {
+        if (!container) return;
+
+        const chips = [];
+        if (state.category) chips.push(`Type: ${state.category}`);
+        if (state.price) chips.push(`License: ${state.price}`);
+        if (state.ai) chips.push(`AI: ${state.ai}`);
+        if (state.orientation) chips.push(`Orientation: ${state.orientation}`);
+        if (state.color) chips.push(`Color: ${state.color}`);
+        if (state.sort && state.sort !== "latest") chips.push(`Sort: ${state.sort.replace("_", " ")}`);
+
+        container.innerHTML = chips.map((chip) => `<span class="active-filter-chip">${escapeHtml(chip)}</span>`).join("");
+    }
+
+    function applyHomepageFilters(designs, state) {
+        let result = Array.isArray(designs) ? designs.slice() : [];
+        const category = cleanText(state && state.category).toUpperCase();
+        const priceFilter = cleanText(state && state.price).toLowerCase();
+        const aiFilter = cleanText(state && state.ai).toLowerCase();
+        const orientationFilter = cleanText(state && state.orientation).toLowerCase();
+        const colorFilter = cleanText(state && state.color).toLowerCase();
+
+        if (category) {
+            result = result.filter((design) => normalizeDesignFormat(design) === category);
+        }
+
+        if (priceFilter === "free") {
+            result = result.filter((design) => !isPremiumDesign(design));
+        }
+
+        if (priceFilter === "premium") {
+            result = result.filter((design) => isPremiumDesign(design));
+        }
+
+        if (aiFilter) {
+            result = result.filter((design) => {
+                const aiGenerated = detectAiGenerated(design);
+                return aiFilter === "yes" ? aiGenerated : !aiGenerated;
+            });
+        }
+
+        if (orientationFilter) {
+            result = result.filter((design) => detectOrientation(design) === orientationFilter);
+        }
+
+        if (colorFilter) {
+            result = result.filter((design) => detectColor(design) === colorFilter);
+        }
+
+        sortDesigns(result, cleanText(state && state.sort).toLowerCase() || "latest");
+        return result;
+    }
+
+    function sortDesigns(designs, sortFilter) {
+        if (!Array.isArray(designs)) return;
+
+        if (sortFilter === "oldest") {
+            designs.sort((a, b) => getCreatedAtMs(a) - getCreatedAtMs(b));
+            return;
+        }
+
+        if (sortFilter === "downloads") {
+            designs.sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0));
+            return;
+        }
+
+        if (sortFilter === "views") {
+            designs.sort((a, b) => Number(b.views || 0) - Number(a.views || 0));
+            return;
+        }
+
+        if (sortFilter === "trending") {
+            designs.sort((a, b) => trendingScore(b) - trendingScore(a));
+            return;
+        }
+
+        if (sortFilter === "price_low") {
+            designs.sort((a, b) => numericPrice(a) - numericPrice(b));
+            return;
+        }
+
+        if (sortFilter === "price_high") {
+            designs.sort((a, b) => numericPrice(b) - numericPrice(a));
+            return;
+        }
+
+        if (sortFilter === "az") {
+            designs.sort((a, b) => designTitle(a).localeCompare(designTitle(b)));
+            return;
+        }
+
+        if (sortFilter === "za") {
+            designs.sort((a, b) => designTitle(b).localeCompare(designTitle(a)));
+            return;
+        }
+
+        designs.sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
+    }
+
+    function trendingScore(design) {
+        const downloads = Number(design.downloads || 0);
+        const views = Number(design.views || 0);
+        const createdAt = getCreatedAtMs(design);
+        const ageDays = Math.max(1, Math.floor((Date.now() - createdAt) / (24 * 60 * 60 * 1000)));
+        const freshnessBoost = Math.max(0, 30 - ageDays) / 30;
+        return downloads * 3 + views + freshnessBoost * 10;
+    }
+
+    function numericPrice(design) {
+        const price = Number(design.price || 0);
+        return Number.isFinite(price) && price > 0 ? price : 0;
+    }
+
+    function designTitle(design) {
+        return String(design.title || design.name || "").toLowerCase();
+    }
+
+    function getCreatedAtMs(design) {
+        const createdAt = design && (design.createdAt || design.created_at);
+        const asDate = new Date(createdAt || 0);
+        const millis = asDate.getTime();
+        return Number.isFinite(millis) ? millis : 0;
+    }
+
+    function detectAiGenerated(design) {
+        if (design.aiGenerated === true || design.ai === true || design.isAiGenerated === true) {
+            return true;
+        }
+
+        const textBlob = [
+            design.title,
+            design.name,
+            design.description,
+            Array.isArray(design.tags) ? design.tags.join(" ") : ""
+        ].join(" ").toLowerCase();
+
+        return /\bai\b|\bai-generated\b|\bgenerated\b/.test(textBlob);
+    }
+
+    function detectOrientation(design) {
+        const direct = String(design.orientation || design.layout || "").trim().toLowerCase();
+        if (direct) {
+            return normalizeOrientation(direct);
+        }
+
+        const textBlob = [
+            design.title,
+            design.name,
+            design.description,
+            Array.isArray(design.tags) ? design.tags.join(" ") : ""
+        ].join(" ").toLowerCase();
+
+        if (/\bpanoramic\b/.test(textBlob)) return "panoramic";
+        if (/\bhorizontal\b/.test(textBlob)) return "horizontal";
+        if (/\bvertical\b/.test(textBlob)) return "vertical";
+        if (/\blandscape\b/.test(textBlob)) return "landscape";
+        if (/\bportrait\b/.test(textBlob)) return "portrait";
+        if (/\bsquare\b/.test(textBlob)) return "square";
+        return "";
+    }
+
+    function normalizeOrientation(value) {
+        const map = {
+            horizontal: "horizontal",
+            vertical: "vertical",
+            landscape: "landscape",
+            portrait: "portrait",
+            square: "square",
+            panoramic: "panoramic"
+        };
+
+        return map[value] || "";
+    }
+
+    function detectColor(design) {
+        const direct = String(design.color || "").trim().toLowerCase();
+        if (direct) return direct;
+
+        const palette = Array.isArray(design.colors)
+            ? design.colors.join(" ")
+            : String(design.colorPalette || "");
+
+        const textBlob = [
+            design.title,
+            design.name,
+            design.description,
+            Array.isArray(design.tags) ? design.tags.join(" ") : "",
+            palette
+        ].join(" ").toLowerCase();
+
+        const knownColors = ["red", "blue", "green", "black", "yellow", "orange", "purple", "white"];
+        return knownColors.find((color) => textBlob.includes(color)) || "";
+    }
+
+    function normalizeDesignFormat(design) {
+        const raw = String(
+            (design && (
+                design.extension ||
+                design.fileType ||
+                design.format ||
+                design.category ||
+                design.type
+            )) || ""
+        ).trim().toUpperCase();
+
+        if (raw) {
+            return raw;
+        }
+
+        const title = String(design && (design.title || design.name || "")).toLowerCase();
+        if (/\bpsd\b/.test(title)) return "PSD";
+        if (/\bcdr\b/.test(title)) return "CDR";
+        if (/\bai\b/.test(title)) return "AI";
+        if (/\bpng\b/.test(title)) return "PNG";
+        if (/\bjpg\b|\bjpeg\b/.test(title)) return "JPG";
+        if (/\bpdf\b/.test(title)) return "PDF";
+        if (/\bsvg\b/.test(title)) return "SVG";
+        if (/\beps\b/.test(title)) return "EPS";
+        return "";
+    }
+
+    function isPremiumDesign(design) {
+        const price = Number(design && design.price || 0);
+        if (design && design.is_premium === true) {
+            return true;
+        }
+
+        if (design && design.is_paid === true) {
+            return price > 0;
+        }
+
+        return price > 0;
     }
 
     function buildEmptyState(message) {
@@ -143,11 +616,15 @@
     }
 
     function showHomepageError() {
-        if (trendingGrid) {
-            trendingGrid.replaceChildren(buildEmptyState("Could not load designs right now."));
+        trendingGrid.replaceChildren(buildEmptyState("Could not load designs right now."));
+        if (metaElement) {
+            metaElement.textContent = "";
         }
-        if (popularGrid) {
-            popularGrid.replaceChildren(buildEmptyState("Could not load popular designs right now."));
+        if (loadMoreButton) {
+            loadMoreButton.hidden = true;
+        }
+        if (paginationContainer) {
+            paginationContainer.innerHTML = "";
         }
     }
 
@@ -185,16 +662,10 @@
         }
 
         return {
-            label: design.is_premium ? "PREMIUM" : "FREE",
-            className: design.is_premium ? "premium" : "free",
+            label: isPremiumDesign(design) ? "PREMIUM" : "FREE",
+            className: isPremiumDesign(design) ? "premium" : "free",
             styleAttr: ""
         };
-    }
-
-    function getCreatedAtMs(design) {
-        const date = new Date(design.created_at || design.createdAt || 0);
-        const millis = date.getTime();
-        return Number.isFinite(millis) ? millis : 0;
     }
 
     function colorFromText(value) {
@@ -216,6 +687,10 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
+    }
+
+    function cleanText(value) {
+        return String(value || "").trim();
     }
 
     function logPerf() {

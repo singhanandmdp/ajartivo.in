@@ -291,7 +291,8 @@
     }
 
     async function fetchDesignsFromBackend(options) {
-        const limit = Number(options && options.limit) || 100;
+        const requestedLimit = Number(options && options.limit);
+        const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 1000;
         const backendUrl = new URL(resolveBackendUrl(`/designs?limit=${encodeURIComponent(String(limit))}`), window.location.href).href;
 
         try {
@@ -317,7 +318,7 @@
     }
 
     async function fetchBackendDesignById(id) {
-        const designs = await fetchDesignsFromBackend({ limit: 100 });
+        const designs = await fetchDesignsFromBackend({ limit: 1000 });
         const match = designs.find(function (design) {
             return String(design.id) === String(id);
         });
@@ -330,7 +331,7 @@
             return null;
         }
 
-        const designs = await fetchDesignsFromBackend({ limit: 100 });
+        const designs = await fetchDesignsFromBackend({ limit: 1000 });
         const match = designs.find(function (design) {
             return getDesignSlug(design) === designSlug;
         });
