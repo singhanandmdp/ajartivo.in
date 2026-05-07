@@ -242,19 +242,32 @@
         activePageItems = filteredDesigns.slice(start, start + PAGE_SIZE);
         const renderCount = Math.min(visibleCount, activePageItems.length);
         const itemsToRender = activePageItems.slice(0, renderCount);
+        const popularItems = getPopularDesigns(filteredDesigns.length ? filteredDesigns : allDesigns).slice(0, 6);
+        const popularSection = document.getElementById("popularDesignsSection");
 
         renderHomepageCards(trendingGrid, itemsToRender);
+        renderPopularSection(popularSection, popularItems);
         renderMeta(filteredDesigns.length, start, renderCount);
         renderActiveFilterChips(activeFilterRow, currentState);
         renderLoadMoreButton(activePageItems.length, renderCount);
         renderPagination(pageCount, currentState.page, paginationContainer);
         updateUrlFromState();
 
-        if (popularGrid && popularGrid.parentElement && popularGrid.parentElement.hidden !== true) {
-            popularGrid.parentElement.hidden = true;
+        logPerf("rendered", source || "unknown", itemsToRender.length, filteredDesigns.length, `page ${currentState.page}/${pageCount}`);
+    }
+
+    function renderPopularSection(section, designs) {
+        if (!section || !popularGrid) return;
+
+        if (!designs.length) {
+            section.hidden = true;
+            popularGrid.replaceChildren(buildEmptyState("No popular designs found yet."));
+            popularGrid.dataset.renderSignature = "";
+            return;
         }
 
-        logPerf("rendered", source || "unknown", itemsToRender.length, filteredDesigns.length, `page ${currentState.page}/${pageCount}`);
+        section.hidden = false;
+        renderHomepageCards(popularGrid, designs);
     }
 
     function renderHomepageCards(container, designs) {
@@ -480,6 +493,22 @@
         const ageDays = Math.max(1, Math.floor((Date.now() - createdAt) / (24 * 60 * 60 * 1000)));
         const freshnessBoost = Math.max(0, 30 - ageDays) / 30;
         return downloads * 3 + views + freshnessBoost * 10;
+    }
+
+    function popularScore(design) {
+        const downloads = Number(design.downloads || 0);
+        const views = Number(design.views || 0);
+        const createdAt = getCreatedAtMs(design);
+        const ageDays = Math.max(1, Math.floor((Date.now() - createdAt) / (24 * 60 * 60 * 1000)));
+        const recencyBoost = Math.max(0, 45 - ageDays) / 45;
+        const wishlistBoost = Number(design.wishlist_count || design.wishlisted_count || design.saved_count || 0) || 0;
+
+        return downloads * 4 + views * 1.5 + wishlistBoost * 6 + recencyBoost * 8;
+    }
+
+    function getPopularDesigns(designs) {
+        return [...(Array.isArray(designs) ? designs : [])]
+            .sort((a, b) => popularScore(b) - popularScore(a));
     }
 
     function numericPrice(design) {
