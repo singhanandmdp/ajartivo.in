@@ -51,9 +51,7 @@ function resolveSiteUrl(path) {
     if (!path) return window.location.href;
     if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const basePath = getSiteBasePath();
-    return `${basePath}${normalizedPath}`;
+    return path.startsWith("/") ? path : `/${path}`;
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
