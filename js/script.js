@@ -82,9 +82,19 @@ function stripHtmlExtensionFromPath(path) {
         .replace(/\.html(?=([?#]|$))/i, "");
 }
 
+function collapseDuplicateLeadingSegment(path) {
+    let current = String(path || "");
+    const duplicatePrefixPattern = /^\/([^/]+)\/\1(?=\/|$)/;
+
+    while (duplicatePrefixPattern.test(current)) {
+        current = current.replace(duplicatePrefixPattern, "/$1");
+    }
+    return current;
+}
+
 function canonicalizeCurrentLocation() {
     const currentPath = String(window.location.pathname || "");
-    const cleanPath = stripHtmlExtensionFromPath(currentPath);
+    const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(currentPath));
 
     if (!cleanPath || cleanPath === currentPath) {
         return;
@@ -265,10 +275,10 @@ function normalizeAppAnchorHref(value) {
             return trimmed;
         }
 
-        const cleanPath = stripHtmlExtensionFromPath(resolvedUrl.pathname);
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(resolvedUrl.pathname));
         return resolveSiteUrl(cleanPath + resolvedUrl.search + resolvedUrl.hash);
     } catch (_error) {
-        return resolveSiteUrl(stripHtmlExtensionFromPath(trimmed));
+        return resolveSiteUrl(collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(trimmed)));
     }
 }
 

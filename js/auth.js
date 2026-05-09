@@ -35,9 +35,19 @@
             .replace(/\.html(?=([?#]|$))/i, "");
     }
 
+    function collapseDuplicateLeadingSegment(path) {
+        let current = String(path || "");
+        const duplicatePrefixPattern = /^\/([^/]+)\/\1(?=\/|$)/;
+
+        while (duplicatePrefixPattern.test(current)) {
+            current = current.replace(duplicatePrefixPattern, "/$1");
+        }
+        return current;
+    }
+
     function canonicalizeCurrentLocation() {
         const currentPath = String(window.location.pathname || "");
-        const cleanPath = stripHtmlExtensionFromPath(currentPath);
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(currentPath));
 
         if (!cleanPath || cleanPath === currentPath) {
             return;
@@ -80,7 +90,7 @@
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
         const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-        const cleanPath = stripHtmlExtensionFromPath(normalizedPath);
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(normalizedPath));
         const basePath = getAppBasePath().replace(/\/$/, "");
 
         if (!basePath) {
