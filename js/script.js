@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window[AJARTIVO_BOOT_KEY] = true;
+    disableLocalServiceWorkers();
     canonicalizeCurrentLocation();
 
     loadHeader();
@@ -29,33 +30,136 @@ function cleanText(value) {
     return String(value || "").trim();
 }
 
+function isLocalDevelopmentHost() {
+    const hostname = String(window.location.hostname || "").toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function splitPathSuffix(path) {
+    const input = String(path || "");
+    const match = input.match(/^([^?#]*)([?#].*)?$/);
+
+    return {
+        pathname: match ? match[1] : input,
+        suffix: match && match[2] ? match[2] : ""
+    };
+}
+
+function getLocalRouteFilePath(pathname) {
+    const routePath = String(pathname || "").replace(/\/+$/, "") || "/";
+    const routeMap = {
+        "/": "/index.html",
+        "/about": "/about/index.html",
+        "/dashboard": "/dashboard.html",
+        "/login": "/login.html",
+        "/signup": "/signup.html",
+        "/premium": "/premium.html",
+        "/privacy": "/privacy.html",
+        "/refund": "/refund.html",
+        "/terms": "/terms.html",
+        "/pages/contact": "/pages/contact.html",
+        "/pages/license": "/pages/license.html",
+        "/pages/privacy": "/pages/privacy.html",
+        "/pages/profile": "/pages/profile.html",
+        "/pages/search": "/pages/search.html",
+        "/tools/dashboard": "/tools/dashboard.html",
+        "/tools/aj-pixel-enhancer": "/tools/aj-pixel-enhancer.html",
+        "/tools/image-resizer": "/tools/image-resizer.html",
+        "/tools/image-converter": "/tools/image-converter.html",
+        "/tools/aj-colour-converter": "/tools/aj-colour-converter.html",
+        "/tools/aj-print-layout-pro": "/tools/aj-print-layout-pro.html",
+        "/tools/Aj Pixel Cut/website/aj-pixel-cut": "/tools/Aj Pixel Cut/website/aj-pixel-cut.html"
+    };
+
+    return routeMap[routePath] || "";
+}
+
+function normalizeLocalBasePath(basePath) {
+    return collapseDuplicateLeadingSegment(String(basePath || "").replace(/\/$/, ""));
+}
+
+function stripLocalBasePath(path, basePath) {
+    const normalizedPath = collapseDuplicateLeadingSegment(String(path || ""));
+    const normalizedBasePath = normalizeLocalBasePath(basePath);
+
+    if (!normalizedBasePath) {
+        return normalizedPath;
+    }
+
+    if (
+        normalizedPath === normalizedBasePath ||
+        normalizedPath.startsWith(`${normalizedBasePath}/`) ||
+        normalizedPath.startsWith(`${normalizedBasePath}?`) ||
+        normalizedPath.startsWith(`${normalizedBasePath}#`)
+    ) {
+        const remainder = normalizedPath.slice(normalizedBasePath.length);
+        return remainder ? (remainder.startsWith("/") ? remainder : `/${remainder}`) : "/";
+    }
+
+    return normalizedPath;
+}
+
+function joinBasePathWithTarget(basePath, targetPath) {
+    const normalizedBasePath = normalizeLocalBasePath(basePath);
+    const normalizedTargetPath = String(targetPath || "");
+
+    if (!normalizedBasePath) {
+        return normalizedTargetPath;
+    }
+
+    if (
+        normalizedTargetPath === normalizedBasePath ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}/`) ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}?`) ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}#`)
+    ) {
+        return normalizedTargetPath;
+    }
+
+    if (!normalizedTargetPath.startsWith("/")) {
+        return `${normalizedBasePath}/${normalizedTargetPath}`;
+    }
+
+    return `${normalizedBasePath}${normalizedTargetPath}`;
+}
+
 function getSiteBasePath() {
     const scriptElement = document.querySelector('script[src*="js/script.js"]');
     const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
 
     if (scriptSrc) {
         const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
-        return resolvedScriptUrl.pathname.replace(/\/js\/script\.js$/i, "");
+        return normalizeLocalBasePath(resolvedScriptUrl.pathname.replace(/\/js\/script\.js$/i, ""));
     }
 
     const path = window.location.pathname;
     const pagesIndex = path.indexOf("/pages/");
     if (pagesIndex >= 0) {
-        return path.slice(0, pagesIndex);
+        return normalizeLocalBasePath(path.slice(0, pagesIndex));
     }
 
     const lastSlashIndex = path.lastIndexOf("/");
-    return lastSlashIndex > 0 ? path.slice(0, lastSlashIndex) : "";
+    return lastSlashIndex > 0 ? normalizeLocalBasePath(path.slice(0, lastSlashIndex)) : "";
 }
 
 function resolveSiteUrl(path) {
     if (!path) return window.location.href;
     if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-    const basePath = getSiteBasePath().replace(/\/$/, "");
-    const cleanPath = stripHtmlExtensionFromPath(path);
+    const normalizedInput = splitPathSuffix(path);
+    const basePath = getSiteBasePath();
+    const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(normalizedInput.pathname));
+    const suffix = normalizedInput.suffix;
+
+    if (isLocalDevelopmentHost()) {
+        const localRouteFilePath = getLocalRouteFilePath(stripLocalBasePath(cleanPath, basePath));
+        if (localRouteFilePath) {
+            return joinBasePathWithTarget(basePath, localRouteFilePath) + suffix;
+        }
+    }
+
     if (!basePath) {
-        return cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+        return (cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`) + suffix;
     }
 
     if (
@@ -64,14 +168,14 @@ function resolveSiteUrl(path) {
         cleanPath.startsWith(`${basePath}?`) ||
         cleanPath.startsWith(`${basePath}#`)
     ) {
-        return cleanPath;
+        return cleanPath + suffix;
     }
 
     if (!cleanPath.startsWith("/")) {
-        return `${basePath}/${cleanPath}`;
+        return `${basePath}/${cleanPath}${suffix}`;
     }
 
-    return `${basePath}${cleanPath}`;
+    return `${basePath}${cleanPath}${suffix}`;
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
@@ -93,6 +197,10 @@ function collapseDuplicateLeadingSegment(path) {
 }
 
 function canonicalizeCurrentLocation() {
+    if (isLocalDevelopmentHost()) {
+        return;
+    }
+
     const currentPath = String(window.location.pathname || "");
     const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(currentPath));
 
@@ -243,11 +351,31 @@ function registerRoutingServiceWorker() {
         return;
     }
 
+    if (isLocalDevelopmentHost()) {
+        return;
+    }
+
     const swUrl = resolveSiteUrl("/sw.js");
     window.addEventListener("load", function () {
         navigator.serviceWorker.register(swUrl).catch(function (error) {
             console.warn("AJartivo routing service worker registration failed:", error);
         });
+    });
+}
+
+function disableLocalServiceWorkers() {
+    if (!isLocalDevelopmentHost() || !("serviceWorker" in navigator)) {
+        return;
+    }
+
+    window.addEventListener("load", function () {
+        navigator.serviceWorker.getRegistrations()
+            .then((registrations) => {
+                return Promise.all(registrations.map((registration) => registration.unregister()));
+            })
+            .catch((error) => {
+                console.warn("AJartivo local service worker cleanup failed:", error);
+            });
     });
 }
 

@@ -1,4 +1,9 @@
 (function () {
+    function isLocalDevelopmentHost() {
+        var hostname = String(window.location.hostname || "").toLowerCase();
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    }
+
     function stripHtmlExtensionFromPath(path) {
         return String(path || "")
             .replace(/\/index\.html(?=([?#]|$))/i, "/")
@@ -13,6 +18,10 @@
             current = current.replace(duplicatePrefixPattern, "/$1");
         }
         return current;
+    }
+
+    if (isLocalDevelopmentHost()) {
+        return;
     }
 
     var currentPath = String(window.location.pathname || "");

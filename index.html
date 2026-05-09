@@ -8,6 +8,11 @@
     <link rel="icon" href="Favicon.ico" type="image/x-icon">
     <script>
         (function () {
+            var hostname = String(window.location.hostname || "").toLowerCase();
+            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+                return;
+            }
+
             var path = String(window.location.pathname || "");
             var nextPath = path
                 .replace(/\/index\.html$/i, "/")
