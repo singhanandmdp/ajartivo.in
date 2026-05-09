@@ -3,6 +3,10 @@ const express = require("express");
 const { cleanText } = require("../config");
 const { requireAuthenticatedUser } = require("../middleware/requireAuth");
 const { requireSupabaseConfigured } = require("../middleware/requireConfig");
+const {
+    getDesignById,
+    incrementDesignViews
+} = require("../services/designService");
 const { consumeToolEntitlement, ensureUserProfile } = require("../services/userService");
 const { asyncHandler, createHttpError } = require("../utils/http");
 
@@ -32,6 +36,25 @@ router.post("/tools/consume", requireSupabaseConfigured, requireAuthenticatedUse
     });
 }));
 
+router.post("/designs/:designId/view", requireSupabaseConfigured, asyncHandler(async function (req, res) {
+    const designId = cleanText(req.params && req.params.designId);
+    if (!designId) {
+        throw createHttpError(400, "Design ID is required.");
+    }
+
+    const design = await getDesignById(designId);
+    if (!design) {
+        throw createHttpError(404, "Design not found.");
+    }
+
+    const updated = await incrementDesignViews(design);
+
+    res.json({
+        success: true,
+        design: buildDesignViewPayload(updated || design)
+    });
+}));
+
 function buildToolsAccount(profile) {
     return {
         role: cleanText(profile && profile.role),
@@ -43,6 +66,15 @@ function buildToolsAccount(profile) {
         ai_remaining_today: Number(profile && profile.ai_remaining_today || 0),
         print_layout_limit: cleanText(profile && profile.print_layout_limit),
         tools_access: profile && profile.tools_access ? profile.tools_access : {}
+    };
+}
+
+function buildDesignViewPayload(design) {
+    return {
+        id: cleanText(design && design.id),
+        title: cleanText(design && design.title),
+        views: Number(design && design.views || 0),
+        downloads: Number(design && design.downloads || 0)
     };
 }
 

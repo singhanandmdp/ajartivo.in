@@ -15,6 +15,7 @@ const {
 } = require("../services/designService");
 const {
     findExistingPurchase,
+    savePaymentRecord,
     savePurchaseRecord
 } = require("../services/purchaseService");
 const { activatePremiumMembership, ensureUserProfile } = require("../services/userService");
@@ -285,6 +286,14 @@ router.post("/verify-payment", requirePaymentConfigured, requireAuthenticatedUse
         orderId: cleanText(razorpayOrder.id)
     });
 
+    const paymentRecord = await savePaymentRecord({
+        authUser: req.authUser,
+        design: design,
+        payment: finalizedPayment,
+        orderId: cleanText(razorpayOrder.id),
+        quantity: 1
+    });
+
     res.json({
         success: true,
         alreadyPurchased: false,
@@ -292,6 +301,7 @@ router.post("/verify-payment", requirePaymentConfigured, requireAuthenticatedUse
         order_id: cleanText(razorpayOrder.id),
         amount: Number(finalizedPayment.amount || 0),
         purchase_id: cleanText(purchaseRecord && purchaseRecord.id),
+        payment_record_id: cleanText(paymentRecord && paymentRecord.id),
         download_url: `/download/${encodeURIComponent(design.id)}`
     });
 }));
@@ -348,12 +358,24 @@ router.post("/verify-premium-payment", requirePaymentConfigured, requireAuthenti
         }
     });
 
+    const premiumPaymentRecord = await savePaymentRecord({
+        authUser: req.authUser,
+        design: {
+            id: "premium_subscription",
+            title: selectedPlan.name
+        },
+        payment: finalizedPayment,
+        orderId: cleanText(razorpayOrder.id),
+        quantity: 1
+    });
+
     res.json({
         success: true,
         payment_id: cleanText(finalizedPayment.id),
         order_id: cleanText(razorpayOrder.id),
         plan_id: selectedPlan.id,
         plan_name: selectedPlan.name,
+        payment_record_id: cleanText(premiumPaymentRecord && premiumPaymentRecord.id),
         premium_expiry: cleanText(updatedProfile.premium_expiry),
         account: {
             role: cleanText(updatedProfile.role),

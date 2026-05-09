@@ -104,6 +104,36 @@ async function incrementDesignDownloads(designOrId) {
     }
 }
 
+async function incrementDesignViews(designOrId) {
+    const design = typeof designOrId === "object" && designOrId
+        ? designOrId
+        : await getDesignById(designOrId);
+
+    if (!design || !design.id) {
+        return null;
+    }
+
+    const supabase = getSupabaseAdminClient();
+    const nextValue = Number(design.views || 0) + 1;
+    const tableName = cleanText(design.source_table) || "designs";
+
+    const { data, error } = await supabase
+        .from(tableName)
+        .update({ views: nextValue })
+        .eq("id", design.id)
+        .select("*")
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return data ? normalizeDesignRecord(data, tableName) : {
+        ...design,
+        views: nextValue
+    };
+}
+
 async function sendProtectedFile(res, design) {
     const downloadLink = cleanText(design && design.download_link);
     if (!downloadLink) {
@@ -281,6 +311,7 @@ module.exports = {
     buildDownloadFileName,
     getDesignById,
     incrementDesignDownloads,
+    incrementDesignViews,
     isPaidDesign,
     sendProtectedFile
 };
