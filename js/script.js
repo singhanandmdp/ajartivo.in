@@ -1330,10 +1330,10 @@ async function initHeroSlider() {
 }
 
 async function loadHeroImages() {
-    const fallbackImages = ["images/Hero/hero-bg.jpg"];
+    const fallbackImages = ["/images/Hero/hero-bg.jpg"];
 
     try {
-        const response = await fetch("images/Hero/manifest.json", { cache: "force-cache" });
+        const response = await fetch("/images/Hero/manifest.json", { cache: "force-cache" });
         if (!response.ok) return fallbackImages;
 
         const manifest = await response.json();

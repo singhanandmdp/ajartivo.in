@@ -741,12 +741,12 @@
             category: "PSD",
             price: 0,
             is_free: true,
-            image_url: "images/Hero/hero-bg.jpg",
+            image_url: "/images/Hero/hero-bg.jpg",
             previewImages: [
-                "images/Hero/hero-bg.jpg"
+                "/images/Hero/hero-bg.jpg"
             ],
             gallery: [
-                "images/Hero/hero-bg.jpg"
+                "/images/Hero/hero-bg.jpg"
             ],
             views: 0,
             downloads: 0
