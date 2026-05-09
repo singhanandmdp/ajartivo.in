@@ -52,14 +52,23 @@ function resolveSiteUrl(path) {
     if (!path) return window.location.href;
     if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-    if (!path.startsWith("/")) {
-        return `/${path}`;
-    }
-
     const basePath = getSiteBasePath().replace(/\/$/, "");
     const cleanPath = stripHtmlExtensionFromPath(path);
     if (!basePath) {
+        return cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+    }
+
+    if (
+        cleanPath === basePath ||
+        cleanPath.startsWith(`${basePath}/`) ||
+        cleanPath.startsWith(`${basePath}?`) ||
+        cleanPath.startsWith(`${basePath}#`)
+    ) {
         return cleanPath;
+    }
+
+    if (!cleanPath.startsWith("/")) {
+        return `${basePath}/${cleanPath}`;
     }
 
     return `${basePath}${cleanPath}`;

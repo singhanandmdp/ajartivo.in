@@ -80,7 +80,23 @@
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
         const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-        return `${getAppBasePath()}${stripHtmlExtensionFromPath(normalizedPath)}`;
+        const cleanPath = stripHtmlExtensionFromPath(normalizedPath);
+        const basePath = getAppBasePath().replace(/\/$/, "");
+
+        if (!basePath) {
+            return cleanPath;
+        }
+
+        if (
+            cleanPath === basePath ||
+            cleanPath.startsWith(`${basePath}/`) ||
+            cleanPath.startsWith(`${basePath}?`) ||
+            cleanPath.startsWith(`${basePath}#`)
+        ) {
+            return cleanPath;
+        }
+
+        return `${basePath}${cleanPath}`;
     }
 
     function init() {
