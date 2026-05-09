@@ -4,6 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            function computeSiteBasePath() {
+                var pathname = String(window.location.pathname || "");
+                var productIndex = pathname.toLowerCase().indexOf("/product/");
+                if (productIndex >= 0) {
+                    return pathname.slice(0, productIndex).replace(/\/+$/, "");
+                }
+
+                var pagesIndex = pathname.indexOf("/pages/");
+                if (pagesIndex >= 0) {
+                    return pathname.slice(0, pagesIndex).replace(/\/+$/, "");
+                }
+
+                var lastSlashIndex = pathname.lastIndexOf("/");
+                return lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex).replace(/\/+$/, "") : "";
+            }
+
+            var basePath = computeSiteBasePath();
+            var base = document.createElement("base");
+            base.href = (basePath || "") + "/";
+            document.head.appendChild(base);
+        })();
+    </script>
     <link rel="icon" href="Favicon.ico" type="image/x-icon">
     <title>Loading Design - AJartivo</title>
     <meta name="description" content="Browse premium AJartivo design products.">
