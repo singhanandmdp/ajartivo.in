@@ -10,16 +10,16 @@
             if (normalizedInput.startsWith("/product/")) {
                 const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
                 if (slug) {
-                    return `/product.html?slug=${encodeURIComponent(slug)}`;
+                    return `/product/?slug=${encodeURIComponent(slug)}`;
                 }
             }
 
             if (normalizedInput === "/product") {
-                return "/product.html";
+                return "/product/";
             }
 
             if (normalizedInput.startsWith("/product?")) {
-                return `/product.html${normalizedInput.slice("/product".length)}`;
+                return `/product/${normalizedInput.slice("/product".length)}`;
             }
 
             return normalizedInput;

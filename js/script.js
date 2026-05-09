@@ -155,12 +155,12 @@ function resolveSiteUrl(path) {
         if (cleanPath.startsWith("/product/")) {
             const slug = cleanPath.slice("/product/".length).replace(/\/+$/, "");
             if (slug) {
-                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}`) + suffix;
+                return joinBasePathWithTarget(basePath, `/product/?slug=${encodeURIComponent(slug)}`) + suffix;
             }
         }
 
         if (cleanPath === "/product") {
-            return joinBasePathWithTarget(basePath, "/product.html") + suffix;
+            return joinBasePathWithTarget(basePath, "/product/") + suffix;
         }
 
         const localRouteFilePath = getLocalRouteFilePath(stripLocalBasePath(cleanPath, basePath));
