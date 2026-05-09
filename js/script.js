@@ -125,7 +125,7 @@ function joinBasePathWithTarget(basePath, targetPath) {
 
 function getSiteBasePath() {
     const scriptElement = document.querySelector('script[src*="js/script.js"]');
-    const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
+    const scriptSrc = scriptElement ? (scriptElement.src || scriptElement.getAttribute("src") || "") : "";
 
     if (scriptSrc) {
         const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
