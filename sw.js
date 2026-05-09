@@ -49,7 +49,26 @@ function rewriteNavigationRequest(requestPath, scopePath, url) {
 
         const rewrittenProduct = new URL(normalizedScopePath + "product.html", url.origin);
         rewrittenProduct.searchParams.set("slug", slug);
+        const designId = url.searchParams.get("id");
+        if (designId) {
+            rewrittenProduct.searchParams.set("id", designId);
+        }
         return rewrittenProduct;
+    }
+
+    if (routePath === "/product") {
+        const rewrittenProduct = new URL(normalizedScopePath + "product.html", url.origin);
+        const slug = url.searchParams.get("slug");
+        const designId = url.searchParams.get("id");
+        if (slug) {
+            rewrittenProduct.searchParams.set("slug", slug);
+        }
+        if (designId) {
+            rewrittenProduct.searchParams.set("id", designId);
+        }
+        if (slug || designId) {
+            return rewrittenProduct;
+        }
     }
 
     const routeMap = {

@@ -10,7 +10,8 @@
             if (normalizedInput.startsWith("/product/")) {
                 const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
                 if (slug) {
-                    return `/product.html?slug=${encodeURIComponent(slug)}`;
+                    const querySuffix = normalizedInput.includes("?") ? normalizedInput.slice(normalizedInput.indexOf("?")) : "";
+                    return `/product.html?slug=${encodeURIComponent(slug)}${querySuffix ? `&${querySuffix.slice(1)}` : ""}`;
                 }
             }
 
@@ -31,7 +32,8 @@
 
     const params = new URLSearchParams(window.location.search);
     const rememberedDesign = readRememberedProductDesign();
-    const designId = cleanText(params.get("id"));
+    const rememberedProductId = readRememberedProductId();
+    const designId = cleanText(params.get("id")) || rememberedProductId;
     const designSlug = cleanText(params.get("slug")) || extractPathSlug() || readRememberedProductSlug();
     let currentDesign = null;
     let refreshTimerId = null;
@@ -787,6 +789,14 @@
     function readRememberedProductSlug() {
         try {
             return cleanText(window.sessionStorage.getItem("ajartivo_last_product_slug"));
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function readRememberedProductId() {
+        try {
+            return cleanText(window.sessionStorage.getItem("ajartivo_last_product_id"));
         } catch (_error) {
             return "";
         }

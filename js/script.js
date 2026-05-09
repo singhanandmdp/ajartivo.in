@@ -155,7 +155,8 @@ function resolveSiteUrl(path) {
         if (cleanPath.startsWith("/product/")) {
             const slug = cleanPath.slice("/product/".length).replace(/\/+$/, "");
             if (slug) {
-                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}`) + suffix;
+                const mergedSuffix = suffix.startsWith("?") ? `&${suffix.slice(1)}` : suffix;
+                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}${mergedSuffix}`) ;
             }
         }
 
@@ -344,10 +345,11 @@ function buildProductUrl(design) {
     const id = cleanText(design && design.id);
     if (slug) {
         try {
+            window.sessionStorage.setItem("ajartivo_last_product_id", id);
             window.sessionStorage.setItem("ajartivo_last_product_slug", slug);
             window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(design || {}));
         } catch (_error) {}
-        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
+        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}${id ? `?id=${encodeURIComponent(id)}` : ""}`);
     }
 
     return id ? resolveSiteUrl(`/product?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product");

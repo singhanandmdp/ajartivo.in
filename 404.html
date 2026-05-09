@@ -25,10 +25,11 @@
 
             if (match && match[1]) {
                 var slug = match[1];
+                var search = String(window.location.search || "");
                 try {
                     slug = decodeURIComponent(slug);
                 } catch (_error) {}
-                window.location.replace((basePath || "") + "/product/" + encodeURIComponent(slug));
+                window.location.replace((basePath || "") + "/product/" + encodeURIComponent(slug) + search + String(window.location.hash || ""));
             }
         })();
     </script>
