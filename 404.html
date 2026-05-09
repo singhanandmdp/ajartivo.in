@@ -21,7 +21,7 @@
                 try {
                     slug = decodeURIComponent(slug);
                 } catch (_error) {}
-                target = (basePath || "") + "/product.html?slug=" + encodeURIComponent(slug);
+                target = (basePath || "") + "/product/" + encodeURIComponent(slug);
             } else {
                 target = (basePath || "") + "/";
             }

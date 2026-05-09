@@ -186,7 +186,7 @@ function buildProductUrl(design) {
     const slug = getDesignSlug(design);
     const id = cleanText(design && design.id);
     if (slug) {
-        return resolveSiteUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
     }
 
     return id ? resolveSiteUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product.html");
