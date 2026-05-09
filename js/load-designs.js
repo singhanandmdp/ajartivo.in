@@ -31,10 +31,27 @@
         if (!path) return window.location.href;
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
+        const normalizedInput = String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "");
+
+        if (normalizedInput.startsWith("/product/")) {
+            const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
+            if (slug) {
+                return `/product.html?slug=${encodeURIComponent(slug)}`;
+            }
+        }
+
+        if (normalizedInput === "/product") {
+            return "/product.html";
+        }
+
+        if (normalizedInput.startsWith("/product?")) {
+            return `/product.html${normalizedInput.slice("/product".length)}`;
+        }
+
         if (!path.startsWith("/")) {
-            return `/${String(path || "")
-                .replace(/\/index\.html(?=([?#]|$))/i, "/")
-                .replace(/\.html(?=([?#]|$))/i, "")}`;
+            return `/${normalizedInput}`;
         }
 
         const pathname = String(window.location && window.location.pathname || "");
@@ -42,17 +59,13 @@
         for (let i = 0; i < markers.length; i += 1) {
             const markerIndex = pathname.indexOf(markers[i]);
             if (markerIndex >= 0) {
-                return `${pathname.slice(0, markerIndex)}${String(path || "")
-                    .replace(/\/index\.html(?=([?#]|$))/i, "/")
-                    .replace(/\.html(?=([?#]|$))/i, "")}`;
+                return `${pathname.slice(0, markerIndex)}${normalizedInput}`;
             }
         }
 
         const lastSlashIndex = pathname.lastIndexOf("/");
         const basePath = lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex) : "";
-        return `${basePath}${String(path || "")
-            .replace(/\/index\.html(?=([?#]|$))/i, "/")
-            .replace(/\.html(?=([?#]|$))/i, "")}`;
+        return `${basePath}${normalizedInput}`;
     }
 
     bindFilterControls();
