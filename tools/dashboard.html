@@ -28,26 +28,79 @@
                 </div>
             </div>
 
-            <div class="tools-hub-visual" aria-label="Featured tools preview">
-                <div class="tools-hub-slider" id="toolsDashboardSlider">
-                    <div class="tools-hub-slider-stage" id="toolsDashboardSliderStage">
-                        <div class="tools-hub-slide is-active" data-bg="../tools/Images/dashboard.webp" aria-hidden="true"></div>
-                    </div>
-
-                    <div class="tools-hub-slider-overlay">
-                        <div class="tools-hub-slider-badge">Dashboard preview</div>
-                        <h2>Everything begins here</h2>
-                        <p>Spot the exact tool you need, then open it with one calm click.</p>
-                    </div>
-
-                    <div class="tools-hub-slider-meta">
-                        <div class="tools-hub-slider-progress" aria-hidden="true">
-                            <span id="toolsDashboardProgress"></span>
-                        </div>
-                        <div class="tools-hub-slider-dots" id="toolsDashboardDots" aria-label="Tool dashboard slides"></div>
-                    </div>
+            <div class="tools-hub-visual tools-hub-dashboard-visual" aria-label="Dashboard showcase">
+                <div class="tools-hub-dashboard-frame">
+                    <img src="../tools/Images/dashboard.webp" alt="AJartivo designer tools dashboard preview" class="tools-hub-dashboard-image">
                 </div>
             </div>
+        </section>
+
+        <section class="tools-hub-grid" id="toolsCollection" aria-label="Designer tool cards">
+            <article class="tool-hub-card tool-hub-card-primary">
+                <div class="tool-hub-copy">
+                    <h2>Aj Background Remover</h2>
+                    <p>Remove distractions and isolate subjects for ads, product shots, and quick social-ready exports.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Background remover</span>
+                    <a class="tool-hub-btn" href="./Aj Pixel Cut/website/aj-pixel-cut.html">Open Tool</a>
+                </div>
+            </article>
+
+            <article class="tool-hub-card">
+                <div class="tool-hub-copy">
+                    <h2>Aj Pixel Enhancer</h2>
+                    <p>Improve clarity and presentation for previews, print mockups, and polished visual delivery.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Quality boost</span>
+                    <a class="tool-hub-btn" href="./aj-pixel-enhancer.html">Open Tool</a>
+                </div>
+            </article>
+
+            <article class="tool-hub-card">
+                <div class="tool-hub-copy">
+                    <h2>Image Resizer</h2>
+                    <p>Resize creatives for banners, reels, thumbnails, and marketplace previews without rethinking the layout.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Resize quickly</span>
+                    <a class="tool-hub-btn" href="./image-resizer.html">Open Tool</a>
+                </div>
+            </article>
+
+            <article class="tool-hub-card">
+                <div class="tool-hub-copy">
+                    <h2>Image Converter</h2>
+                    <p>Switch between formats for delivery, upload, and lightweight sharing across different workflows.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Format swap</span>
+                    <a class="tool-hub-btn" href="./image-converter.html">Open Tool</a>
+                </div>
+            </article>
+
+            <article class="tool-hub-card">
+                <div class="tool-hub-copy">
+                    <h2>Aj Colour Converter</h2>
+                    <p>Transform color values between formats for brand work, UI design, and quick creative checks.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Color swap</span>
+                    <a class="tool-hub-btn" href="./aj-colour-converter.html">Open Tool</a>
+                </div>
+            </article>
+
+            <article class="tool-hub-card">
+                <div class="tool-hub-copy">
+                    <h2>AJ Print Layout Pro</h2>
+                    <p>Prepare repeat layouts and print-ready compositions for production jobs and clean press output.</p>
+                </div>
+                <div class="tool-hub-card-footer">
+                    <span class="tool-hub-badge">Print setup</span>
+                    <a class="tool-hub-btn" href="./aj-print-layout-pro.html">Open Tool</a>
+                </div>
+            </article>
         </section>
 
         <section class="tools-hub-feature" aria-label="Featured tool">
@@ -61,6 +114,27 @@
                 <span>Lower motion</span>
                 <span>Bright workspace</span>
                 <span>Premium cards</span>
+            </div>
+        </section>
+
+        <section class="tools-hub-slider-section" aria-label="Tool preview slider">
+            <div class="tools-hub-section-head">
+                <span class="tools-hub-feature-label">Tool slider</span>
+                <h2>Swipe through each tool preview</h2>
+                <p>Only the tool images move here. The dashboard preview stays large and fixed above.</p>
+            </div>
+
+            <div class="tools-hub-slider" id="toolsDashboardSlider">
+                <div class="tools-hub-slider-stage" id="toolsDashboardSliderStage">
+                    <div class="tools-hub-slide is-active" data-bg="../tools/Images/aj pixel cut.webp" aria-hidden="true"></div>
+                </div>
+
+                <div class="tools-hub-slider-meta">
+                    <div class="tools-hub-slider-progress" aria-hidden="true">
+                        <span id="toolsDashboardProgress"></span>
+                    </div>
+                    <div class="tools-hub-slider-dots" id="toolsDashboardDots" aria-label="Tool dashboard slides"></div>
+                </div>
             </div>
         </section>
 
@@ -79,109 +153,6 @@
                 <span>Workflow</span>
                 <strong>Focused</strong>
                 <p>Each card shows the tool purpose at a glance.</p>
-            </article>
-        </section>
-
-        <section class="tools-hub-grid" aria-label="Designer tool cards">
-            <article class="tool-hub-card tool-hub-card-primary">
-                <div class="tool-hub-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 6h10"></path>
-                        <path d="M9 3h6"></path>
-                        <path d="M8 6l1 13h6l1-13"></path>
-                        <path d="M10 10v6"></path>
-                        <path d="M14 10v6"></path>
-                    </svg>
-                </div>
-                <div class="tool-hub-copy">
-                    <h2>Aj Pixel Cut</h2>
-                    <p>Remove distractions and isolate subjects for ads, product shots, and quick social-ready exports.</p>
-                </div>
-                <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Background removal</span>
-                    <a class="tool-hub-btn" href="./Aj Pixel Cut/website/aj-pixel-cut.html">Open Tool</a>
-                </div>
-            </article>
-
-            <article class="tool-hub-card">
-                <div class="tool-hub-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 3l2.2 4.8L19 10l-4.8 2.2L12 17l-2.2-4.8L5 10l4.8-2.2Z"></path>
-                        <path d="M19 3v4"></path>
-                        <path d="M21 5h-4"></path>
-                    </svg>
-                </div>
-                <div class="tool-hub-copy">
-                    <h2>Aj Pixel Enhancer</h2>
-                    <p>Improve clarity and presentation for previews, print mockups, and polished visual delivery.</p>
-                </div>
-                <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Quality boost</span>
-                    <a class="tool-hub-btn" href="./aj-pixel-enhancer.html">Open Tool</a>
-                </div>
-            </article>
-
-            <article class="tool-hub-card">
-                <div class="tool-hub-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M4 9V4h5"></path>
-                        <path d="M20 9V4h-5"></path>
-                        <path d="M4 15v5h5"></path>
-                        <path d="M20 15v5h-5"></path>
-                        <path d="M9 4 4 9"></path>
-                        <path d="M15 4l5 5"></path>
-                        <path d="M9 20l-5-5"></path>
-                        <path d="M15 20l5-5"></path>
-                    </svg>
-                </div>
-                <div class="tool-hub-copy">
-                    <h2>Image Resizer</h2>
-                    <p>Resize creatives for banners, reels, thumbnails, and marketplace previews without rethinking the layout.</p>
-                </div>
-                <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Resize quickly</span>
-                    <a class="tool-hub-btn" href="./image-resizer.html">Open Tool</a>
-                </div>
-            </article>
-
-            <article class="tool-hub-card">
-                <div class="tool-hub-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M7 7h10v10H7z"></path>
-                        <path d="M7 12h10"></path>
-                        <path d="M12 7v10"></path>
-                        <path d="M4 4h3"></path>
-                        <path d="M17 17h3"></path>
-                    </svg>
-                </div>
-                <div class="tool-hub-copy">
-                    <h2>Image Converter</h2>
-                    <p>Switch between formats for delivery, upload, and lightweight sharing across different workflows.</p>
-                </div>
-                <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Format swap</span>
-                    <a class="tool-hub-btn" href="./image-converter.html">Open Tool</a>
-                </div>
-            </article>
-
-            <article class="tool-hub-card">
-                <div class="tool-hub-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M4 5h16v14H4z"></path>
-                        <path d="M8 9h8"></path>
-                        <path d="M8 13h3"></path>
-                        <path d="M13 13h3"></path>
-                        <path d="M8 17h8"></path>
-                    </svg>
-                </div>
-                <div class="tool-hub-copy">
-                    <h2>AJ Print Layout Pro</h2>
-                    <p>Prepare repeat layouts and print-ready compositions for production jobs and clean press output.</p>
-                </div>
-                <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Print setup</span>
-                    <a class="tool-hub-btn" href="./aj-print-layout-pro.html">Open Tool</a>
-                </div>
             </article>
         </section>
     </main>

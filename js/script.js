@@ -184,10 +184,6 @@ function getDesignSlug(design) {
 
 function buildProductUrl(design) {
     const slug = getDesignSlug(design);
-    if (slug && shouldUseCleanProductRoute()) {
-        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
-    }
-
     const id = cleanText(design && design.id);
     if (slug) {
         return resolveSiteUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
@@ -201,12 +197,7 @@ window.AjArtivoGetDesignSlug = getDesignSlug;
 window.AjArtivoBuildProductUrl = buildProductUrl;
 
 function shouldUseCleanProductRoute() {
-    const hostname = String(window.location && window.location.hostname || "").trim().toLowerCase();
-    if (!hostname) {
-        return true;
-    }
-
-    return hostname !== "localhost" && hostname !== "127.0.0.1";
+    return false;
 }
 
 function registerRoutingServiceWorker() {
@@ -1502,7 +1493,6 @@ async function initToolsHubSlider() {
 
 async function loadToolsHubImages() {
     const fallbackImages = [
-        "tools/Images/dashboard.webp",
         "tools/Images/aj pixel cut.webp",
         "tools/Images/aj pixel enhancer.webp",
         "tools/Images/aj image resizer.webp",

@@ -48,10 +48,14 @@
             }
 
             if (!currentDesign) {
-                setText("productTitle", "Design not found");
-                setText("productDescription", "This design is not available right now.");
-                bindActionButton(null, createAccessState());
-                return;
+                if (designSlug) {
+                    currentDesign = buildFallbackDesign(designSlug);
+                } else {
+                    setText("productTitle", "Design not found");
+                    setText("productDescription", "Design link is missing or invalid.");
+                    bindActionButton(null, createAccessState());
+                    return;
+                }
             }
 
             currentDesign = services.normalizeDesign(currentDesign);
@@ -717,6 +721,36 @@
         } catch (_error) {
             return slugPart;
         }
+    }
+
+    function buildFallbackDesign(slug) {
+        const rawSlug = cleanText(slug) || "ajartivo-product";
+        const title = rawSlug
+            .replace(/[-_]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\b\w/g, function (letter) {
+                return letter.toUpperCase();
+            }) || "AJartivo Product";
+
+        return {
+            id: rawSlug,
+            slug: rawSlug,
+            title: title,
+            description: "This design page is being prepared. Please check back shortly.",
+            category: "PSD",
+            price: 0,
+            is_free: true,
+            image_url: "images/Hero/hero-bg.jpg",
+            previewImages: [
+                "images/Hero/hero-bg.jpg"
+            ],
+            gallery: [
+                "images/Hero/hero-bg.jpg"
+            ],
+            views: 0,
+            downloads: 0
+        };
     }
 
     function toAbsoluteUrl(value) {
