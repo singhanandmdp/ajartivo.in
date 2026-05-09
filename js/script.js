@@ -30,10 +30,10 @@ function cleanText(value) {
 
 function getSiteBasePath() {
     const scriptElement = document.querySelector('script[src*="js/script.js"]');
-    const scriptSrc = scriptElement ? scriptElement.getAttribute("src") || "" : "";
+    const scriptSrc = scriptElement ? (scriptElement.src || scriptElement.getAttribute("src") || "") : "";
 
     if (scriptSrc) {
-        const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
+        const resolvedScriptUrl = new URL(scriptSrc, document.baseURI || window.location.href);
         return resolvedScriptUrl.pathname.replace(/\/js\/script\.js$/i, "");
     }
 
