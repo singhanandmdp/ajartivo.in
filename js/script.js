@@ -78,6 +78,7 @@ function scheduleIdleWork() {
     runIdle(loadFooter, 900);
     runIdle(loadSidebar, 900);
     runIdle(initHeroSlider, 1200);
+    runIdle(initToolsHubSlider, 1200);
     runIdle(initHeroSearchEnhancements, 1200);
 }
 
@@ -1351,6 +1352,180 @@ async function loadHeroImages() {
     } catch (error) {
         console.log("Hero manifest load error:", error);
         return fallbackImages;
+    }
+}
+
+async function initToolsHubSlider() {
+    const dashboard = document.getElementById("toolsDashboardSlider");
+    if (!dashboard) return;
+    if (dashboard.dataset.toolsSliderReady === "true") return;
+
+    const stage = document.getElementById("toolsDashboardSliderStage");
+    const dotsContainer = document.getElementById("toolsDashboardDots");
+    const progressBar = document.getElementById("toolsDashboardProgress");
+    if (!stage || !dotsContainer || !progressBar) return;
+
+    const imagePaths = await loadToolsHubImages();
+    if (!imagePaths.length) return;
+
+    stage.innerHTML = imagePaths.map((imagePath, index) => `
+        <div class="tools-hub-slide${index === 0 ? " is-active" : ""}" data-bg="${imagePath}"${index === 0 ? ` style="background-image: url('${imagePath}');"` : ""}></div>
+    `).join("");
+
+    const slides = Array.from(stage.querySelectorAll(".tools-hub-slide"));
+    if (!slides.length) return;
+
+    const autoplayDelay = 8500;
+    let activeIndex = 0;
+    let intervalId = null;
+    let preloadCursor = 1;
+    let preloadTimerId = null;
+    const preloadedSlides = new Set([0]);
+
+    dotsContainer.innerHTML = "";
+    slides.forEach((_, index) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = `tools-hub-slider-dot${index === 0 ? " is-active" : ""}`;
+        dot.setAttribute("aria-label", `Go to tools slide ${index + 1}`);
+        dot.addEventListener("click", () => {
+            setActiveSlide(index);
+            restartAutoplay();
+        });
+        dotsContainer.appendChild(dot);
+    });
+
+    function updateProgress() {
+        progressBar.style.animation = "none";
+        void progressBar.offsetWidth;
+        progressBar.style.animation = `toolsHubSliderProgress ${autoplayDelay}ms linear forwards`;
+    }
+
+    function ensureSlideImage(index) {
+        const slide = slides[index];
+        if (!slide || preloadedSlides.has(index)) return;
+
+        const imagePath = slide.dataset.bg;
+        if (!imagePath) return;
+
+        slide.style.backgroundImage = `url('${imagePath}')`;
+        preloadedSlides.add(index);
+    }
+
+    function setActiveSlide(nextIndex) {
+        ensureSlideImage(nextIndex);
+        slides.forEach((slide, index) => {
+            slide.classList.toggle("is-active", index === nextIndex);
+        });
+        Array.from(dotsContainer.children).forEach((dot, index) => {
+            dot.classList.toggle("is-active", index === nextIndex);
+        });
+        activeIndex = nextIndex;
+        updateProgress();
+    }
+
+    function goToNextSlide() {
+        const nextIndex = (activeIndex + 1) % slides.length;
+        setActiveSlide(nextIndex);
+    }
+
+    function startAutoplay() {
+        if (intervalId) return;
+        intervalId = window.setInterval(goToNextSlide, autoplayDelay);
+    }
+
+    function stopAutoplay() {
+        if (!intervalId) return;
+        window.clearInterval(intervalId);
+        intervalId = null;
+    }
+
+    function restartAutoplay() {
+        stopAutoplay();
+        startAutoplay();
+    }
+
+    function preloadNextSlide() {
+        if (preloadCursor >= slides.length) return;
+
+        const currentIndex = preloadCursor;
+        const slide = slides[currentIndex];
+        preloadCursor += 1;
+
+        if (!slide || preloadedSlides.has(currentIndex)) {
+            preloadNextSlide();
+            return;
+        }
+
+        const imagePath = slide.dataset.bg;
+        if (!imagePath) {
+            preloadNextSlide();
+            return;
+        }
+
+        const image = new Image();
+        image.src = imagePath;
+        image.onload = () => {
+            slide.style.backgroundImage = `url('${imagePath}')`;
+            preloadedSlides.add(currentIndex);
+        };
+    }
+
+    function queueNextPreload(delay) {
+        if (preloadTimerId) {
+            window.clearTimeout(preloadTimerId);
+        }
+
+        preloadTimerId = window.setTimeout(() => {
+            preloadNextSlide();
+            if (preloadCursor < slides.length) {
+                queueNextPreload(autoplayDelay);
+            }
+        }, delay);
+    }
+
+    dashboard.addEventListener("mouseenter", stopAutoplay);
+    dashboard.addEventListener("mouseleave", startAutoplay);
+    window.addEventListener("pagehide", function () {
+        stopAutoplay();
+        if (preloadTimerId) {
+            window.clearTimeout(preloadTimerId);
+            preloadTimerId = null;
+        }
+    }, { once: true });
+
+    setActiveSlide(0);
+    startAutoplay();
+    queueNextPreload(1800);
+    dashboard.dataset.toolsSliderReady = "true";
+}
+
+async function loadToolsHubImages() {
+    const fallbackImages = [
+        "tools/Images/dashboard.webp",
+        "tools/Images/aj pixel cut.webp",
+        "tools/Images/aj pixel enhancer.webp",
+        "tools/Images/aj image resizer.webp",
+        "tools/Images/aj image converter.webp",
+        "tools/Images/aj layout pro.webp"
+    ];
+
+    try {
+        const response = await fetch(resolveSiteUrl("/tools/Images/manifest.json"), { cache: "force-cache" });
+        if (!response.ok) return fallbackImages.map((path) => resolveSiteUrl(`/${path}`));
+
+        const manifest = await response.json();
+        if (!Array.isArray(manifest) || !manifest.length) {
+            return fallbackImages.map((path) => resolveSiteUrl(`/${path}`));
+        }
+
+        return manifest
+            .map((imagePath) => String(imagePath || "").replace(/^\/+/, ""))
+            .filter(Boolean)
+            .map((imagePath) => resolveSiteUrl(`/${imagePath}`));
+    } catch (error) {
+        console.log("Tools hub manifest load error:", error);
+        return fallbackImages.map((path) => resolveSiteUrl(`/${path}`));
     }
 }
 

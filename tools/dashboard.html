@@ -21,24 +21,32 @@
                 <span class="tools-hub-kicker">Designer's Tool</span>
                 <h1>Light, premium tools for fast creative work</h1>
                 <p>We kept the motion calm and the layout clean so the dashboard feels closer to a polished studio workspace than a noisy app launcher.</p>
+                <div class="tools-hub-pills">
+                    <span>Premium studio feel</span>
+                    <span>Soft motion</span>
+                    <span>Bright workspace</span>
+                </div>
             </div>
 
-            <div class="tools-hub-stat-row" aria-label="Dashboard highlights">
-                <article class="tools-hub-stat">
-                    <span>5 tools</span>
-                    <strong>Ready</strong>
-                    <p>Quick access to the current toolkit.</p>
-                </article>
-                <article class="tools-hub-stat">
-                    <span>Style</span>
-                    <strong>Light premium</strong>
-                    <p>Bright surfaces, soft shadows, minimal motion.</p>
-                </article>
-                <article class="tools-hub-stat">
-                    <span>Workflow</span>
-                    <strong>Focused</strong>
-                    <p>Each card shows the tool purpose at a glance.</p>
-                </article>
+            <div class="tools-hub-visual" aria-label="Featured tools preview">
+                <div class="tools-hub-slider" id="toolsDashboardSlider">
+                    <div class="tools-hub-slider-stage" id="toolsDashboardSliderStage">
+                        <div class="tools-hub-slide is-active" data-bg="../tools/Images/dashboard.webp" aria-hidden="true"></div>
+                    </div>
+
+                    <div class="tools-hub-slider-overlay">
+                        <div class="tools-hub-slider-badge">Dashboard preview</div>
+                        <h2>Everything begins here</h2>
+                        <p>Spot the exact tool you need, then open it with one calm click.</p>
+                    </div>
+
+                    <div class="tools-hub-slider-meta">
+                        <div class="tools-hub-slider-progress" aria-hidden="true">
+                            <span id="toolsDashboardProgress"></span>
+                        </div>
+                        <div class="tools-hub-slider-dots" id="toolsDashboardDots" aria-label="Tool dashboard slides"></div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -54,6 +62,24 @@
                 <span>Bright workspace</span>
                 <span>Premium cards</span>
             </div>
+        </section>
+
+        <section class="tools-hub-stat-row" aria-label="Dashboard highlights">
+            <article class="tools-hub-stat">
+                <span>5 tools</span>
+                <strong>Ready</strong>
+                <p>Quick access to the current toolkit.</p>
+            </article>
+            <article class="tools-hub-stat">
+                <span>Style</span>
+                <strong>Light premium</strong>
+                <p>Bright surfaces, soft shadows, minimal motion.</p>
+            </article>
+            <article class="tools-hub-stat">
+                <span>Workflow</span>
+                <strong>Focused</strong>
+                <p>Each card shows the tool purpose at a glance.</p>
+            </article>
         </section>
 
         <section class="tools-hub-grid" aria-label="Designer tool cards">
