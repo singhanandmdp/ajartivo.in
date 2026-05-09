@@ -9,11 +9,18 @@
             var pathname = String(window.location.pathname || "");
             var productIndex = pathname.toLowerCase().indexOf("/product/");
             var basePath = productIndex >= 0 ? pathname.slice(0, productIndex) : pathname.replace(/\/[^/]*$/, "");
+            var cleanPath = pathname
+                .replace(/\/index\.html$/i, "/")
+                .replace(/\.html$/i, "");
+
+            if (cleanPath && cleanPath !== pathname && window.history && typeof window.history.replaceState === "function") {
+                window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+            }
+
             if (basePath === "/") {
                 basePath = "";
             }
 
-            var target;
             var match = pathname.match(/\/product\/([^/]+)\/?$/i);
 
             if (match && match[1]) {
@@ -21,12 +28,8 @@
                 try {
                     slug = decodeURIComponent(slug);
                 } catch (_error) {}
-                target = (basePath || "") + "/product/" + encodeURIComponent(slug);
-            } else {
-                target = (basePath || "") + "/";
+                window.location.replace((basePath || "") + "/product/" + encodeURIComponent(slug));
             }
-
-            window.location.replace(target);
         })();
     </script>
 </head>

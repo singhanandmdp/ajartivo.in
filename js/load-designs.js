@@ -32,7 +32,9 @@
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
         if (!path.startsWith("/")) {
-            return `/${path}`;
+            return `/${String(path || "")
+                .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                .replace(/\.html(?=([?#]|$))/i, "")}`;
         }
 
         const pathname = String(window.location && window.location.pathname || "");
@@ -40,13 +42,17 @@
         for (let i = 0; i < markers.length; i += 1) {
             const markerIndex = pathname.indexOf(markers[i]);
             if (markerIndex >= 0) {
-                return `${pathname.slice(0, markerIndex)}${path}`;
+                return `${pathname.slice(0, markerIndex)}${String(path || "")
+                    .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                    .replace(/\.html(?=([?#]|$))/i, "")}`;
             }
         }
 
         const lastSlashIndex = pathname.lastIndexOf("/");
         const basePath = lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex) : "";
-        return `${basePath}${path}`;
+        return `${basePath}${String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "")}`;
     }
 
     bindFilterControls();
@@ -692,7 +698,7 @@
             return resolveUrl(`/product/${encodeURIComponent(slug)}`);
         }
 
-        return resolveUrl(`/product.html?id=${encodeURIComponent(design && design.id || "")}`);
+        return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);
     }
 
     function getDesignBadge(design) {

@@ -4,8 +4,8 @@
 
     const supabase = services.client;
     const HOME_PATH = resolveAppPath("/");
-    const DASHBOARD_PATH = resolveAppPath("/dashboard.html");
-    const LOGIN_PATH = resolveAppPath("/login.html");
+    const DASHBOARD_PATH = resolveAppPath("/dashboard");
+    const LOGIN_PATH = resolveAppPath("/login");
     const DEFAULT_NEXT = HOME_PATH;
     const RESEND_SECONDS = 60;
 
@@ -26,7 +26,25 @@
         resolver: null
     };
 
+    canonicalizeCurrentLocation();
     init();
+
+    function stripHtmlExtensionFromPath(path) {
+        return String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "");
+    }
+
+    function canonicalizeCurrentLocation() {
+        const currentPath = String(window.location.pathname || "");
+        const cleanPath = stripHtmlExtensionFromPath(currentPath);
+
+        if (!cleanPath || cleanPath === currentPath) {
+            return;
+        }
+
+        window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+    }
 
     function getAppBasePath() {
         const scriptElement = document.currentScript || document.querySelector('script[src*="js/auth.js"]');
@@ -62,7 +80,7 @@
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
         const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-        return `${getAppBasePath()}${normalizedPath}`;
+        return `${getAppBasePath()}${stripHtmlExtensionFromPath(normalizedPath)}`;
     }
 
     function init() {
@@ -104,7 +122,7 @@
         const authState = await resolveRouteAuthState();
         const session = authState.session;
 
-        if (path.endsWith(LOGIN_PATH)) {
+        if (path.replace(/\/+$/, "") === LOGIN_PATH) {
             if (session) {
                 await ensureProfileExists(authState.authUser);
                 redirectAfterLogin(readNextPath() || DEFAULT_NEXT);
@@ -204,9 +222,9 @@
     }
 
     function isProtectedPath(path) {
-        return /\/dashboard\.html$/i.test(path)
-            || /\/pages\/profile\.html$/i.test(path)
-            || /\/profile\/profile\.html$/i.test(path);
+        return /\/dashboard\/?$/i.test(path)
+            || /\/pages\/profile\/?$/i.test(path)
+            || /\/profile\/profile\/?$/i.test(path);
     }
 
     function buildAuthRequiredUrl(nextPath) {

@@ -24,8 +24,7 @@ self.addEventListener("fetch", function (event) {
         return;
     }
 
-    const rewritten = new URL(scopePath + "product.html", url.origin);
-    rewritten.searchParams.set("slug", slug);
+    const rewritten = new URL(scopePath + "product/" + encodeURIComponent(slug), url.origin);
 
     event.respondWith(fetch(rewritten.toString(), { credentials: "same-origin" }));
 });

@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window[AJARTIVO_BOOT_KEY] = true;
+    canonicalizeCurrentLocation();
 
     loadHeader();
     initSearch();
@@ -56,14 +57,32 @@ function resolveSiteUrl(path) {
     }
 
     const basePath = getSiteBasePath().replace(/\/$/, "");
+    const cleanPath = stripHtmlExtensionFromPath(path);
     if (!basePath) {
-        return path;
+        return cleanPath;
     }
 
-    return `${basePath}${path}`;
+    return `${basePath}${cleanPath}`;
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
+
+function stripHtmlExtensionFromPath(path) {
+    return String(path || "")
+        .replace(/\/index\.html(?=([?#]|$))/i, "/")
+        .replace(/\.html(?=([?#]|$))/i, "");
+}
+
+function canonicalizeCurrentLocation() {
+    const currentPath = String(window.location.pathname || "");
+    const cleanPath = stripHtmlExtensionFromPath(currentPath);
+
+    if (!cleanPath || cleanPath === currentPath) {
+        return;
+    }
+
+    window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+}
 
 function scheduleIdleWork() {
     const runIdle = function (callback, timeout) {
@@ -189,7 +208,7 @@ function buildProductUrl(design) {
         return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
     }
 
-    return id ? resolveSiteUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product.html");
+    return id ? resolveSiteUrl(`/product?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product");
 }
 
 window.AjArtivoSlugify = slugify;
@@ -227,46 +246,29 @@ function rewriteRootRelativeUrls(container) {
 }
 
 function normalizeAppAnchorHref(value) {
-    if (!value || !value.startsWith("/")) return value;
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return trimmed;
+    if (/^(?:#|javascript:|mailto:|tel:|data:)/i.test(trimmed)) return trimmed;
 
-    const guardedPrefixes = [
-        "/product/",
-        "/product.html",
-        "/login.html",
-        "/signup.html",
-        "/dashboard.html",
-        "/pages/",
-        "/about/",
-        "/tools/",
-        "/terms.html",
-        "/privacy.html",
-        "/icons/",
-        "/images/",
-        "/css/",
-        "/js/",
-        "/payment.js"
-    ];
+    try {
+        const resolvedUrl = new URL(trimmed, window.location.href);
+        if (resolvedUrl.origin !== window.location.origin) {
+            return trimmed;
+        }
 
-    const shouldRewrite = guardedPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}?`) || value.startsWith(`${prefix}#`) || value.startsWith(`${prefix}/`));
-    return shouldRewrite ? resolveSiteUrl(value) : value;
+        const cleanPath = stripHtmlExtensionFromPath(resolvedUrl.pathname);
+        return resolveSiteUrl(cleanPath + resolvedUrl.search + resolvedUrl.hash);
+    } catch (_error) {
+        return resolveSiteUrl(stripHtmlExtensionFromPath(trimmed));
+    }
 }
 
 function rewriteDocumentAppLinks() {
-    document.querySelectorAll("a[href], img[src], link[href], script[src]").forEach((element) => {
-        if (element.hasAttribute("href")) {
-            const href = element.getAttribute("href");
-            const rewrittenHref = normalizeAppAnchorHref(href);
-            if (rewrittenHref && rewrittenHref !== href) {
-                element.setAttribute("href", rewrittenHref);
-            }
-        }
-
-        if (element.hasAttribute("src")) {
-            const src = element.getAttribute("src");
-            const rewrittenSrc = normalizeAppAnchorHref(src);
-            if (rewrittenSrc && rewrittenSrc !== src) {
-                element.setAttribute("src", rewrittenSrc);
-            }
+    document.querySelectorAll("a[href]").forEach((element) => {
+        const href = element.getAttribute("href");
+        const rewrittenHref = normalizeAppAnchorHref(href);
+        if (rewrittenHref && rewrittenHref !== href) {
+            element.setAttribute("href", rewrittenHref);
         }
     });
 }
@@ -305,7 +307,7 @@ function initQuickCategoryNavigation() {
         if (!category) return;
 
         const goToCategory = () => {
-            window.location.href = resolveSiteUrl(`/pages/search.html?category=${encodeURIComponent(category)}`);
+            window.location.href = resolveSiteUrl(`/pages/search?category=${encodeURIComponent(category)}`);
         };
 
         card.setAttribute("role", "button");
@@ -460,12 +462,12 @@ function searchDesign(inputId) {
     const query = input.value.trim();
     if (!query) return;
 
-    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
+    window.location.href = resolveSiteUrl("/pages/search?q=" + encodeURIComponent(query));
 }
 
 function quickSearch(query) {
     if (!query) return;
-    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
+    window.location.href = resolveSiteUrl("/pages/search?q=" + encodeURIComponent(query));
 }
 
 function initSearch() {
@@ -759,7 +761,7 @@ function bindSearchFilterControls(state) {
         clearFiltersBtn.addEventListener("click", () => {
             const params = new URLSearchParams(window.location.search);
             ["category", "price", "sort", "ai", "orientation", "color", "page"].forEach((key) => params.delete(key));
-            window.location.href = resolveSiteUrl("/pages/search.html" + (params.toString() ? `?${params.toString()}` : ""));
+            window.location.href = resolveSiteUrl("/pages/search" + (params.toString() ? `?${params.toString()}` : ""));
         });
         clearFiltersBtn.dataset.bound = "true";
     }
@@ -791,7 +793,7 @@ function applySearchFilterSelection() {
     setParam("color", colorFilter ? colorFilter.value : "");
     params.delete("page");
 
-    window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
+    window.location.href = resolveSiteUrl("/pages/search?" + params.toString());
 }
 
 function renderSearchPagination(pageCount, currentPage, container) {
@@ -836,7 +838,7 @@ function renderSearchPagination(pageCount, currentPage, container) {
             const nextPage = Number(button.dataset.page || 1);
             const params = new URLSearchParams(window.location.search);
             params.set("page", String(nextPage));
-            window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
+            window.location.href = resolveSiteUrl("/pages/search?" + params.toString());
         });
     });
 }
@@ -1687,7 +1689,7 @@ function initAuthUI() {
             memberBox.classList.add("logged-in");
             memberBox.innerHTML = `
                 <div class="member-account-row">
-                    <a href="${resolveSiteUrl("/dashboard.html")}" class="member-user">
+                    <a href="${resolveSiteUrl("/dashboard")}" class="member-user">
                         ${avatarUrl
                             ? `<img class="member-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(firstName)}">`
                             : `<div class="member-avatar-letter">${firstLetter}</div>`}
@@ -1718,7 +1720,7 @@ function initAuthUI() {
                 <h5>Member Access</h5>
                 <p>Login to manage your saved designs.</p>
             </div>
-            <a href="${resolveSiteUrl("/login.html")}" class="member-login-btn">
+            <a href="${resolveSiteUrl("/login")}" class="member-login-btn">
                 <img src="${resolveSiteUrl("/icons/login.svg")}" class="icon-svg" alt="Login">
                 Login
             </a>

@@ -2,7 +2,11 @@
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
-        : function (path) { return path; };
+        : function (path) {
+            return String(path || "")
+                .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                .replace(/\.html(?=([?#]|$))/i, "");
+        };
     if (!services) return;
     const supabase = services.client;
 
@@ -16,7 +20,7 @@
     async function init() {
         const authUser = await resolveAuthenticatedUser();
         if (!authUser) {
-            window.location.href = resolveUrl("/login.html");
+            window.location.href = resolveUrl("/login");
             return;
         }
 
@@ -446,7 +450,7 @@
             return resolveUrl(`/product/${encodeURIComponent(slug)}`);
         }
 
-        return resolveUrl(`/product.html?id=${encodeURIComponent(design && design.id || "")}`);
+        return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);
     }
 
     function loadWishlist() {

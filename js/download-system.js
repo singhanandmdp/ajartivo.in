@@ -2,7 +2,11 @@
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
-        : function (path) { return path; };
+        : function (path) {
+            return String(path || "")
+                .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                .replace(/\.html(?=([?#]|$))/i, "");
+        };
     if (!services) return;
 
     const designTitleElement = document.getElementById("productTitle");
@@ -685,7 +689,7 @@
         }
 
         const id = cleanText(product && product.id);
-        return id ? resolveUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveUrl("/product.html");
+        return id ? resolveUrl(`/product?id=${encodeURIComponent(id)}`) : resolveUrl("/product");
     }
 
     function getDesignSlug(product) {

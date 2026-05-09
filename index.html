@@ -9,9 +9,12 @@
     <script>
         (function () {
             var path = String(window.location.pathname || "");
-            if (/\/index\.html$/i.test(path)) {
-                var nextPath = path.replace(/\/index\.html$/i, "/");
-                window.location.replace(nextPath + String(window.location.search || "") + String(window.location.hash || ""));
+            var nextPath = path
+                .replace(/\/index\.html$/i, "/")
+                .replace(/\.html$/i, "");
+
+            if (nextPath && nextPath !== path && window.history && typeof window.history.replaceState === "function") {
+                window.history.replaceState({}, "", nextPath + String(window.location.search || "") + String(window.location.hash || ""));
             }
         })();
     </script>
