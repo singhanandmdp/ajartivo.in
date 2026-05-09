@@ -10,16 +10,16 @@
             if (normalizedInput.startsWith("/product/")) {
                 const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
                 if (slug) {
-                    return `/product/?slug=${encodeURIComponent(slug)}`;
+                    return `/product.html?slug=${encodeURIComponent(slug)}`;
                 }
             }
 
             if (normalizedInput === "/product") {
-                return "/product/";
+                return "/product.html";
             }
 
             if (normalizedInput.startsWith("/product?")) {
-                return `/product/${normalizedInput.slice("/product".length)}`;
+                return `/product.html${normalizedInput.slice("/product".length)}`;
             }
 
             return normalizedInput;
@@ -30,8 +30,9 @@
     if (!designTitleElement) return;
 
     const params = new URLSearchParams(window.location.search);
+    const rememberedDesign = readRememberedProductDesign();
     const designId = cleanText(params.get("id"));
-    const designSlug = cleanText(params.get("slug")) || extractPathSlug();
+    const designSlug = cleanText(params.get("slug")) || extractPathSlug() || readRememberedProductSlug();
     let currentDesign = null;
     let refreshTimerId = null;
     let accessRequestId = 0;
@@ -50,13 +51,17 @@
 
         try {
             if (!designId && !designSlug) {
-                setText("productTitle", "Design not found");
-                setText("productDescription", "Design link is missing or invalid.");
-                bindActionButton(null, createAccessState());
-                return;
+                if (rememberedDesign) {
+                    currentDesign = rememberedDesign;
+                } else {
+                    setText("productTitle", "Design not found");
+                    setText("productDescription", "Design link is missing or invalid.");
+                    bindActionButton(null, createAccessState());
+                    return;
+                }
             }
 
-            if (designSlug && typeof services.fetchDesignBySlug === "function") {
+            if (!currentDesign && designSlug && typeof services.fetchDesignBySlug === "function") {
                 currentDesign = await services.fetchDesignBySlug(designSlug);
             }
 
@@ -66,6 +71,12 @@
 
             if (!currentDesign && designSlug && typeof services.fetchDesignById === "function") {
                 currentDesign = await services.fetchDesignById(designSlug);
+            }
+
+            if (!currentDesign) {
+                if (rememberedDesign) {
+                    currentDesign = rememberedDesign;
+                }
             }
 
             if (!currentDesign) {
@@ -696,6 +707,7 @@
     }
 
     function getProductUrl(product) {
+        rememberProductDesign(product);
         if (typeof window.AjArtivoBuildProductUrl === "function") {
             return window.AjArtivoBuildProductUrl(product);
         }
@@ -707,6 +719,14 @@
 
         const id = cleanText(product && product.id);
         return id ? resolveUrl(`/product?id=${encodeURIComponent(id)}`) : resolveUrl("/product");
+    }
+
+    function rememberProductDesign(product) {
+        try {
+            if (product) {
+                window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(product));
+            }
+        } catch (_error) {}
     }
 
     function getDesignSlug(product) {
@@ -741,6 +761,28 @@
             return decodeURIComponent(slugPart);
         } catch (_error) {
             return slugPart;
+        }
+    }
+
+    function readRememberedProductSlug() {
+        try {
+            return cleanText(window.sessionStorage.getItem("ajartivo_last_product_slug"));
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function readRememberedProductDesign() {
+        try {
+            const raw = window.sessionStorage.getItem("ajartivo_last_product_design");
+            if (!raw) {
+                return null;
+            }
+
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? parsed : null;
+        } catch (_error) {
+            return null;
         }
     }
 

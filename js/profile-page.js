@@ -10,16 +10,16 @@
             if (normalizedInput.startsWith("/product/")) {
                 const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
                 if (slug) {
-                    return `/product/?slug=${encodeURIComponent(slug)}`;
+                    return `/product.html?slug=${encodeURIComponent(slug)}`;
                 }
             }
 
             if (normalizedInput === "/product") {
-                return "/product/";
+                return "/product.html";
             }
 
             if (normalizedInput.startsWith("/product?")) {
-                return `/product/${normalizedInput.slice("/product".length)}`;
+                return `/product.html${normalizedInput.slice("/product".length)}`;
             }
 
             return normalizedInput;
@@ -455,6 +455,7 @@
     }
 
     function buildProductUrl(design) {
+        rememberProductDesign(design);
         if (typeof window.AjArtivoBuildProductUrl === "function") {
             return window.AjArtivoBuildProductUrl(design);
         }
@@ -468,6 +469,14 @@
         }
 
         return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);
+    }
+
+    function rememberProductDesign(design) {
+        try {
+            if (design) {
+                window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(design));
+            }
+        } catch (_error) {}
     }
 
     function loadWishlist() {

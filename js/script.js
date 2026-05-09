@@ -155,12 +155,12 @@ function resolveSiteUrl(path) {
         if (cleanPath.startsWith("/product/")) {
             const slug = cleanPath.slice("/product/".length).replace(/\/+$/, "");
             if (slug) {
-                return joinBasePathWithTarget(basePath, `/product/?slug=${encodeURIComponent(slug)}`) + suffix;
+                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}`) + suffix;
             }
         }
 
         if (cleanPath === "/product") {
-            return joinBasePathWithTarget(basePath, "/product/") + suffix;
+            return joinBasePathWithTarget(basePath, "/product.html") + suffix;
         }
 
         const localRouteFilePath = getLocalRouteFilePath(stripLocalBasePath(cleanPath, basePath));
@@ -343,6 +343,10 @@ function buildProductUrl(design) {
     const slug = getDesignSlug(design);
     const id = cleanText(design && design.id);
     if (slug) {
+        try {
+            window.sessionStorage.setItem("ajartivo_last_product_slug", slug);
+            window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(design || {}));
+        } catch (_error) {}
         return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
     }
 
