@@ -18,6 +18,7 @@
     let currentAccessState = createAccessState();
     let actionSequence = 0;
     let actionFeedbackTimerId = 0;
+    let trackedViewDesignId = "";
 
     initPage();
     bindLiveRefresh();
@@ -60,6 +61,7 @@
 
             currentDesign = services.normalizeDesign(currentDesign);
             renderDesign(currentDesign);
+            trackDesignView(currentDesign);
 
             const asyncTasks = [
                 loadRelatedDesigns(currentDesign.id),
@@ -193,6 +195,40 @@
         renderThumbnails(getDesignImages(product), title);
         resetActionFeedback();
         updateAccessUi(product, deriveInitialAccessState(product));
+    }
+
+    async function trackDesignView(product) {
+        const normalizedProduct = services.normalizeDesign(product);
+        const designId = cleanText(normalizedProduct && normalizedProduct.id);
+
+        if (!designId || trackedViewDesignId === designId) {
+            return null;
+        }
+
+        if (!window.AjArtivoPayment || typeof window.AjArtivoPayment.recordDesignView !== "function") {
+            return null;
+        }
+
+        try {
+            const response = await window.AjArtivoPayment.recordDesignView(designId);
+            const responseDesign = response && response.design ? services.normalizeDesign(response.design) : null;
+
+            trackedViewDesignId = designId;
+
+            if (responseDesign) {
+                currentDesign = applyAccessState({
+                    ...normalizedProduct,
+                    views: responseDesign.views,
+                    downloads: responseDesign.downloads
+                }, currentAccessState || createAccessState());
+                setText("galleryViews", String(Number(responseDesign.views || currentDesign.views || 0)));
+                setText("galleryDownloads", String(Number(responseDesign.downloads || currentDesign.downloads || 0)));
+            }
+        } catch (error) {
+            console.warn("Design view tracking failed:", error);
+        }
+
+        return null;
     }
 
     async function refreshDesignAccess(product) {
