@@ -463,7 +463,7 @@
 
         container.innerHTML = items.map((item) => {
             const title = escapeHtml(item.title || "Untitled Design");
-            const image = escapeHtml(item.image || "/images/preview1.jpg");
+            const image = escapeHtml(item.image || resolveUrl("/images/preview1.jpg"));
             const price = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
             const designUrl = buildProductUrl(item);
 
@@ -523,7 +523,7 @@
 
             const markup = nextItems.map(function (item) {
                 const title = escapeHtml(item.title || "Untitled Design");
-                const image = escapeHtml(item.image || "/images/preview1.jpg");
+                const image = escapeHtml(item.image || resolveUrl("/images/preview1.jpg"));
                 const dateText = escapeHtml(formatDateTime(item.downloadedAt));
                 const priceText = item.is_paid ? `Rs. ${Number(item.price || 0)}` : "Free";
 

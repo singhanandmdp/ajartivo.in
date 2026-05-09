@@ -51,7 +51,16 @@ function resolveSiteUrl(path) {
     if (!path) return window.location.href;
     if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-    return path.startsWith("/") ? path : `/${path}`;
+    if (!path.startsWith("/")) {
+        return `/${path}`;
+    }
+
+    const basePath = getSiteBasePath().replace(/\/$/, "");
+    if (!basePath) {
+        return path;
+    }
+
+    return `${basePath}${path}`;
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
@@ -710,7 +719,7 @@ function renderSearchDesignCards(container, designs) {
     designs.forEach((design) => {
         const title = escapeText(design.title || design.name || "Untitled Design");
         const badge = getDesignBadge(design);
-        const image = escapeText(design.image || design.image_url || design.preview_url || "/images/trending1.jpg");
+        const image = escapeText(design.image || design.image_url || design.preview_url || resolveSiteUrl("/images/preview1.jpg"));
         const productUrl = buildProductUrl(design);
         const article = document.createElement("article");
         article.className = "design-card homepage-design-card";

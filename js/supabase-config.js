@@ -29,6 +29,28 @@
     let authSessionCachedAt = 0;
     const isPerfDebugEnabled = /localhost|127\.0\.0\.1/i.test(String(window.location && window.location.hostname || "")) || /[?&]debug(?:=1)?(?:&|$)/i.test(String(window.location && window.location.search || ""));
 
+    function resolveSiteAssetUrl(path) {
+        if (!path) return window.location.href;
+        if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
+
+        if (!path.startsWith("/")) {
+            return `/${path}`;
+        }
+
+        const pathname = String(window.location && window.location.pathname || "");
+        const markers = ["/pages/", "/about/", "/tools/", "/Profile/"];
+        for (let i = 0; i < markers.length; i += 1) {
+            const markerIndex = pathname.indexOf(markers[i]);
+            if (markerIndex >= 0) {
+                return `${pathname.slice(0, markerIndex)}${path}`;
+            }
+        }
+
+        const lastSlashIndex = pathname.lastIndexOf("/");
+        const basePath = lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex) : "";
+        return `${basePath}${path}`;
+    }
+
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
         console.error("Supabase CDN failed to load.");
         return;
@@ -491,7 +513,7 @@
         const normalizedId = String(design.id || "").trim();
         const title = cleanText(design.title || design.name || design.product_name) || "Untitled Design";
         const slug = getDesignSlug(design);
-        const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || "/images/preview1.jpg";
+        const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || resolveSiteAssetUrl("/images/preview1.jpg");
         const category = cleanText(design.category || design.type || design.format || design.fileType).toUpperCase();
         const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
         const rawPrice = design.price;

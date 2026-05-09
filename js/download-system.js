@@ -458,7 +458,7 @@
 
             relatedGrid.innerHTML = designs.map(function (design) {
                 const title = escapeHtml(design.title);
-                const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
+                const image = escapeHtml(design.image || design.image_url || design.preview_url || resolveUrl("/images/preview1.jpg"));
                 const badge = getDesignBadge(design);
                 const designUrl = getProductUrl(design);
 
@@ -539,7 +539,7 @@
         const row = document.getElementById("thumbnailRow");
         const previewImages = Array.isArray(images) && images.length
             ? Array.from(new Set(images.map((image) => cleanText(image)).filter(Boolean)))
-            : ["/images/preview1.jpg"];
+            : [resolveUrl("/images/preview1.jpg")];
         const primaryImage = previewImages[0];
         setMainPreviewImage(primaryImage, title);
 
@@ -667,8 +667,7 @@
             return candidate;
         }
 
-        const slug = slugify(fallbackTitle || cleanText(product && product.title) || "ajartivo-product");
-        return `/images/${slug}.jpg`;
+        return resolveUrl("/images/preview1.jpg");
     }
 
     function getProductUrl(product) {

@@ -2,7 +2,7 @@
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
-        : function (path) { return path; };
+        : resolveLocalSiteUrl;
 
     if (!services) return;
 
@@ -26,6 +26,28 @@
     let visibleCount = INITIAL_VISIBLE_COUNT;
 
     if (!trendingGrid) return;
+
+    function resolveLocalSiteUrl(path) {
+        if (!path) return window.location.href;
+        if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
+
+        if (!path.startsWith("/")) {
+            return `/${path}`;
+        }
+
+        const pathname = String(window.location && window.location.pathname || "");
+        const markers = ["/pages/", "/about/", "/tools/", "/Profile/"];
+        for (let i = 0; i < markers.length; i += 1) {
+            const markerIndex = pathname.indexOf(markers[i]);
+            if (markerIndex >= 0) {
+                return `${pathname.slice(0, markerIndex)}${path}`;
+            }
+        }
+
+        const lastSlashIndex = pathname.lastIndexOf("/");
+        const basePath = lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex) : "";
+        return `${basePath}${path}`;
+    }
 
     bindFilterControls();
     hydrateFromCache();
@@ -287,7 +309,7 @@
         const fragment = document.createDocumentFragment();
         designs.forEach(function (design) {
             const title = escapeHtml(design.title || design.name || "Untitled Design");
-            const image = escapeHtml(design.image || design.image_url || design.preview_url || "/images/preview1.jpg");
+            const image = escapeHtml(design.image || design.image_url || design.preview_url || resolveUrl("/images/preview1.jpg"));
             const designUrl = buildProductUrl(design);
             const badge = getDesignBadge(design);
             const article = document.createElement("article");
