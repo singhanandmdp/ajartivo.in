@@ -50,6 +50,10 @@
         warmProductCache();
 
         try {
+            if (rememberedDesign && matchesRequestedDesign(rememberedDesign, designId, designSlug)) {
+                currentDesign = rememberedDesign;
+            }
+
             if (!designId && !designSlug) {
                 if (rememberedDesign) {
                     currentDesign = rememberedDesign;
@@ -762,6 +766,22 @@
         } catch (_error) {
             return slugPart;
         }
+    }
+
+    function matchesRequestedDesign(design, requestedId, requestedSlug) {
+        const normalizedDesign = services.normalizeDesign(design);
+        const designId = cleanText(normalizedDesign && normalizedDesign.id);
+        const designSlug = getDesignSlug(normalizedDesign);
+
+        if (requestedId && designId && String(designId) === String(requestedId)) {
+            return true;
+        }
+
+        if (requestedSlug && designSlug && String(designSlug) === String(requestedSlug)) {
+            return true;
+        }
+
+        return false;
     }
 
     function readRememberedProductSlug() {
