@@ -152,6 +152,17 @@ function resolveSiteUrl(path) {
     const suffix = normalizedInput.suffix;
 
     if (isLocalDevelopmentHost()) {
+        if (cleanPath.startsWith("/product/")) {
+            const slug = cleanPath.slice("/product/".length).replace(/\/+$/, "");
+            if (slug) {
+                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}`) + suffix;
+            }
+        }
+
+        if (cleanPath === "/product") {
+            return joinBasePathWithTarget(basePath, "/product.html") + suffix;
+        }
+
         const localRouteFilePath = getLocalRouteFilePath(stripLocalBasePath(cleanPath, basePath));
         if (localRouteFilePath) {
             return joinBasePathWithTarget(basePath, localRouteFilePath) + suffix;
