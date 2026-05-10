@@ -8,10 +8,18 @@
     <link rel="icon" href="Favicon.ico" type="image/x-icon">
     <script>
         (function () {
+            var hostname = String(window.location.hostname || "").toLowerCase();
+            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+                return;
+            }
+
             var path = String(window.location.pathname || "");
-            if (/\/index\.html$/i.test(path)) {
-                var nextPath = path.replace(/\/index\.html$/i, "/");
-                window.location.replace(nextPath + String(window.location.search || "") + String(window.location.hash || ""));
+            var nextPath = path
+                .replace(/\/index\.html$/i, "/")
+                .replace(/\.html$/i, "");
+
+            if (nextPath && nextPath !== path && window.history && typeof window.history.replaceState === "function") {
+                window.history.replaceState({}, "", nextPath + String(window.location.search || "") + String(window.location.hash || ""));
             }
         })();
     </script>
@@ -333,11 +341,11 @@
     <div id="site-footer"></div>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-config.js?v=20260503-1"></script>
-    <script src="js/load-designs.js?v=20260506-1"></script>
-    <script src="payment.js?v=20260503-1"></script>
-    <script src="js/script.js?v=20260503-1"></script>
-    <script src="js/auth.js?v=20260410-1"></script>
+    <script src="js/supabase-config.js?v=20260510-3"></script>
+    <script src="js/load-designs.js?v=20260510-3"></script>
+    <script src="payment.js?v=20260510-3"></script>
+    <script src="js/script.js?v=20260510-3"></script>
+    <script src="js/auth.js?v=20260510-3"></script>
 </body>
 
 </html>

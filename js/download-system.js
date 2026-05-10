@@ -2,15 +2,39 @@
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
-        : function (path) { return path; };
+        : function (path) {
+            const normalizedInput = String(path || "")
+                .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                .replace(/\.html(?=([?#]|$))/i, "");
+
+            if (normalizedInput.startsWith("/product/")) {
+                const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
+                if (slug) {
+                    const querySuffix = normalizedInput.includes("?") ? normalizedInput.slice(normalizedInput.indexOf("?")) : "";
+                    return `/product.html?slug=${encodeURIComponent(slug)}${querySuffix ? `&${querySuffix.slice(1)}` : ""}`;
+                }
+            }
+
+            if (normalizedInput === "/product") {
+                return "/product.html";
+            }
+
+            if (normalizedInput.startsWith("/product?")) {
+                return `/product.html${normalizedInput.slice("/product".length)}`;
+            }
+
+            return normalizedInput;
+        };
     if (!services) return;
 
     const designTitleElement = document.getElementById("productTitle");
     if (!designTitleElement) return;
 
     const params = new URLSearchParams(window.location.search);
-    const designId = cleanText(params.get("id"));
-    const designSlug = cleanText(params.get("slug")) || extractPathSlug();
+    const rememberedDesign = readRememberedProductDesign();
+    const rememberedProductId = readRememberedProductId();
+    const designId = cleanText(params.get("id")) || rememberedProductId;
+    const designSlug = cleanText(params.get("slug")) || extractPathSlug() || readRememberedProductSlug();
     let currentDesign = null;
     let refreshTimerId = null;
     let accessRequestId = 0;
@@ -29,11 +53,19 @@
         warmProductCache();
 
         try {
+            if (rememberedDesign && matchesRequestedDesign(rememberedDesign, designId, designSlug)) {
+                currentDesign = rememberedDesign;
+            }
+
             if (!designId && !designSlug) {
-                setText("productTitle", "Design not found");
-                setText("productDescription", "Design link is missing or invalid.");
-                bindActionButton(null, createAccessState());
-                return;
+                if (rememberedDesign) {
+                    currentDesign = rememberedDesign;
+                } else {
+                    setText("productTitle", "Design not found");
+                    setText("productDescription", "Design link is missing or invalid.");
+                    bindActionButton(null, createAccessState());
+                    return;
+                }
             }
 
             if (!currentDesign && designId) {
@@ -46,6 +78,12 @@
 
             if (!currentDesign && designSlug && !designId && typeof services.fetchDesignById === "function") {
                 currentDesign = await services.fetchDesignById(designSlug);
+            }
+
+            if (!currentDesign) {
+                if (rememberedDesign) {
+                    currentDesign = rememberedDesign;
+                }
             }
 
             if (!currentDesign) {
@@ -711,6 +749,7 @@
     }
 
     function getProductUrl(product) {
+        rememberProductDesign(product);
         if (typeof window.AjArtivoBuildProductUrl === "function") {
             return window.AjArtivoBuildProductUrl(product);
         }
@@ -765,6 +804,52 @@
             return decodeURIComponent(slugPart);
         } catch (_error) {
             return slugPart;
+        }
+    }
+
+    function matchesRequestedDesign(design, requestedId, requestedSlug) {
+        const normalizedDesign = services.normalizeDesign(design);
+        const designId = cleanText(normalizedDesign && normalizedDesign.id);
+        const designSlug = getDesignSlug(normalizedDesign);
+
+        if (requestedId && designId && String(designId) === String(requestedId)) {
+            return true;
+        }
+
+        if (requestedSlug && designSlug && String(designSlug) === String(requestedSlug)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function readRememberedProductSlug() {
+        try {
+            return cleanText(window.sessionStorage.getItem("ajartivo_last_product_slug"));
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function readRememberedProductId() {
+        try {
+            return cleanText(window.sessionStorage.getItem("ajartivo_last_product_id"));
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function readRememberedProductDesign() {
+        try {
+            const raw = window.sessionStorage.getItem("ajartivo_last_product_design");
+            if (!raw) {
+                return null;
+            }
+
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? parsed : null;
+        } catch (_error) {
+            return null;
         }
     }
 

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search || "");
+            var slug = params.get("slug") || params.get("id") || "";
+            var nextUrl = "../product.html" + (slug ? "?slug=" + encodeURIComponent(slug) : "");
+            window.location.replace(nextUrl);
+        })();
+    </script>
+</head>
+<body></body>
+</html>

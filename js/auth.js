@@ -4,8 +4,8 @@
 
     const supabase = services.client;
     const HOME_PATH = resolveAppPath("/");
-    const DASHBOARD_PATH = resolveAppPath("/dashboard.html");
-    const LOGIN_PATH = resolveAppPath("/login.html");
+    const DASHBOARD_PATH = resolveAppPath("/dashboard");
+    const LOGIN_PATH = resolveAppPath("/login");
     const DEFAULT_NEXT = HOME_PATH;
     const RESEND_SECONDS = 60;
 
@@ -26,7 +26,75 @@
         resolver: null
     };
 
+    canonicalizeCurrentLocation();
     init();
+
+    function stripHtmlExtensionFromPath(path) {
+        return String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "");
+    }
+
+    function isLocalDevelopmentHost() {
+        const hostname = String(window.location.hostname || "").toLowerCase();
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    }
+
+    function splitPathSuffix(path) {
+        const input = String(path || "");
+        const match = input.match(/^([^?#]*)([?#].*)?$/);
+
+        return {
+            pathname: match ? match[1] : input,
+            suffix: match && match[2] ? match[2] : ""
+        };
+    }
+
+    function stripLocalBasePath(path, basePath) {
+        const normalizedPath = collapseDuplicateLeadingSegment(String(path || ""));
+        const normalizedBasePath = collapseDuplicateLeadingSegment(String(basePath || "").replace(/\/$/, ""));
+
+        if (!normalizedBasePath) {
+            return normalizedPath;
+        }
+
+        if (
+            normalizedPath === normalizedBasePath ||
+            normalizedPath.startsWith(`${normalizedBasePath}/`) ||
+            normalizedPath.startsWith(`${normalizedBasePath}?`) ||
+            normalizedPath.startsWith(`${normalizedBasePath}#`)
+        ) {
+            const remainder = normalizedPath.slice(normalizedBasePath.length);
+            return remainder ? (remainder.startsWith("/") ? remainder : `/${remainder}`) : "/";
+        }
+
+        return normalizedPath;
+    }
+
+    function collapseDuplicateLeadingSegment(path) {
+        let current = String(path || "");
+        const duplicatePrefixPattern = /^\/([^/]+)\/\1(?=\/|$)/;
+
+        while (duplicatePrefixPattern.test(current)) {
+            current = current.replace(duplicatePrefixPattern, "/$1");
+        }
+        return current;
+    }
+
+    function canonicalizeCurrentLocation() {
+        if (isLocalDevelopmentHost()) {
+            return;
+        }
+
+        const currentPath = String(window.location.pathname || "");
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(currentPath));
+
+        if (!cleanPath || cleanPath === currentPath) {
+            return;
+        }
+
+        window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+    }
 
     function getAppBasePath() {
         const scriptElement = document.currentScript || document.querySelector('script[src*="js/auth.js"]');
@@ -34,35 +102,84 @@
 
         if (scriptSrc) {
             const resolvedScriptUrl = new URL(scriptSrc, window.location.href);
-            return resolvedScriptUrl.pathname.replace(/\/js\/auth\.js(?:\?.*)?$/i, "");
+            return collapseDuplicateLeadingSegment(resolvedScriptUrl.pathname.replace(/\/js\/auth\.js(?:\?.*)?$/i, ""));
         }
 
         const path = window.location.pathname;
         const pagesIndex = path.indexOf("/pages/");
         if (pagesIndex >= 0) {
-            return path.slice(0, pagesIndex);
+            return collapseDuplicateLeadingSegment(path.slice(0, pagesIndex));
         }
 
         const profileIndex = path.indexOf("/profile/");
         if (profileIndex >= 0) {
-            return path.slice(0, profileIndex);
+            return collapseDuplicateLeadingSegment(path.slice(0, profileIndex));
         }
 
         const aboutIndex = path.indexOf("/about/");
         if (aboutIndex >= 0) {
-            return path.slice(0, aboutIndex);
+            return collapseDuplicateLeadingSegment(path.slice(0, aboutIndex));
         }
 
         const lastSlashIndex = path.lastIndexOf("/");
-        return lastSlashIndex > 0 ? path.slice(0, lastSlashIndex) : "";
+        return lastSlashIndex > 0 ? collapseDuplicateLeadingSegment(path.slice(0, lastSlashIndex)) : "";
     }
 
     function resolveAppPath(path) {
         if (!path) return window.location.pathname;
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-        const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-        return `${getAppBasePath()}${normalizedPath}`;
+        const normalizedInput = splitPathSuffix(path);
+        const normalizedPath = normalizedInput.pathname.startsWith("/") ? normalizedInput.pathname : `/${normalizedInput.pathname}`;
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(normalizedPath));
+        const basePath = collapseDuplicateLeadingSegment(getAppBasePath().replace(/\/$/, ""));
+        const suffix = normalizedInput.suffix;
+
+        if (!basePath) {
+            return cleanPath + suffix;
+        }
+
+        if (isLocalDevelopmentHost()) {
+            const localRouteMap = {
+                "/": "/index.html",
+                "/about": "/about/index.html",
+                "/dashboard": "/dashboard.html",
+                "/login": "/login.html",
+                "/signup": "/signup.html",
+                "/premium": "/premium.html",
+                "/privacy": "/privacy.html",
+                "/refund": "/refund.html",
+                "/terms": "/terms.html",
+                "/pages/contact": "/pages/contact.html",
+                "/pages/license": "/pages/license.html",
+                "/pages/privacy": "/pages/privacy.html",
+                "/pages/profile": "/pages/profile.html",
+                "/pages/search": "/pages/search.html",
+                "/tools/dashboard": "/tools/dashboard.html",
+                "/tools/aj-pixel-enhancer": "/tools/aj-pixel-enhancer.html",
+                "/tools/image-resizer": "/tools/image-resizer.html",
+                "/tools/image-converter": "/tools/image-converter.html",
+                "/tools/aj-colour-converter": "/tools/aj-colour-converter.html",
+                "/tools/aj-print-layout-pro": "/tools/aj-print-layout-pro.html",
+                "/tools/Aj Pixel Cut/website/aj-pixel-cut": "/tools/Aj Pixel Cut/website/aj-pixel-cut.html"
+            };
+
+            const localTarget = localRouteMap[stripLocalBasePath(cleanPath, basePath).replace(/\/+$/, "") || "/"];
+            if (localTarget) {
+                return `${basePath}${localTarget}${suffix}`;
+            }
+        }
+
+        if (
+            cleanPath === basePath ||
+            cleanPath.startsWith(`${basePath}/`) ||
+            cleanPath.startsWith(`${basePath}?`) ||
+            cleanPath.startsWith(`${basePath}#`)
+        ) {
+            return cleanPath + suffix;
+        }
+
+        return `${basePath}${cleanPath}${suffix}`;
     }
 
     function init() {
@@ -104,7 +221,7 @@
         const authState = await resolveRouteAuthState();
         const session = authState.session;
 
-        if (path.endsWith(LOGIN_PATH)) {
+        if (path.replace(/\/+$/, "") === LOGIN_PATH) {
             if (session) {
                 await ensureProfileExists(authState.authUser);
                 redirectAfterLogin(readNextPath() || DEFAULT_NEXT);
@@ -204,9 +321,9 @@
     }
 
     function isProtectedPath(path) {
-        return /\/dashboard\.html$/i.test(path)
-            || /\/pages\/profile\.html$/i.test(path)
-            || /\/profile\/profile\.html$/i.test(path);
+        return /\/dashboard\/?$/i.test(path)
+            || /\/pages\/profile\/?$/i.test(path)
+            || /\/profile\/profile\/?$/i.test(path);
     }
 
     function buildAuthRequiredUrl(nextPath) {

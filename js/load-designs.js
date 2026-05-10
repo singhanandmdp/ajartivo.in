@@ -31,8 +31,27 @@
         if (!path) return window.location.href;
         if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
+        const normalizedInput = String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "");
+
+        if (normalizedInput.startsWith("/product/")) {
+            const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
+            if (slug) {
+                return `/product.html?slug=${encodeURIComponent(slug)}`;
+            }
+        }
+
+        if (normalizedInput === "/product") {
+            return "/product.html";
+        }
+
+        if (normalizedInput.startsWith("/product?")) {
+            return `/product.html${normalizedInput.slice("/product".length)}`;
+        }
+
         if (!path.startsWith("/")) {
-            return `/${path}`;
+            return `/${normalizedInput}`;
         }
 
         const pathname = String(window.location && window.location.pathname || "");
@@ -40,13 +59,13 @@
         for (let i = 0; i < markers.length; i += 1) {
             const markerIndex = pathname.indexOf(markers[i]);
             if (markerIndex >= 0) {
-                return `${pathname.slice(0, markerIndex)}${path}`;
+                return `${pathname.slice(0, markerIndex)}${normalizedInput}`;
             }
         }
 
         const lastSlashIndex = pathname.lastIndexOf("/");
         const basePath = lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex) : "";
-        return `${basePath}${path}`;
+        return `${basePath}${normalizedInput}`;
     }
 
     bindFilterControls();
@@ -680,6 +699,7 @@
     }
 
     function buildProductUrl(design) {
+        rememberProductDesign(design);
         if (typeof window.AjArtivoBuildProductUrl === "function") {
             return window.AjArtivoBuildProductUrl(design);
         }
@@ -702,7 +722,15 @@
             return resolveUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
         }
 
-        return resolveUrl("/product.html");
+        return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);
+    }
+
+    function rememberProductDesign(design) {
+        try {
+            if (design) {
+                window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(design));
+            }
+        } catch (_error) {}
     }
 
     function getDesignBadge(design) {

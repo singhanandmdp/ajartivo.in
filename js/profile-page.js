@@ -2,7 +2,28 @@
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
-        : function (path) { return path; };
+        : function (path) {
+            const normalizedInput = String(path || "")
+                .replace(/\/index\.html(?=([?#]|$))/i, "/")
+                .replace(/\.html(?=([?#]|$))/i, "");
+
+            if (normalizedInput.startsWith("/product/")) {
+                const slug = normalizedInput.slice("/product/".length).replace(/\/+$/, "");
+                if (slug) {
+                    return `/product.html?slug=${encodeURIComponent(slug)}`;
+                }
+            }
+
+            if (normalizedInput === "/product") {
+                return "/product.html";
+            }
+
+            if (normalizedInput.startsWith("/product?")) {
+                return `/product.html${normalizedInput.slice("/product".length)}`;
+            }
+
+            return normalizedInput;
+        };
     if (!services) return;
     const supabase = services.client;
 
@@ -16,7 +37,7 @@
     async function init() {
         const authUser = await resolveAuthenticatedUser();
         if (!authUser) {
-            window.location.href = resolveUrl("/login.html");
+            window.location.href = resolveUrl("/login");
             return;
         }
 
@@ -434,6 +455,7 @@
     }
 
     function buildProductUrl(design) {
+        rememberProductDesign(design);
         if (typeof window.AjArtivoBuildProductUrl === "function") {
             return window.AjArtivoBuildProductUrl(design);
         }

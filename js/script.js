@@ -1,5 +1,5 @@
 const AJARTIVO_BOOT_KEY = "__ajartivoScriptBooted";
-const AJARTIVO_PARTIAL_CACHE_VERSION = "20260506-1";
+const AJARTIVO_PARTIAL_CACHE_VERSION = "20260510-3";
 const AJARTIVO_PARTIAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const AJARTIVO_PARTIAL_CACHE_PREFIX = "ajartivo_partial_html_";
 const AJARTIVO_PERF_LOG_PREFIX = "[AJartivo Perf]";
@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window[AJARTIVO_BOOT_KEY] = true;
+    disableLocalServiceWorkers();
+    canonicalizeCurrentLocation();
 
     loadHeader();
     initSearch();
@@ -28,6 +30,99 @@ function cleanText(value) {
     return String(value || "").trim();
 }
 
+function isLocalDevelopmentHost() {
+    const hostname = String(window.location.hostname || "").toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function splitPathSuffix(path) {
+    const input = String(path || "");
+    const match = input.match(/^([^?#]*)([?#].*)?$/);
+
+    return {
+        pathname: match ? match[1] : input,
+        suffix: match && match[2] ? match[2] : ""
+    };
+}
+
+function getLocalRouteFilePath(pathname) {
+    const routePath = String(pathname || "").replace(/\/+$/, "") || "/";
+    const routeMap = {
+        "/": "/index.html",
+        "/about": "/about/index.html",
+        "/dashboard": "/dashboard.html",
+        "/login": "/login.html",
+        "/signup": "/signup.html",
+        "/premium": "/premium.html",
+        "/privacy": "/privacy.html",
+        "/refund": "/refund.html",
+        "/terms": "/terms.html",
+        "/pages/contact": "/pages/contact.html",
+        "/pages/license": "/pages/license.html",
+        "/pages/privacy": "/pages/privacy.html",
+        "/pages/profile": "/pages/profile.html",
+        "/pages/search": "/pages/search.html",
+        "/tools/dashboard": "/tools/dashboard.html",
+        "/tools/aj-pixel-enhancer": "/tools/aj-pixel-enhancer.html",
+        "/tools/image-resizer": "/tools/image-resizer.html",
+        "/tools/image-converter": "/tools/image-converter.html",
+        "/tools/aj-colour-converter": "/tools/aj-colour-converter.html",
+        "/tools/aj-print-layout-pro": "/tools/aj-print-layout-pro.html",
+        "/tools/Aj Pixel Cut/website/aj-pixel-cut": "/tools/Aj Pixel Cut/website/aj-pixel-cut.html"
+    };
+
+    return routeMap[routePath] || "";
+}
+
+function normalizeLocalBasePath(basePath) {
+    return collapseDuplicateLeadingSegment(String(basePath || "").replace(/\/$/, ""));
+}
+
+function stripLocalBasePath(path, basePath) {
+    const normalizedPath = collapseDuplicateLeadingSegment(String(path || ""));
+    const normalizedBasePath = normalizeLocalBasePath(basePath);
+
+    if (!normalizedBasePath) {
+        return normalizedPath;
+    }
+
+    if (
+        normalizedPath === normalizedBasePath ||
+        normalizedPath.startsWith(`${normalizedBasePath}/`) ||
+        normalizedPath.startsWith(`${normalizedBasePath}?`) ||
+        normalizedPath.startsWith(`${normalizedBasePath}#`)
+    ) {
+        const remainder = normalizedPath.slice(normalizedBasePath.length);
+        return remainder ? (remainder.startsWith("/") ? remainder : `/${remainder}`) : "/";
+    }
+
+    return normalizedPath;
+}
+
+function joinBasePathWithTarget(basePath, targetPath) {
+    const normalizedBasePath = normalizeLocalBasePath(basePath);
+    const normalizedTargetPath = String(targetPath || "");
+
+    if (!normalizedBasePath) {
+        return normalizedTargetPath;
+    }
+
+    if (
+        normalizedTargetPath === normalizedBasePath ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}/`) ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}?`) ||
+        normalizedTargetPath.startsWith(`${normalizedBasePath}#`)
+    ) {
+        return normalizedTargetPath;
+    }
+
+    if (!normalizedTargetPath.startsWith("/")) {
+        return `${normalizedBasePath}/${normalizedTargetPath}`;
+    }
+
+    return `${normalizedBasePath}${normalizedTargetPath}`;
+}
+
 function getSiteBasePath() {
     const scriptElement = document.querySelector('script[src*="js/script.js"]');
     const scriptSrc = scriptElement ? (scriptElement.src || scriptElement.getAttribute("src") || "") : "";
@@ -40,30 +135,93 @@ function getSiteBasePath() {
     const path = window.location.pathname;
     const pagesIndex = path.indexOf("/pages/");
     if (pagesIndex >= 0) {
-        return path.slice(0, pagesIndex);
+        return normalizeLocalBasePath(path.slice(0, pagesIndex));
     }
 
     const lastSlashIndex = path.lastIndexOf("/");
-    return lastSlashIndex > 0 ? path.slice(0, lastSlashIndex) : "";
+    return lastSlashIndex > 0 ? normalizeLocalBasePath(path.slice(0, lastSlashIndex)) : "";
 }
 
 function resolveSiteUrl(path) {
     if (!path) return window.location.href;
     if (/^(?:[a-z]+:)?\/\//i.test(path)) return path;
 
-    if (!path.startsWith("/")) {
-        return `/${path}`;
+    const normalizedInput = splitPathSuffix(path);
+    const basePath = getSiteBasePath();
+    const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(normalizedInput.pathname));
+    const suffix = normalizedInput.suffix;
+
+    if (isLocalDevelopmentHost()) {
+        if (cleanPath.startsWith("/product/")) {
+            const slug = cleanPath.slice("/product/".length).replace(/\/+$/, "");
+            if (slug) {
+                const mergedSuffix = suffix.startsWith("?") ? `&${suffix.slice(1)}` : suffix;
+                return joinBasePathWithTarget(basePath, `/product.html?slug=${encodeURIComponent(slug)}${mergedSuffix}`) ;
+            }
+        }
+
+        if (cleanPath === "/product") {
+            return joinBasePathWithTarget(basePath, "/product.html") + suffix;
+        }
+
+        const localRouteFilePath = getLocalRouteFilePath(stripLocalBasePath(cleanPath, basePath));
+        if (localRouteFilePath) {
+            return joinBasePathWithTarget(basePath, localRouteFilePath) + suffix;
+        }
     }
 
-    const basePath = getSiteBasePath().replace(/\/$/, "");
     if (!basePath) {
-        return path;
+        return (cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`) + suffix;
     }
 
-    return `${basePath}${path}`;
+    if (
+        cleanPath === basePath ||
+        cleanPath.startsWith(`${basePath}/`) ||
+        cleanPath.startsWith(`${basePath}?`) ||
+        cleanPath.startsWith(`${basePath}#`)
+    ) {
+        return cleanPath + suffix;
+    }
+
+    if (!cleanPath.startsWith("/")) {
+        return `${basePath}/${cleanPath}${suffix}`;
+    }
+
+    return `${basePath}${cleanPath}${suffix}`;
 }
 
 window.AjArtivoResolveUrl = resolveSiteUrl;
+
+function stripHtmlExtensionFromPath(path) {
+    return String(path || "")
+        .replace(/\/index\.html(?=([?#]|$))/i, "/")
+        .replace(/\.html(?=([?#]|$))/i, "");
+}
+
+function collapseDuplicateLeadingSegment(path) {
+    let current = String(path || "");
+    const duplicatePrefixPattern = /^\/([^/]+)\/\1(?=\/|$)/;
+
+    while (duplicatePrefixPattern.test(current)) {
+        current = current.replace(duplicatePrefixPattern, "/$1");
+    }
+    return current;
+}
+
+function canonicalizeCurrentLocation() {
+    if (isLocalDevelopmentHost()) {
+        return;
+    }
+
+    const currentPath = String(window.location.pathname || "");
+    const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(currentPath));
+
+    if (!cleanPath || cleanPath === currentPath) {
+        return;
+    }
+
+    window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+}
 
 function scheduleIdleWork() {
     const runIdle = function (callback, timeout) {
@@ -215,11 +373,31 @@ function registerRoutingServiceWorker() {
         return;
     }
 
+    if (isLocalDevelopmentHost()) {
+        return;
+    }
+
     const swUrl = resolveSiteUrl("/sw.js");
     window.addEventListener("load", function () {
         navigator.serviceWorker.register(swUrl).catch(function (error) {
             console.warn("AJartivo routing service worker registration failed:", error);
         });
+    });
+}
+
+function disableLocalServiceWorkers() {
+    if (!isLocalDevelopmentHost() || !("serviceWorker" in navigator)) {
+        return;
+    }
+
+    window.addEventListener("load", function () {
+        navigator.serviceWorker.getRegistrations()
+            .then((registrations) => {
+                return Promise.all(registrations.map((registration) => registration.unregister()));
+            })
+            .catch((error) => {
+                console.warn("AJartivo local service worker cleanup failed:", error);
+            });
     });
 }
 
@@ -237,46 +415,29 @@ function rewriteRootRelativeUrls(container) {
 }
 
 function normalizeAppAnchorHref(value) {
-    if (!value || !value.startsWith("/")) return value;
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return trimmed;
+    if (/^(?:#|javascript:|mailto:|tel:|data:)/i.test(trimmed)) return trimmed;
 
-    const guardedPrefixes = [
-        "/product/",
-        "/product.html",
-        "/login.html",
-        "/signup.html",
-        "/dashboard.html",
-        "/pages/",
-        "/about/",
-        "/tools/",
-        "/terms.html",
-        "/privacy.html",
-        "/icons/",
-        "/images/",
-        "/css/",
-        "/js/",
-        "/payment.js"
-    ];
+    try {
+        const resolvedUrl = new URL(trimmed, window.location.href);
+        if (resolvedUrl.origin !== window.location.origin) {
+            return trimmed;
+        }
 
-    const shouldRewrite = guardedPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}?`) || value.startsWith(`${prefix}#`) || value.startsWith(`${prefix}/`));
-    return shouldRewrite ? resolveSiteUrl(value) : value;
+        const cleanPath = collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(resolvedUrl.pathname));
+        return resolveSiteUrl(cleanPath + resolvedUrl.search + resolvedUrl.hash);
+    } catch (_error) {
+        return resolveSiteUrl(collapseDuplicateLeadingSegment(stripHtmlExtensionFromPath(trimmed)));
+    }
 }
 
 function rewriteDocumentAppLinks() {
-    document.querySelectorAll("a[href], img[src], link[href], script[src]").forEach((element) => {
-        if (element.hasAttribute("href")) {
-            const href = element.getAttribute("href");
-            const rewrittenHref = normalizeAppAnchorHref(href);
-            if (rewrittenHref && rewrittenHref !== href) {
-                element.setAttribute("href", rewrittenHref);
-            }
-        }
-
-        if (element.hasAttribute("src")) {
-            const src = element.getAttribute("src");
-            const rewrittenSrc = normalizeAppAnchorHref(src);
-            if (rewrittenSrc && rewrittenSrc !== src) {
-                element.setAttribute("src", rewrittenSrc);
-            }
+    document.querySelectorAll("a[href]").forEach((element) => {
+        const href = element.getAttribute("href");
+        const rewrittenHref = normalizeAppAnchorHref(href);
+        if (rewrittenHref && rewrittenHref !== href) {
+            element.setAttribute("href", rewrittenHref);
         }
     });
 }
@@ -315,7 +476,7 @@ function initQuickCategoryNavigation() {
         if (!category) return;
 
         const goToCategory = () => {
-            window.location.href = resolveSiteUrl(`/pages/search.html?category=${encodeURIComponent(category)}`);
+            window.location.href = resolveSiteUrl(`/pages/search?category=${encodeURIComponent(category)}`);
         };
 
         card.setAttribute("role", "button");
@@ -470,12 +631,12 @@ function searchDesign(inputId) {
     const query = input.value.trim();
     if (!query) return;
 
-    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
+    window.location.href = resolveSiteUrl("/pages/search?q=" + encodeURIComponent(query));
 }
 
 function quickSearch(query) {
     if (!query) return;
-    window.location.href = resolveSiteUrl("/pages/search.html?q=" + encodeURIComponent(query));
+    window.location.href = resolveSiteUrl("/pages/search?q=" + encodeURIComponent(query));
 }
 
 function initSearch() {
@@ -769,7 +930,7 @@ function bindSearchFilterControls(state) {
         clearFiltersBtn.addEventListener("click", () => {
             const params = new URLSearchParams(window.location.search);
             ["category", "price", "sort", "ai", "orientation", "color", "page"].forEach((key) => params.delete(key));
-            window.location.href = resolveSiteUrl("/pages/search.html" + (params.toString() ? `?${params.toString()}` : ""));
+            window.location.href = resolveSiteUrl("/pages/search" + (params.toString() ? `?${params.toString()}` : ""));
         });
         clearFiltersBtn.dataset.bound = "true";
     }
@@ -801,7 +962,7 @@ function applySearchFilterSelection() {
     setParam("color", colorFilter ? colorFilter.value : "");
     params.delete("page");
 
-    window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
+    window.location.href = resolveSiteUrl("/pages/search?" + params.toString());
 }
 
 function renderSearchPagination(pageCount, currentPage, container) {
@@ -846,7 +1007,7 @@ function renderSearchPagination(pageCount, currentPage, container) {
             const nextPage = Number(button.dataset.page || 1);
             const params = new URLSearchParams(window.location.search);
             params.set("page", String(nextPage));
-            window.location.href = resolveSiteUrl("/pages/search.html?" + params.toString());
+            window.location.href = resolveSiteUrl("/pages/search?" + params.toString());
         });
     });
 }
@@ -1697,7 +1858,7 @@ function initAuthUI() {
             memberBox.classList.add("logged-in");
             memberBox.innerHTML = `
                 <div class="member-account-row">
-                    <a href="${resolveSiteUrl("/dashboard.html")}" class="member-user">
+                    <a href="${resolveSiteUrl("/dashboard")}" class="member-user">
                         ${avatarUrl
                             ? `<img class="member-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(firstName)}">`
                             : `<div class="member-avatar-letter">${firstLetter}</div>`}
@@ -1728,7 +1889,7 @@ function initAuthUI() {
                 <h5>Member Access</h5>
                 <p>Login to manage your saved designs.</p>
             </div>
-            <a href="${resolveSiteUrl("/login.html")}" class="member-login-btn">
+            <a href="${resolveSiteUrl("/login")}" class="member-login-btn">
                 <img src="${resolveSiteUrl("/icons/login.svg")}" class="icon-svg" alt="Login">
                 Login
             </a>

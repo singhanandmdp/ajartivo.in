@@ -33,7 +33,9 @@
             return window.AjArtivoResolveUrl(path);
         }
 
-        return path;
+        return String(path || "")
+            .replace(/\/index\.html(?=([?#]|$))/i, "/")
+            .replace(/\.html(?=([?#]|$))/i, "");
     }
 
     function resolveBackendBaseUrl() {
@@ -630,8 +632,8 @@
                     <p class="aj-login-helper">Google sign-in is required before any download or purchase action.</p>
                     <button type="button" class="aj-login-submit aj-login-google">Continue with Google</button>
                     <div class="aj-login-actions">
-                        <a class="aj-login-link" href="${resolveFrontendUrl("/signup.html")}">Create account</a>
-                        <a class="aj-login-link aj-login-link-strong" href="${resolveFrontendUrl("/login.html")}">Open full login page</a>
+                        <a class="aj-login-link" href="${resolveFrontendUrl("/signup")}">Create account</a>
+                        <a class="aj-login-link aj-login-link-strong" href="${resolveFrontendUrl("/login")}">Open full login page</a>
                     </div>
                 </div>
             </div>
@@ -1373,7 +1375,7 @@
             popup.upgradeBtn.disabled = true;
             popup.upgradeBtn.textContent = "Opening plans...";
             closeAccessPopup();
-            window.location.href = resolveFrontendUrl("/premium.html");
+            window.location.href = resolveFrontendUrl("/premium");
         };
 
         popup.buyBtn.onclick = async function () {
