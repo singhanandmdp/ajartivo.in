@@ -794,16 +794,28 @@
     }
 
     function extractPathSlug() {
-        const parts = String(window.location.pathname || "").split("/product/");
-        if (parts.length < 2 || !parts[1]) {
+        let path = String(window.location.pathname || "");
+        const productPrefix = "/product/";
+        const productIndex = path.indexOf(productPrefix);
+
+        if (productIndex < 0) {
             return "";
         }
 
-        const slugPart = parts[1].split("/")[0];
+        let slugPart = path.slice(productIndex + productPrefix.length).replace(/\/+$/, "");
+        while (slugPart.toLowerCase().startsWith("product/")) {
+            slugPart = slugPart.slice("product/".length);
+        }
+
+        if (!slugPart) {
+            return "";
+        }
+
+        const slug = slugPart.split("/")[0];
         try {
-            return decodeURIComponent(slugPart);
+            return decodeURIComponent(slug);
         } catch (_error) {
-            return slugPart;
+            return slug;
         }
     }
 

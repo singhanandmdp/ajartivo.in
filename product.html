@@ -6,18 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         (function () {
-            var path = String(window.location.pathname || "");
-            var basePath = path.replace(/\/product(?:\/.*|\.html.*)?$/i, "/");
-            if (!basePath || basePath === path) {
-                basePath = path.replace(/\/[^/]*$/, "/");
-            }
-
-            if (basePath && basePath.slice(-1) !== "/") {
-                basePath += "/";
-            }
-
             var base = document.createElement("base");
-            base.href = basePath || "/";
+            base.href = "/";
             document.head.appendChild(base);
         })();
     </script>
