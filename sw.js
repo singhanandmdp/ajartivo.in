@@ -1,4 +1,4 @@
-self.addEventListener("install", function (event) {
+self.addEventListener("install", function () {
     self.skipWaiting();
 });
 
@@ -31,10 +31,8 @@ function normalizePathname(pathname) {
         current = current.replace(duplicatePrefixPattern, "/$1");
     }
 
-    const rewritten = new URL(scopePath + "product.html", url.origin);
-    const searchParams = new URLSearchParams(url.search);
-    searchParams.set("slug", slug);
-    rewritten.search = searchParams.toString();
+    return current;
+}
 
 function rewriteNavigationRequest(requestPath, scopePath, url) {
     const normalizedScopePath = String(scopePath || "/").replace(/\/+$/, "/");

@@ -101,24 +101,40 @@
             trackDesignView(currentDesign);
 
             const asyncTasks = [
-                loadRelatedDesigns(currentDesign.id),
-                bindWishlistButton(currentDesign)
+                loadRelatedDesigns(currentDesign.id).catch(function (error) {
+                    console.error("Related designs load failed:", error);
+                }),
+                bindWishlistButton(currentDesign).catch(function (error) {
+                    console.error("Wishlist binding failed:", error);
+                })
             ];
 
             if (!isFreeDesign(currentDesign)) {
-                asyncTasks.push(refreshDesignAccess(currentDesign));
+                asyncTasks.push(refreshDesignAccess(currentDesign).catch(function (error) {
+                    console.error("Design access refresh failed:", error);
+                }));
             } else {
                 currentAccessState = deriveInitialAccessState(currentDesign);
                 currentDesign = applyAccessState(currentDesign, currentAccessState);
                 updateAccessUi(currentDesign, currentAccessState);
             }
 
-            await Promise.all(asyncTasks);
+            await Promise.allSettled(asyncTasks);
         } catch (error) {
             console.error("Design load failed:", error);
-            setText("productTitle", "Unable to load design");
-            setText("productDescription", "Please try again later.");
-            bindActionButton(null, createAccessState());
+            if (!currentDesign) {
+                setText("productTitle", "Unable to load design");
+                setText("productDescription", "Please try again later.");
+                bindActionButton(null, createAccessState());
+                return;
+            }
+
+            updateActionFeedback({
+                visible: true,
+                state: "error",
+                label: "Design details partially loaded",
+                message: "Some product widgets could not refresh, but the design is still open."
+            });
         }
     }
 
@@ -1165,6 +1181,10 @@
     async function bindWishlistButton(product) {
         const button = document.getElementById("wishlistBtn");
         if (!button || !product || !product.id) return;
+        if (!window.AjArtivoPayment || typeof window.AjArtivoPayment.isInWishlist !== "function") {
+            button.hidden = true;
+            return;
+        }
 
         const updateButtonState = function (saved) {
             button.dataset.saved = saved ? "true" : "false";
