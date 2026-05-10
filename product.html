@@ -6,25 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         (function () {
-            function computeSiteBasePath() {
-                var pathname = String(window.location.pathname || "");
-                var productIndex = pathname.toLowerCase().indexOf("/product/");
-                if (productIndex >= 0) {
-                    return pathname.slice(0, productIndex).replace(/\/+$/, "");
-                }
-
-                var pagesIndex = pathname.indexOf("/pages/");
-                if (pagesIndex >= 0) {
-                    return pathname.slice(0, pagesIndex).replace(/\/+$/, "");
-                }
-
-                var lastSlashIndex = pathname.lastIndexOf("/");
-                return lastSlashIndex > 0 ? pathname.slice(0, lastSlashIndex).replace(/\/+$/, "") : "";
+            var path = String(window.location.pathname || "");
+            var basePath = path.replace(/\/product(?:\/.*|\.html.*)?$/i, "/");
+            if (!basePath || basePath === path) {
+                basePath = path.replace(/\/[^/]*$/, "/");
             }
 
-            var basePath = computeSiteBasePath();
+            if (basePath && basePath.slice(-1) !== "/") {
+                basePath += "/";
+            }
+
             var base = document.createElement("base");
-            base.href = (basePath || "") + "/";
+            base.href = basePath || "/";
             document.head.appendChild(base);
         })();
     </script>
@@ -34,7 +27,7 @@
     <meta property="og:type" content="product">
     <meta property="og:title" content="Loading Design - AJartivo">
     <meta property="og:description" content="Loading design details...">
-    <meta property="og:image" content="/images/Hero/hero-bg.jpg">
+    <meta property="og:image" content="images/Hero/hero-bg.jpg">
     <meta property="og:site_name" content="AJartivo">
     <meta name="twitter:card" content="summary_large_image">
     <script id="productJsonLd" type="application/ld+json"></script>
@@ -174,11 +167,11 @@
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-config.js?v=20260510-3"></script>
-    <script src="js/auth.js?v=20260510-3"></script>
-    <script src="payment.js?v=20260510-3"></script>
-    <script src="js/script.js?v=20260510-3"></script>
-    <script src="js/download-system.js?v=20260510-3"></script>
+    <script src="js/supabase-config.js?v=20260503-1"></script>
+    <script src="js/auth.js?v=20260410-1"></script>
+    <script src="payment.js?v=20260503-1"></script>
+    <script src="js/script.js?v=20260503-1"></script>
+    <script src="js/download-system.js?v=20260503-1"></script>
 </body>
 
 </html>

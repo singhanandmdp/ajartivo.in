@@ -704,12 +704,22 @@
             return window.AjArtivoBuildProductUrl(design);
         }
 
+        const id = cleanText(design && design.id);
         const slug = typeof window.AjArtivoSlugify === "function"
             ? window.AjArtivoSlugify(design && (design.slug || design.title || design.name || design.id))
             : "";
 
+        if (id) {
+            const params = new URLSearchParams();
+            params.set("id", id);
+            if (slug) {
+                params.set("slug", slug);
+            }
+            return resolveUrl(`/product.html?${params.toString()}`);
+        }
+
         if (slug) {
-            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+            return resolveUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
         }
 
         return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);

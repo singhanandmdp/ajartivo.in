@@ -31,8 +31,10 @@ function normalizePathname(pathname) {
         current = current.replace(duplicatePrefixPattern, "/$1");
     }
 
-    return current;
-}
+    const rewritten = new URL(scopePath + "product.html", url.origin);
+    const searchParams = new URLSearchParams(url.search);
+    searchParams.set("slug", slug);
+    rewritten.search = searchParams.toString();
 
 function rewriteNavigationRequest(requestPath, scopePath, url) {
     const normalizedScopePath = String(scopePath || "/").replace(/\/+$/, "/");

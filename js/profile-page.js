@@ -460,23 +460,25 @@
             return window.AjArtivoBuildProductUrl(design);
         }
 
+        const id = cleanText(design && design.id);
         const slug = typeof window.AjArtivoSlugify === "function"
             ? window.AjArtivoSlugify(design && (design.slug || design.title || design.name || design.id))
             : "";
 
-        if (slug) {
-            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        if (id) {
+            const params = new URLSearchParams();
+            params.set("id", id);
+            if (slug) {
+                params.set("slug", slug);
+            }
+            return resolveUrl(`/product.html?${params.toString()}`);
         }
 
-        return resolveUrl(`/product?id=${encodeURIComponent(design && design.id || "")}`);
-    }
+        if (slug) {
+            return resolveUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+        }
 
-    function rememberProductDesign(design) {
-        try {
-            if (design) {
-                window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(design));
-            }
-        } catch (_error) {}
+        return resolveUrl("/product.html");
     }
 
     function loadWishlist() {

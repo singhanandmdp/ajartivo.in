@@ -42,6 +42,7 @@
     let currentAccessState = createAccessState();
     let actionSequence = 0;
     let actionFeedbackTimerId = 0;
+    let trackedViewDesignId = "";
 
     initPage();
     bindLiveRefresh();
@@ -67,15 +68,15 @@
                 }
             }
 
-            if (!currentDesign && designSlug && typeof services.fetchDesignBySlug === "function") {
-                currentDesign = await services.fetchDesignBySlug(designSlug);
-            }
-
             if (!currentDesign && designId) {
                 currentDesign = await services.fetchDesignById(designId);
             }
 
-            if (!currentDesign && designSlug && typeof services.fetchDesignById === "function") {
+            if (!currentDesign && designSlug && typeof services.fetchDesignBySlug === "function") {
+                currentDesign = await services.fetchDesignBySlug(designSlug);
+            }
+
+            if (!currentDesign && designSlug && !designId && typeof services.fetchDesignById === "function") {
                 currentDesign = await services.fetchDesignById(designSlug);
             }
 
@@ -98,6 +99,7 @@
 
             currentDesign = services.normalizeDesign(currentDesign);
             renderDesign(currentDesign);
+            trackDesignView(currentDesign);
 
             const asyncTasks = [
                 loadRelatedDesigns(currentDesign.id),
@@ -231,6 +233,40 @@
         renderThumbnails(getDesignImages(product), title);
         resetActionFeedback();
         updateAccessUi(product, deriveInitialAccessState(product));
+    }
+
+    async function trackDesignView(product) {
+        const normalizedProduct = services.normalizeDesign(product);
+        const designId = cleanText(normalizedProduct && normalizedProduct.id);
+
+        if (!designId || trackedViewDesignId === designId) {
+            return null;
+        }
+
+        if (!window.AjArtivoPayment || typeof window.AjArtivoPayment.recordDesignView !== "function") {
+            return null;
+        }
+
+        try {
+            const response = await window.AjArtivoPayment.recordDesignView(designId);
+            const responseDesign = response && response.design ? services.normalizeDesign(response.design) : null;
+
+            trackedViewDesignId = designId;
+
+            if (responseDesign) {
+                currentDesign = applyAccessState({
+                    ...normalizedProduct,
+                    views: responseDesign.views,
+                    downloads: responseDesign.downloads
+                }, currentAccessState || createAccessState());
+                setText("galleryViews", String(Number(responseDesign.views || currentDesign.views || 0)));
+                setText("galleryDownloads", String(Number(responseDesign.downloads || currentDesign.downloads || 0)));
+            }
+        } catch (error) {
+            console.warn("Design view tracking failed:", error);
+        }
+
+        return null;
     }
 
     async function refreshDesignAccess(product) {
@@ -718,21 +754,22 @@
             return window.AjArtivoBuildProductUrl(product);
         }
 
+        const id = cleanText(product && product.id);
         const slug = getDesignSlug(product);
-        if (slug) {
-            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        if (id) {
+            const params = new URLSearchParams();
+            params.set("id", id);
+            if (slug) {
+                params.set("slug", slug);
+            }
+            return resolveUrl(`/product.html?${params.toString()}`);
         }
 
-        const id = cleanText(product && product.id);
-        return id ? resolveUrl(`/product?id=${encodeURIComponent(id)}`) : resolveUrl("/product");
-    }
+        if (slug) {
+            return resolveUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+        }
 
-    function rememberProductDesign(product) {
-        try {
-            if (product) {
-                window.sessionStorage.setItem("ajartivo_last_product_design", JSON.stringify(product));
-            }
-        } catch (_error) {}
+        return resolveUrl("/product.html");
     }
 
     function getDesignSlug(product) {

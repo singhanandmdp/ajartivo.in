@@ -15,6 +15,7 @@
         upgradeToPremium: upgradeToPremium,
         startPremiumPlanCheckout: startPremiumPlanCheckout,
         fetchDownloadAccess: fetchDownloadAccess,
+        recordDesignView: recordDesignView,
         refreshAccountSummary: refreshAccountSummary,
         hasDownloadAccess: hasDownloadAccess,
         isSignedIn: isSignedIn,
@@ -95,7 +96,7 @@
                     ? "Free download ready. Starting instantly..."
                     : "Access already available. Starting your download..."
             });
-            await downloadFile(item, authContext, flowUi);
+            await downloadFile(item, authContext, flowUi, { autoStart: true });
             queueAccountRefresh();
             return;
         }
@@ -115,7 +116,7 @@
                         ? "Free download confirmed. Preparing your file..."
                         : "Access confirmed. Preparing your download..."
                 });
-                await downloadFile(item, authContext, flowUi);
+                await downloadFile(item, authContext, flowUi, { autoStart: true });
                 queueAccountRefresh();
                 return;
             }
@@ -191,6 +192,17 @@
         });
     }
 
+    async function recordDesignView(designId) {
+        const normalizedId = cleanText(designId);
+        if (!normalizedId) {
+            return null;
+        }
+
+        return requestJson(`/designs/${encodeURIComponent(normalizedId)}/view`, {
+            method: "POST"
+        });
+    }
+
     async function refreshAccountSummary() {
         return services.refreshAccountSummary ? services.refreshAccountSummary() : services.getSession();
     }
@@ -217,7 +229,7 @@
             const unlockedProduct = markDesignAsPurchased(product);
             await refreshAccountSummary();
             emitPurchaseCompleted(unlockedProduct, authContext, order);
-            await downloadFile(unlockedProduct, authContext);
+            await downloadFile(unlockedProduct, authContext, null, { autoStart: true });
             return order;
         }
 
@@ -245,7 +257,7 @@
                         const unlockedProduct = markDesignAsPurchased(product);
                         await refreshAccountSummary();
                         emitPurchaseCompleted(unlockedProduct, authContext, result);
-                        await downloadFile(unlockedProduct, authContext);
+                        await downloadFile(unlockedProduct, authContext, null, { autoStart: true });
                         resolve(result);
                     } catch (error) {
                         reject(error);
@@ -713,7 +725,8 @@
         return loginPopupState.promise;
     }
 
-    async function downloadFile(product, authContext, flowUi) {
+    async function downloadFile(product, authContext, flowUi, options) {
+        const downloadOptions = options || {};
         if (isFreeDownload(product)) {
             return downloadFreeFile(product, authContext, flowUi);
         }
@@ -727,7 +740,8 @@
             const popupControls = showDownloadPopup({
                 title: cleanText(product.title) || "Preparing your file",
                 fileName: fileName,
-                waitSeconds: 8,
+                autoStart: downloadOptions.autoStart === true,
+                waitSeconds: downloadOptions.autoStart === true ? 0 : 8,
                 onClose: function () {
                     notifyFlowUi(flowUi, {
                         visible: false,
@@ -744,7 +758,9 @@
 
             notifyFlowUi(flowUi, {
                 label: "Processing...",
-                message: "Preparing your download..."
+                message: downloadOptions.autoStart === true
+                    ? "Preparing your secure download..."
+                    : "Preparing your download..."
             });
             preparePromise = prepareDownload();
 
@@ -789,6 +805,7 @@
                     });
 
                     updateSessionDownloadCounters(product, authContext);
+                    notifyDesignDataChanged(product && product.id);
 
                     if (!resolvedOnce) {
                         resolvedOnce = true;
@@ -895,6 +912,7 @@
                     download_link: fileName
                 });
                 updateSessionDownloadCounters(product, authContext);
+                notifyDesignDataChanged(product && product.id);
             }
         });
 
@@ -981,6 +999,22 @@
         services.setSession(nextSession);
         authContext.sessionUser = services.getSession();
         emitAccountUpdated(buildAccountSummaryFromSessionSafe(authContext.sessionUser));
+    }
+
+    function notifyDesignDataChanged(designId) {
+        if (services.invalidateDesignCache) {
+            services.invalidateDesignCache();
+        }
+
+        window.dispatchEvent(new CustomEvent("ajartivo:designs-changed", {
+            detail: {
+                change: {
+                    type: "design-counter-updated",
+                    designId: cleanText(designId)
+                },
+                receivedAt: new Date().toISOString()
+            }
+        }));
     }
 
     function buildAccountSummaryFromSessionSafe(session) {
@@ -1134,6 +1168,9 @@
         } else {
             downloadPopupState.status.textContent = "Your secure download is starting now.";
             downloadPopupState.countdown.textContent = "0";
+            window.setTimeout(function () {
+                startDownload();
+            }, 0);
         }
 
         downloadPopupState.action.onclick = async function () {

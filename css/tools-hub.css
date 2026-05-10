@@ -180,7 +180,7 @@
 
 .tools-hub-slider {
     position: relative;
-    min-height: 340px;
+    min-height: 460px;
     border-radius: 28px;
     overflow: hidden;
     background:
@@ -565,6 +565,10 @@
         min-height: 280px;
     }
 
+    .tools-hub-slider {
+        min-height: 380px;
+    }
+
     .tools-hub-dashboard-image,
     .tools-hub-dashboard-frame {
         min-height: 220px;
@@ -603,6 +607,10 @@
 
     .tools-hub-slider-section {
         padding: 18px;
+    }
+
+    .tools-hub-slider {
+        min-height: 320px;
     }
 
     .tools-hub-feature {
