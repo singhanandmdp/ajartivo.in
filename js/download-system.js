@@ -53,6 +53,8 @@
         warmProductCache();
 
         try {
+            const fallbackDesigns = await loadFallbackDesigns();
+
             if (rememberedDesign && matchesRequestedDesign(rememberedDesign, designId, designSlug)) {
                 currentDesign = rememberedDesign;
             }
@@ -69,15 +71,15 @@
             }
 
             if (!currentDesign && designId) {
-                currentDesign = await services.fetchDesignById(designId);
+                currentDesign = await safeFetchDesignById(designId);
             }
 
             if (!currentDesign && designSlug && typeof services.fetchDesignBySlug === "function") {
-                currentDesign = await services.fetchDesignBySlug(designSlug);
+                currentDesign = await safeFetchDesignBySlug(designSlug);
             }
 
             if (!currentDesign && designSlug && !designId && typeof services.fetchDesignById === "function") {
-                currentDesign = await services.fetchDesignById(designSlug);
+                currentDesign = await safeFetchDesignById(designSlug);
             }
 
             if (!currentDesign) {
@@ -87,14 +89,11 @@
             }
 
             if (!currentDesign) {
-                if (designSlug) {
-                    currentDesign = buildFallbackDesign(designSlug);
-                } else {
-                    setText("productTitle", "Design not found");
-                    setText("productDescription", "Design link is missing or invalid.");
-                    bindActionButton(null, createAccessState());
-                    return;
-                }
+                currentDesign = findFallbackDesign(fallbackDesigns, designId, designSlug);
+            }
+
+            if (!currentDesign) {
+                currentDesign = buildFallbackDesign(designSlug || designId);
             }
 
             currentDesign = services.normalizeDesign(currentDesign);
@@ -819,6 +818,68 @@
         }
     }
 
+    async function loadFallbackDesigns() {
+        try {
+            if (typeof services.fetchDesigns === "function") {
+                return await services.fetchDesigns({
+                    source: "product-fallback",
+                    preferCache: true,
+                    cacheTtlMs: 5 * 60 * 1000
+                });
+            }
+        } catch (_error) {}
+
+        return [];
+    }
+
+    async function safeFetchDesignById(designId) {
+        try {
+            if (typeof services.fetchDesignById !== "function") {
+                return null;
+            }
+
+            return await services.fetchDesignById(designId);
+        } catch (error) {
+            console.warn("Design lookup by ID failed:", error);
+            return null;
+        }
+    }
+
+    async function safeFetchDesignBySlug(designSlug) {
+        try {
+            if (typeof services.fetchDesignBySlug !== "function") {
+                return null;
+            }
+
+            return await services.fetchDesignBySlug(designSlug);
+        } catch (error) {
+            console.warn("Design lookup by slug failed:", error);
+            return null;
+        }
+    }
+
+    function findFallbackDesign(designs, designId, designSlug) {
+        const designList = Array.isArray(designs) ? designs : [];
+        const normalizedId = cleanText(designId);
+        const normalizedSlug = cleanText(designSlug);
+
+        if (normalizedId) {
+            const byId = designList.find((item) => String(item && item.id) === String(normalizedId));
+            if (byId) {
+                return byId;
+            }
+        }
+
+        if (normalizedSlug) {
+            const bySlug = designList.find((item) => getDesignSlug(item) === normalizedSlug);
+            if (bySlug) {
+                return bySlug;
+            }
+        }
+
+        return null;
+    }
+
     function matchesRequestedDesign(design, requestedId, requestedSlug) {
         const normalizedDesign = services.normalizeDesign(design);
         const designId = cleanText(normalizedDesign && normalizedDesign.id);
@@ -879,7 +940,7 @@
             id: rawSlug,
             slug: rawSlug,
             title: title,
-            description: "This design page is being prepared. Please check back shortly.",
+            description: "This design is temporarily unavailable. Please try again in a moment.",
             category: "PSD",
             price: 0,
             is_free: true,
