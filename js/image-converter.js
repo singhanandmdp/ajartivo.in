@@ -29,7 +29,7 @@
     const outputCountEl = document.getElementById("converterOutputCount");
     const queueMetaEl = document.getElementById("converterQueueMeta");
 
-    if (!dropZone || !fileInput || !formatEl || !qualityEl || !queueEl || !resultsEl) {
+    if (!dropZone || !fileInput || !formatEl || !queueEl || !resultsEl) {
         return;
     }
 
@@ -37,7 +37,7 @@
         items: [],
         backendStatus: "checking",
         outputFormat: cleanText(formatEl.value) || "jpg",
-        quality: Number(qualityEl.value) || 88,
+        quality: qualityEl ? Number(qualityEl.value) || 88 : 88,
         background: cleanText(backgroundEl && backgroundEl.value) || "#ffffff",
         keepMetadata: keepMetadataEl ? keepMetadataEl.checked === true : false,
         busyCount: 0
@@ -184,8 +184,10 @@
         }
 
         const format = cleanText(state.outputFormat).toLowerCase();
-        const backgroundDisabled = format !== "jpg" && format !== "jpeg";
-        backgroundEl.disabled = backgroundDisabled;
+        if (backgroundEl) {
+            const backgroundDisabled = format !== "jpg" && format !== "jpeg";
+            backgroundEl.disabled = backgroundDisabled;
+        }
 
         if (format === "png") {
             hintEl.textContent = "PNG keeps transparency and uses the quality slider as compression guidance.";

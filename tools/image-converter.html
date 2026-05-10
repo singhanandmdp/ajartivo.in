@@ -31,46 +31,17 @@
             </div>
 
             <div class="converter-hero-visual">
-                <div class="converter-hero-card">
+                <div class="converter-hero-card converter-image-card">
                     <div class="converter-hero-card-head">
                         <span class="converter-chip">Workspace preview</span>
                         <strong id="converterBackendState">Checking backend...</strong>
                     </div>
-                    <div class="converter-format-grid" aria-label="Supported output formats">
-                        <article>
-                            <span>JPG</span>
-                            <p>Compact delivery</p>
-                        </article>
-                        <article>
-                            <span>PNG</span>
-                            <p>Transparency safe</p>
-                        </article>
-                        <article>
-                            <span>WEBP</span>
-                            <p>Modern compression</p>
-                        </article>
-                        <article>
-                            <span>AVIF</span>
-                            <p>High efficiency</p>
-                        </article>
-                        <article>
-                            <span>TIFF</span>
-                            <p>Print friendly</p>
-                        </article>
+                    <div class="converter-image-frame">
+                        <img src="../tools/Images/aj image converter.webp" alt="AJartivo image converter preview">
                     </div>
-                    <div class="converter-hero-metrics">
-                        <div>
-                            <span>Files</span>
-                            <strong id="converterFileCount">0</strong>
-                        </div>
-                        <div>
-                            <span>Queue size</span>
-                            <strong id="converterTotalSize">0 MB</strong>
-                        </div>
-                        <div>
-                            <span>Ready exports</span>
-                            <strong id="converterOutputCount">0</strong>
-                        </div>
+                    <div class="converter-image-caption">
+                        <strong>Premium conversion flow</strong>
+                        <span>Upload first, choose the output extension next.</span>
                     </div>
                 </div>
             </div>
@@ -79,27 +50,13 @@
         <section class="converter-workbench" aria-label="Image conversion workspace">
             <div class="converter-dropzone" id="converterDropZone" tabindex="0" role="button" aria-label="Upload image files">
                 <input id="converterFileInput" class="converter-file-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.avif,.tif,.tiff,.bmp,.gif,.ico,.svg,.heic,.heif,image/*">
-                <div class="converter-dropzone-visual" aria-hidden="true">
-                    <div class="converter-dropzone-art">
-                        <img src="../tools/Images/aj image converter.webp" alt="">
-                    </div>
-                    <div class="converter-dropzone-floating converter-dropzone-floating-top">
-                        <strong>Drag files here</strong>
-                        <span>JPG, PNG, WEBP, AVIF, TIFF</span>
-                    </div>
-                    <div class="converter-dropzone-floating converter-dropzone-floating-bottom">
-                        <strong>Premium batch flow</strong>
-                        <span>Fast convert - instant download</span>
-                    </div>
-                </div>
                 <div class="converter-dropzone-copy">
                     <span class="converter-dropzone-badge">Drag and drop</span>
                     <h2>Drop files here or browse the folder</h2>
-                    <p>We accept common web images plus TIFF and other raster inputs. Each file gets its own convert and download action, so batch work stays easy to manage.</p>
+                    <p>We accept common web images plus TIFF and other raster inputs. Upload first, then choose the extension you want to export.</p>
                 </div>
                 <div class="converter-dropzone-actions">
                     <button type="button" class="converter-secondary-btn" id="converterPickBtn">Choose files</button>
-                    <button type="button" class="converter-ghost-btn" id="converterAddMoreBtn">Add more</button>
                 </div>
             </div>
 
@@ -107,7 +64,7 @@
                 <div class="converter-control-card">
                     <span class="converter-section-label">Export settings</span>
                     <label class="converter-control">
-                        <span>Output format</span>
+                        <span>Convert to</span>
                         <select id="converterFormat">
                             <option value="jpg" selected>JPG - universal, compact output</option>
                             <option value="png">PNG - lossless and transparent</option>
@@ -116,22 +73,7 @@
                             <option value="tiff">TIFF - print and archive ready</option>
                         </select>
                     </label>
-                    <label class="converter-control">
-                        <div class="converter-control-head">
-                            <span>Quality</span>
-                            <strong id="converterQualityValue">88</strong>
-                        </div>
-                        <input id="converterQuality" type="range" min="1" max="100" value="88">
-                    </label>
-                    <label class="converter-control">
-                        <span>Background for JPG</span>
-                        <input id="converterBackground" type="color" value="#ffffff">
-                    </label>
-                    <label class="converter-toggle">
-                        <input id="converterKeepMetadata" type="checkbox">
-                        <span>Keep metadata when possible</span>
-                    </label>
-                    <p class="converter-hint" id="converterHint">JPG uses the selected background color. PNG and TIFF stay lossless by default.</p>
+                    <p class="converter-hint" id="converterHint">Choose the export extension after upload. JPG stays universal, PNG keeps transparency, and TIFF is ideal for print.</p>
                 </div>
 
                 <div class="converter-actions-row">
