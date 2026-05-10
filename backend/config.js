@@ -37,7 +37,7 @@ const config = {
         )
     },
     uploads: {
-        maxFileSizeBytes: normalizePositiveNumber(process.env.UPLOAD_MAX_FILE_SIZE_MB, 50) * 1024 * 1024,
+        maxFileSizeBytes: normalizePositiveNumber(process.env.UPLOAD_MAX_FILE_SIZE_MB, 500) * 1024 * 1024,
         maxPreviewSizeBytes: normalizePositiveNumber(process.env.UPLOAD_MAX_PREVIEW_SIZE_MB, 10) * 1024 * 1024
     },
     limits: {

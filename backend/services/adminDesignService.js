@@ -4,7 +4,8 @@ const { getSupabaseAdminClient } = require("../supabaseClient");
 
 async function listLatestDesigns(limit) {
     const supabase = getSupabaseAdminClient();
-    const maxItems = Math.min(50, Math.max(1, Number(limit || 8)));
+    const requestedLimit = Number(limit || 8);
+    const maxItems = Math.min(1000, Math.max(1, Number.isFinite(requestedLimit) ? requestedLimit : 8));
 
     for (const tableName of config.supabase.designTables) {
         const result = await supabase

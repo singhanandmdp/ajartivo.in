@@ -3,7 +3,7 @@ import { supabase } from "./supabase-auth.js";
 const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
 const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
 const BASE_URL = resolveBackendBaseUrl();
-const MAX_DESIGN_FILE_MB = 50;
+const MAX_DESIGN_FILE_MB = 500;
 const MAX_PREVIEW_FILE_MB = 10;
 const DESIGN_FILE_TYPES = [".png", ".jpg", ".jpeg", ".zip", ".psd", ".ai", ".cdr"];
 const PREVIEW_FILE_TYPES = [".png", ".jpg", ".jpeg", ".webp"];
