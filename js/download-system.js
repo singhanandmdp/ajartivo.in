@@ -36,15 +36,15 @@
                 return;
             }
 
-            if (designSlug && typeof services.fetchDesignBySlug === "function") {
-                currentDesign = await services.fetchDesignBySlug(designSlug);
-            }
-
             if (!currentDesign && designId) {
                 currentDesign = await services.fetchDesignById(designId);
             }
 
-            if (!currentDesign && designSlug && typeof services.fetchDesignById === "function") {
+            if (!currentDesign && designSlug && typeof services.fetchDesignBySlug === "function") {
+                currentDesign = await services.fetchDesignBySlug(designSlug);
+            }
+
+            if (!currentDesign && designSlug && !designId && typeof services.fetchDesignById === "function") {
                 currentDesign = await services.fetchDesignById(designSlug);
             }
 
@@ -715,13 +715,22 @@
             return window.AjArtivoBuildProductUrl(product);
         }
 
+        const id = cleanText(product && product.id);
         const slug = getDesignSlug(product);
-        if (slug) {
-            return resolveUrl(`/product/${encodeURIComponent(slug)}`);
+        if (id) {
+            const params = new URLSearchParams();
+            params.set("id", id);
+            if (slug) {
+                params.set("slug", slug);
+            }
+            return resolveUrl(`/product.html?${params.toString()}`);
         }
 
-        const id = cleanText(product && product.id);
-        return id ? resolveUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveUrl("/product.html");
+        if (slug) {
+            return resolveUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+        }
+
+        return resolveUrl("/product.html");
     }
 
     function getDesignSlug(product) {

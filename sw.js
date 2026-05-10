@@ -25,7 +25,9 @@ self.addEventListener("fetch", function (event) {
     }
 
     const rewritten = new URL(scopePath + "product.html", url.origin);
-    rewritten.searchParams.set("slug", slug);
+    const searchParams = new URLSearchParams(url.search);
+    searchParams.set("slug", slug);
+    rewritten.search = searchParams.toString();
 
     event.respondWith(fetch(rewritten.toString(), { credentials: "same-origin" }));
 });

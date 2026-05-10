@@ -183,13 +183,23 @@ function getDesignSlug(design) {
 }
 
 function buildProductUrl(design) {
-    const slug = getDesignSlug(design);
     const id = cleanText(design && design.id);
-    if (slug) {
-        return resolveSiteUrl(`/product/${encodeURIComponent(slug)}`);
+    const slug = getDesignSlug(design);
+
+    if (id) {
+        const params = new URLSearchParams();
+        params.set("id", id);
+        if (slug) {
+            params.set("slug", slug);
+        }
+        return resolveSiteUrl(`/product.html?${params.toString()}`);
     }
 
-    return id ? resolveSiteUrl(`/product.html?id=${encodeURIComponent(id)}`) : resolveSiteUrl("/product.html");
+    if (slug) {
+        return resolveSiteUrl(`/product.html?slug=${encodeURIComponent(slug)}`);
+    }
+
+    return resolveSiteUrl("/product.html");
 }
 
 window.AjArtivoSlugify = slugify;
