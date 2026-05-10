@@ -4,15 +4,15 @@
 ======================================== */
 
 :root {
-    --converter-bg: #f4f7fc;
-    --converter-surface: rgba(255, 255, 255, 0.88);
-    --converter-surface-strong: rgba(255, 255, 255, 0.98);
-    --converter-surface-soft: rgba(248, 250, 255, 0.92);
-    --converter-border: rgba(15, 23, 42, 0.09);
-    --converter-border-strong: rgba(59, 130, 246, 0.18);
-    --converter-title: #0f1d35;
-    --converter-text: #24324c;
-    --converter-muted: #5d6b84;
+    --converter-bg: #0b0f19;
+    --converter-surface: rgba(15, 23, 42, 0.82);
+    --converter-surface-strong: rgba(17, 24, 39, 0.96);
+    --converter-surface-soft: rgba(30, 41, 59, 0.82);
+    --converter-border: rgba(148, 163, 184, 0.14);
+    --converter-border-strong: rgba(99, 102, 241, 0.28);
+    --converter-title: #f8fafc;
+    --converter-text: #e5e7eb;
+    --converter-muted: #cbd5e1;
     --converter-blue: #3b82f6;
     --converter-blue-deep: #2563eb;
     --converter-indigo: #4f46e5;
