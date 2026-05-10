@@ -1,0 +1,13 @@
+AJartivo Website Rules
+
+1. Keep new website work recorded in this file as a short changelog entry.
+2. Match the existing premium light tool style unless the page needs a clearly different visual direction.
+3. Prefer responsive, accessible layouts with clear empty, loading, and error states.
+4. Use the backend when a tool needs stronger file handling, and keep a browser fallback when possible.
+5. Image tools should support batch workflows, clear file status, and direct downloads.
+6. New tool upload areas should follow the Aj Pixel Cut style: premium dark glass card, centered upload affordance, clear drag/drop state, and no extra clutter above the dropzone.
+
+Changelog
+
+2026-05-10 - Added a full Image Converter Studio tool with batch upload, drag-and-drop, browser fallback, and backend Sharp conversion for JPG, PNG, WEBP, AVIF, and TIFF outputs.
+2026-05-10 - Standardized tool upload styling to match Aj Pixel Cut's premium dark drag-and-drop treatment.
