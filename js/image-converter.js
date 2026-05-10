@@ -23,6 +23,8 @@
     const progressBarEl = document.getElementById("converterProgressBar");
     const queueEl = document.getElementById("converterQueue");
     const resultsEl = document.getElementById("converterResults");
+    const queuePanelEl = document.getElementById("converterQueuePanel");
+    const resultsPanelEl = document.getElementById("converterResultsPanel");
     const backendStateEl = document.getElementById("converterBackendState");
     const fileCountEl = document.getElementById("converterFileCount");
     const totalSizeEl = document.getElementById("converterTotalSize");
@@ -80,6 +82,22 @@
         return isLocalRuntime() ? LOCAL_BACKEND_BASE_URL : LIVE_BACKEND_BASE_URL;
     }
 
+    function getBackendCandidates() {
+        const ordered = [];
+        const local = LOCAL_BACKEND_BASE_URL.replace(/\/+$/, "");
+        const live = LIVE_BACKEND_BASE_URL.replace(/\/+$/, "");
+        const resolved = resolveBackendBaseUrl();
+
+        [resolved, local, live].forEach(function (baseUrl) {
+            const normalized = cleanText(baseUrl).replace(/\/+$/, "");
+            if (normalized && ordered.indexOf(normalized) < 0) {
+                ordered.push(normalized);
+            }
+        });
+
+        return ordered;
+    }
+
     function resolveFileExtension(format) {
         const normalized = cleanText(format).toLowerCase();
         if (normalized === "jpeg" || normalized === "jpg") {
@@ -88,6 +106,14 @@
 
         if (normalized === "tiff") {
             return "tif";
+        }
+
+        if (normalized === "heic") {
+            return "heic";
+        }
+
+        if (normalized === "heif") {
+            return "heif";
         }
 
         return normalized || "jpg";
@@ -113,6 +139,30 @@
 
         if (normalized === "tiff" || normalized === "tif") {
             return "image/tiff";
+        }
+
+        if (normalized === "gif") {
+            return "image/gif";
+        }
+
+        if (normalized === "heic") {
+            return "image/heic";
+        }
+
+        if (normalized === "heif") {
+            return "image/heif";
+        }
+
+        if (normalized === "bmp") {
+            return "image/bmp";
+        }
+
+        if (normalized === "ico") {
+            return "image/vnd.microsoft.icon";
+        }
+
+        if (normalized === "svg") {
+            return "image/svg+xml";
         }
 
         return "image/jpeg";
@@ -156,7 +206,7 @@
     function setBusy(isBusy) {
         if (convertBtn) {
             convertBtn.disabled = Boolean(isBusy);
-            convertBtn.textContent = isBusy ? "Converting..." : "Convert queue";
+            convertBtn.textContent = isBusy ? "Working..." : "Start conversion";
         }
 
         if (clearBtn) {
@@ -179,7 +229,7 @@
     }
 
     function updateHint() {
-        if (!hintEl || !backgroundEl) {
+        if (!hintEl) {
             return;
         }
 
@@ -189,17 +239,8 @@
             backgroundEl.disabled = backgroundDisabled;
         }
 
-        if (format === "png") {
-            hintEl.textContent = "PNG keeps transparency and uses the quality slider as compression guidance.";
-        } else if (format === "webp") {
-            hintEl.textContent = "WEBP balances size and quality well for web delivery.";
-        } else if (format === "avif") {
-            hintEl.textContent = "AVIF gives the smallest output for many photos, but some older apps may not open it.";
-        } else if (format === "tiff") {
-            hintEl.textContent = "TIFF is ideal for archive and print workflows. Backend conversion is recommended.";
-        } else {
-            hintEl.textContent = "JPG uses the selected background color. Great for quick sharing and universal support.";
-        }
+        const displayFormat = format === "jpeg" ? "JPG" : String(format || "jpg").toUpperCase();
+        hintEl.textContent = `${displayFormat} selected.`;
     }
 
     function updateStats() {
@@ -225,7 +266,7 @@
             const doneCount = state.items.filter(function (item) {
                 return item.status === "done";
             }).length;
-            statusCountEl.textContent = `${doneCount} completed`;
+            statusCountEl.textContent = `${doneCount} done`;
         }
 
         if (progressBarEl) {
@@ -239,12 +280,12 @@
 
         if (queueMetaEl) {
             if (!state.items.length) {
-                queueMetaEl.textContent = "Drop a file to begin.";
+                queueMetaEl.textContent = "Add a photo to start.";
             } else {
                 const queued = state.items.filter(function (item) {
                     return item.status === "queued" || item.status === "converting";
                 }).length;
-                queueMetaEl.textContent = `${state.items.length} files in queue, ${queued} waiting or converting.`;
+                queueMetaEl.textContent = `${state.items.length} file${state.items.length === 1 ? "" : "s"} added, ${queued} waiting.`;
             }
         }
 
@@ -256,11 +297,13 @@
                 return item.status === "error";
             }).length;
             if (!state.items.length) {
-                statusMetaEl.textContent = "No files selected";
+                statusMetaEl.textContent = "No files yet";
             } else if (failedCount > 0) {
-                statusMetaEl.textContent = `${failedCount} file(s) need attention`;
+                statusMetaEl.textContent = `${failedCount} need a retry`;
+            } else if (readyCount === state.items.length) {
+                statusMetaEl.textContent = "All done";
             } else {
-                statusMetaEl.textContent = `${readyCount} ready to download`;
+                statusMetaEl.textContent = "Working";
             }
         }
     }
@@ -268,45 +311,51 @@
     function setBackendOnline(isOnline, detail) {
         state.backendStatus = isOnline ? "online" : "offline";
         if (isOnline) {
-            setBackendState("Backend online", "success");
+            setBackendState("Tools ready", "success");
             if (detail) {
                 setStatus(detail, "info");
             }
             return;
         }
 
-        setBackendState("Browser fallback mode", "warning");
+        setBackendState("Browser mode", "warning");
         if (detail) {
             setStatus(detail, "info");
         }
     }
 
     async function probeBackend() {
-        const baseUrl = resolveBackendBaseUrl();
-        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-        const timeoutId = controller ? window.setTimeout(function () {
-            controller.abort();
-        }, BACKEND_HEALTH_TIMEOUT_MS) : null;
+        const candidates = getBackendCandidates();
+        for (let index = 0; index < candidates.length; index += 1) {
+            const baseUrl = candidates[index];
+            const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+            const timeoutId = controller ? window.setTimeout(function () {
+                controller.abort();
+            }, BACKEND_HEALTH_TIMEOUT_MS) : null;
 
-        try {
-            const response = await fetch(`${baseUrl}/health`, {
-                method: "GET",
-                signal: controller ? controller.signal : undefined,
-                cache: "no-store"
-            });
+            try {
+                const response = await fetch(`${baseUrl}/health`, {
+                    method: "GET",
+                    signal: controller ? controller.signal : undefined,
+                    cache: "no-store"
+                });
 
-            if (!response.ok) {
-                throw new Error(`Backend returned ${response.status}`);
-            }
+                if (!response.ok) {
+                    throw new Error(`Backend returned ${response.status}`);
+                }
 
-            setBackendOnline(true, "Backend ready for heavy formats like TIFF.");
-        } catch (_error) {
-            setBackendOnline(false, "Backend unavailable right now. Browser fallback is still available for common formats.");
-        } finally {
-            if (timeoutId) {
-                window.clearTimeout(timeoutId);
+                setBackendOnline(true, `Backend ready for heavy formats like TIFF.`);
+                return;
+            } catch (_error) {
+                // try next backend candidate
+            } finally {
+                if (timeoutId) {
+                    window.clearTimeout(timeoutId);
+                }
             }
         }
+
+        setBackendOnline(false, "Backend unavailable right now. TIFF needs a working backend, but JPG/PNG/WEBP can still use browser mode.");
     }
 
     function createItem(file) {
@@ -484,6 +533,134 @@
         });
     }
 
+    function parseHexColor(value) {
+        const normalized = cleanText(value).replace(/^#/, "");
+        if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(normalized)) {
+            return { r: 255, g: 255, b: 255 };
+        }
+
+        const hex = normalized.length === 3
+            ? normalized.split("").map(function (char) {
+                return `${char}${char}`;
+            }).join("")
+            : normalized;
+
+        return {
+            r: parseInt(hex.slice(0, 2), 16),
+            g: parseInt(hex.slice(2, 4), 16),
+            b: parseInt(hex.slice(4, 6), 16)
+        };
+    }
+
+    async function canvasToArrayBuffer(canvas, mimeType) {
+        const blob = await canvasToBlob(canvas, mimeType);
+        if (!blob) {
+            return null;
+        }
+
+        return blob.arrayBuffer();
+    }
+
+    function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        const chunkSize = 0x8000;
+        let binary = "";
+
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+            const chunk = bytes.subarray(offset, offset + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+
+        return window.btoa(binary);
+    }
+
+    async function encodeSvgBlob(canvas, width, height) {
+        const pngBuffer = await canvasToArrayBuffer(canvas, "image/png");
+        if (!pngBuffer) {
+            throw new Error("Could not build the SVG preview.");
+        }
+
+        const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><image href="data:image/png;base64,${arrayBufferToBase64(pngBuffer)}" width="${width}" height="${height}"/></svg>`;
+        return new Blob([svg], { type: "image/svg+xml" });
+    }
+
+    async function encodeIcoBlob(canvas, width, height) {
+        const pngBuffer = await canvasToArrayBuffer(canvas, "image/png");
+        if (!pngBuffer) {
+            throw new Error("Could not build the ICO file.");
+        }
+
+        const pngBytes = new Uint8Array(pngBuffer);
+        const headerSize = 6 + 16;
+        const buffer = new ArrayBuffer(headerSize + pngBytes.length);
+        const view = new DataView(buffer);
+
+        view.setUint16(0, 0, true);
+        view.setUint16(2, 1, true);
+        view.setUint16(4, 1, true);
+        view.setUint8(6, width >= 256 ? 0 : width);
+        view.setUint8(7, height >= 256 ? 0 : height);
+        view.setUint8(8, 0);
+        view.setUint8(9, 0);
+        view.setUint16(10, 1, true);
+        view.setUint16(12, 32, true);
+        view.setUint32(14, pngBytes.length, true);
+        view.setUint32(18, headerSize, true);
+        new Uint8Array(buffer, headerSize).set(pngBytes);
+
+        return new Blob([buffer], { type: "image/vnd.microsoft.icon" });
+    }
+
+    async function encodeBmpBlob(canvas, width, height) {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            throw new Error("Canvas is not available in this browser.");
+        }
+
+        const imageData = ctx.getImageData(0, 0, width, height).data;
+        const bg = parseHexColor(state.background);
+        const rowSize = width * 3;
+        const rowPadding = (4 - (rowSize % 4)) % 4;
+        const pixelDataSize = (rowSize + rowPadding) * height;
+        const fileSize = 54 + pixelDataSize;
+        const buffer = new ArrayBuffer(fileSize);
+        const view = new DataView(buffer);
+        let offset = 54;
+
+        view.setUint8(0, 0x42);
+        view.setUint8(1, 0x4d);
+        view.setUint32(2, fileSize, true);
+        view.setUint32(10, 54, true);
+        view.setUint32(14, 40, true);
+        view.setInt32(18, width, true);
+        view.setInt32(22, height, true);
+        view.setUint16(26, 1, true);
+        view.setUint16(28, 24, true);
+        view.setUint32(30, 0, true);
+        view.setUint32(34, pixelDataSize, true);
+
+        for (let y = height - 1; y >= 0; y -= 1) {
+            for (let x = 0; x < width; x += 1) {
+                const index = (y * width + x) * 4;
+                const alpha = imageData[index + 3] / 255;
+                const red = Math.round((imageData[index] * alpha) + (bg.r * (1 - alpha)));
+                const green = Math.round((imageData[index + 1] * alpha) + (bg.g * (1 - alpha)));
+                const blue = Math.round((imageData[index + 2] * alpha) + (bg.b * (1 - alpha)));
+                view.setUint8(offset, blue);
+                view.setUint8(offset + 1, green);
+                view.setUint8(offset + 2, red);
+                offset += 3;
+            }
+
+            for (let padding = 0; padding < rowPadding; padding += 1) {
+                view.setUint8(offset, 0);
+                offset += 1;
+            }
+        }
+
+        return new Blob([buffer], { type: "image/bmp" });
+    }
+
     function applyBackground(ctx, width, height) {
         if (!ctx) return;
         const format = cleanText(state.outputFormat).toLowerCase();
@@ -499,8 +676,9 @@
 
     async function convertWithBrowser(file) {
         const format = cleanText(state.outputFormat).toLowerCase();
-        if (format === "tiff" || format === "tif") {
-            throw new Error("TIFF export requires the backend converter.");
+        const backendOnlyFormats = new Set(["tiff", "tif", "gif", "heic", "heif"]);
+        if (backendOnlyFormats.has(format)) {
+            throw new Error(`${format.toUpperCase()} export requires the backend converter.`);
         }
 
         const source = await decodeSourceImage(file);
@@ -531,6 +709,18 @@
             }
         }
 
+        if (format === "svg") {
+            return encodeSvgBlob(canvas, width, height);
+        }
+
+        if (format === "ico") {
+            return encodeIcoBlob(canvas, width, height);
+        }
+
+        if (format === "bmp") {
+            return encodeBmpBlob(canvas, width, height);
+        }
+
         const mimeType = resolveOutputMime(format);
         const quality = format === "png" ? undefined : Math.max(0.01, Math.min(1, Number(state.quality || 88) / 100));
         const blob = await canvasToBlob(canvas, mimeType, quality);
@@ -542,7 +732,6 @@
     }
 
     async function convertViaBackend(file) {
-        const baseUrl = resolveBackendBaseUrl();
         const query = new URLSearchParams({
             format: cleanText(state.outputFormat).toLowerCase(),
             quality: String(state.quality),
@@ -550,38 +739,50 @@
             background: state.background || "#ffffff",
             keepMetadata: state.keepMetadata ? "1" : "0"
         });
+        const lastErrors = [];
+        const candidates = getBackendCandidates();
 
-        const response = await fetch(`${baseUrl}/tools/image-convert?${query.toString()}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/octet-stream"
-            },
-            body: file.slice ? file.slice(0, file.size, file.type || "application/octet-stream") : await file.arrayBuffer()
-        });
-
-        if (!response.ok) {
-            let errorMessage = `Backend conversion failed (${response.status}).`;
+        for (let index = 0; index < candidates.length; index += 1) {
+            const baseUrl = candidates[index];
             try {
-                const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-                if (contentType.indexOf("application/json") >= 0) {
-                    const payload = await response.json();
-                    if (payload && payload.error) {
-                        errorMessage = cleanText(payload.error);
-                    }
-                } else {
-                    const text = await response.text();
-                    if (text) {
-                        errorMessage = text.slice(0, 180);
-                    }
-                }
-            } catch (_error) {
-                // ignore parse errors
-            }
+                const response = await fetch(`${baseUrl}/tools/image-convert?${query.toString()}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/octet-stream"
+                    },
+                    body: file.slice ? file.slice(0, file.size, file.type || "application/octet-stream") : await file.arrayBuffer()
+                });
 
-            throw new Error(errorMessage);
+                if (!response.ok) {
+                    let errorMessage = `Backend conversion failed (${response.status}).`;
+                    try {
+                        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+                        if (contentType.indexOf("application/json") >= 0) {
+                            const payload = await response.json();
+                            if (payload && payload.error) {
+                                errorMessage = cleanText(payload.error);
+                            }
+                        } else {
+                            const text = await response.text();
+                            if (text) {
+                                errorMessage = text.slice(0, 180);
+                            }
+                        }
+                    } catch (_error) {
+                        // ignore parse errors
+                    }
+
+                    throw new Error(errorMessage);
+                }
+
+                setBackendOnline(true, "Backend is working. TIFF conversion is available.");
+                return response.blob();
+            } catch (error) {
+                lastErrors.push(`${baseUrl}: ${cleanText(error && error.message) || "request failed"}`);
+            }
         }
 
-        return response.blob();
+        throw new Error(`TIFF conversion needs the backend. Tried: ${lastErrors.join(" | ") || "no backend available"}`);
     }
 
     async function convertItem(item) {
@@ -650,7 +851,7 @@
         }
 
         setBusy(true);
-        setStatus("Converting queue...", "info");
+        setStatus("Working on files...", "info");
 
         const total = state.items.length;
         let completed = 0;
@@ -660,12 +861,12 @@
             await convertItem(item);
             completed += 1;
             if (statusMetaEl) {
-                statusMetaEl.textContent = `${completed} of ${total} processed`;
+                statusMetaEl.textContent = `${completed} of ${total} done`;
             }
         }
 
         setBusy(false);
-        setStatus("Conversion queue finished.", "info");
+        setStatus("All files finished.", "info");
         updateStats();
     }
 
@@ -702,7 +903,6 @@
 
     function renderFileCard(item) {
         const subtitleParts = [
-            cleanText(item.file.type) || "unknown type",
             formatBytes(item.file.size),
             item.previewWidth && item.previewHeight ? `${item.previewWidth} x ${item.previewHeight}` : "previewing"
         ].filter(Boolean);
@@ -735,8 +935,8 @@
                     ${item.error ? `<div class="converter-file-subtitle">${escapeHtml(item.error)}</div>` : ""}
                 </div>
                 <div class="converter-file-actions">
-                    <button type="button" class="converter-mini-btn is-primary" data-action="convert" data-item-id="${item.id}">Convert now</button>
-                    <button type="button" class="converter-mini-btn" data-action="remove" data-item-id="${item.id}">Remove</button>
+                    <button type="button" class="converter-mini-btn is-primary" data-action="convert" data-item-id="${item.id}">Convert this</button>
+                    <button type="button" class="converter-mini-btn" data-action="remove" data-item-id="${item.id}">Delete</button>
                 </div>
             </article>
         `;
@@ -765,7 +965,7 @@
                 <div class="converter-result-actions">
                     <a class="converter-mini-btn is-primary" href="${item.outputUrl}" download="${escapeHtml(item.outputName || getOutputFileName(item.file.name, outputFormat))}">Download</a>
                     <button type="button" class="converter-mini-btn" data-action="reconvert" data-item-id="${item.id}">Reconvert</button>
-                    <button type="button" class="converter-mini-btn" data-action="remove" data-item-id="${item.id}">Remove</button>
+                    <button type="button" class="converter-mini-btn" data-action="remove" data-item-id="${item.id}">Delete</button>
                 </div>
             </article>
         `;
@@ -790,11 +990,24 @@
         updateHint();
         updateStats();
 
+        const hasFiles = state.items.length > 0;
+        const hasResults = state.items.some(function (item) {
+            return item.status === "done" && item.outputUrl;
+        });
+
+        if (queuePanelEl) {
+            queuePanelEl.classList.toggle("is-hidden", !hasFiles);
+        }
+
+        if (resultsPanelEl) {
+            resultsPanelEl.classList.toggle("is-hidden", !hasResults);
+        }
+
         if (queueEl) {
-            if (!state.items.length) {
-                queueEl.innerHTML = '<div class="converter-empty">No files are queued yet. Add one or more images to see them here.</div>';
-            } else {
+            if (state.items.length) {
                 queueEl.innerHTML = state.items.map(renderFileCard).join("");
+            } else {
+                queueEl.innerHTML = "";
             }
         }
 
@@ -803,10 +1016,10 @@
                 return item.status === "done" && item.outputUrl;
             });
 
-            if (!results.length) {
-                resultsEl.innerHTML = '<div class="converter-empty">No converted files yet. Once a file is finished you will see the download card here.</div>';
-            } else {
+            if (results.length) {
                 resultsEl.innerHTML = results.map(renderResultCard).join("");
+            } else {
+                resultsEl.innerHTML = "";
             }
         }
     }
@@ -951,8 +1164,8 @@
         render();
         setListeners();
         probeBackend();
-        setBackendState("Checking backend...", "info");
-        setStatus("Ready to convert.", "info");
+        setBackendState("Checking tools...", "info");
+        setStatus("Ready. Add files to begin.", "info");
     }
 
     initialize();
