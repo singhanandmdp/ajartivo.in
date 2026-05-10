@@ -3,6 +3,7 @@ const express = require("express");
 
 const { config, maskCredential } = require("./config");
 const adminRoutes = require("./routes/admin");
+const imageConverterRoutes = require("./routes/imageConverter");
 const downloadRoutes = require("./routes/download");
 const paymentRoutes = require("./routes/payment");
 const platformRoutes = require("./routes/platform");
@@ -39,6 +40,7 @@ app.get("/health", function (_req, res) {
 
 app.use(paymentRoutes);
 app.use(downloadRoutes);
+app.use(imageConverterRoutes);
 app.use(adminRoutes);
 app.use(platformRoutes);
 
