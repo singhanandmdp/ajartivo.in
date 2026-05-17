@@ -214,10 +214,7 @@
     function bindUi() {
         document.querySelectorAll("[data-tool-target]").forEach(function (button) {
             button.addEventListener("click", function () {
-                const toolId = button.getAttribute("data-tool-target") || "business-card";
-                const url = new URL("studio.html", window.location.href);
-                url.searchParams.set("tool", toolId);
-                window.location.href = url.toString();
+                window.location.href = new URL("studio.html", window.location.href).toString();
             });
         });
 
