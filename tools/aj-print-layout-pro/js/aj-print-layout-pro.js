@@ -1,6 +1,10 @@
 (function () {
     "use strict";
 
+    const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
+    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const BACKEND_PREVIEW_THRESHOLD_BYTES = 10 * 1024 * 1024;
+
     const TOOL_PRESETS = {
         "business-card": {
             label: "Business Card",
@@ -454,6 +458,8 @@
 
         if (dom.clearButton) {
             dom.clearButton.addEventListener("click", function () {
+                releaseAssetPreview(state.frontAsset);
+                releaseAssetPreview(state.backAsset);
                 state.frontAsset = null;
                 state.backAsset = null;
                 state.editorImage = null;
@@ -740,23 +746,22 @@
 
     async function handleUpload(file) {
         if (!isSupportedFile(file)) {
-            setStatus("Please upload JPG, PNG, WEBP, or PDF files.");
+            setStatus("Please upload JPG, PNG, WEBP, TIFF, or PDF files.");
             return;
         }
 
         try {
-            let preview = "";
-            if (isPdfFile(file)) {
-                preview = await renderPdfPreview(file);
-            } else {
-                preview = await readFileAsDataUrl(file);
-            }
+            const previousAsset = state.activeSide === "back" ? state.backAsset : state.frontAsset;
 
+            const assetPreview = await loadAssetPreview(file);
             const asset = {
                 file: file,
                 name: file.name,
-                preview: preview,
-                image: await loadImage(preview)
+                preview: assetPreview.preview,
+                previewUrl: assetPreview.previewUrl,
+                exportBlob: assetPreview.exportBlob,
+                sourceKind: assetPreview.sourceKind,
+                image: await loadImage(assetPreview.preview)
             };
 
             if (state.activeSide === "back") {
@@ -764,6 +769,8 @@
             } else {
                 state.frontAsset = asset;
             }
+
+            releaseAssetPreview(previousAsset);
 
             updateThumbs();
             setStatus("Loaded " + file.name + " for " + state.activeSide + " side.");
@@ -1349,7 +1356,187 @@
         });
     }
 
+    async function loadAssetPreview(file) {
+        if (isPdfFile(file)) {
+            const preview = await renderPdfPreview(file);
+            return {
+                preview: preview,
+                previewUrl: preview,
+                exportBlob: await dataUrlToBlob(preview),
+                sourceKind: "pdf-preview"
+            };
+        }
+
+        if (shouldUseBackendPreview(file)) {
+            try {
+                const previewBlob = await fetchBackendPreview(file);
+                const previewUrl = URL.createObjectURL(previewBlob);
+                return {
+                    preview: previewUrl,
+                    previewUrl: previewUrl,
+                    exportBlob: file,
+                    sourceKind: "backend-preview"
+                };
+            } catch (_error) {
+                if (!isTiffFile(file)) {
+                    const previewUrl = URL.createObjectURL(file);
+                    return {
+                        preview: previewUrl,
+                        previewUrl: previewUrl,
+                        exportBlob: file,
+                        sourceKind: "local-fallback"
+                    };
+                }
+                throw _error;
+            }
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+        return {
+            preview: previewUrl,
+            previewUrl: previewUrl,
+            exportBlob: file,
+            sourceKind: "local-file"
+        };
+    }
+
+    async function fetchBackendPreview(file) {
+        const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/preview");
+        const formData = new FormData();
+        formData.append("file", file, file.name || "upload");
+
+        const response = await fetch(backendUrl, {
+            method: "POST",
+            body: formData,
+            credentials: "include"
+        });
+
+        if (!response.ok) {
+            throw new Error("Backend preview failed.");
+        }
+
+        return response.blob();
+    }
+
+    async function dataUrlToBlob(dataUrl) {
+        const response = await fetch(dataUrl);
+        return response.blob();
+    }
+
+    function resolveBackendBaseUrl(path) {
+        const base = getBackendBaseUrl();
+        return new URL(path, base).href;
+    }
+
+    function getBackendBaseUrl() {
+        const configured = cleanText(window.AJARTIVO_BACKEND_URL);
+        if (configured) {
+            return configured.replace(/\/+$/, "");
+        }
+
+        if (typeof window.AjArtivoGetBackendBaseUrl === "function") {
+            const base = cleanText(window.AjArtivoGetBackendBaseUrl());
+            if (base) {
+                return base.replace(/\/+$/, "");
+            }
+        }
+
+        const meta = document.querySelector('meta[name="ajartivo-backend-url"]');
+        if (meta && cleanText(meta.content)) {
+            return cleanText(meta.content).replace(/\/+$/, "");
+        }
+
+        return isLocalRuntime() ? LOCAL_BACKEND_BASE_URL : LIVE_BACKEND_BASE_URL;
+    }
+
+    function isLocalRuntime() {
+        const hostname = String(window.location && window.location.hostname || "").toLowerCase();
+        return !hostname || hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    }
+
+    function releaseAssetPreview(asset) {
+        const previewUrl = asset && asset.previewUrl ? asset.previewUrl : asset && asset.preview;
+        if (typeof previewUrl === "string" && previewUrl.startsWith("blob:")) {
+            try {
+                URL.revokeObjectURL(previewUrl);
+            } catch (_error) {
+                // Ignore revocation failures.
+            }
+        }
+    }
+
     async function exportSheet(format) {
+        if (state.toolId === "business-card" && hasRenderableBackendAssets()) {
+            try {
+                await exportSheetViaBackend(format);
+                return;
+            } catch (error) {
+                console.error(error);
+                setStatus("Backend export failed, falling back to browser export.");
+            }
+        }
+
+        await exportSheetLegacy(format);
+    }
+
+    function hasRenderableBackendAssets() {
+        return Boolean((state.frontAsset && state.frontAsset.exportBlob) || (state.backAsset && state.backAsset.exportBlob));
+    }
+
+    async function exportSheetViaBackend(format) {
+        const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/export");
+        const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
+        const formData = new FormData();
+        formData.append("format", format === "jpg" ? "jpg" : "pdf");
+        formData.append("settings", JSON.stringify({
+            toolId: state.toolId,
+            sheetSize: state.sheetSize,
+            orientation: state.orientation,
+            businessCardWidth: state.businessCardWidth,
+            businessCardHeight: state.businessCardHeight,
+            businessGapX: state.businessGapX,
+            businessGapY: state.businessGapY,
+            businessBorderMargin: state.businessBorderMargin,
+            businessCardRotation: state.businessCardRotation,
+            businessFitToCard: state.businessFitToCard,
+            businessCutMarks: state.businessCutMarks,
+            previewBackgroundMode: state.previewBackgroundMode,
+            previewBackgroundColor: state.previewBackgroundColor,
+            customWidth: state.customWidth,
+            customHeight: state.customHeight
+        }));
+        formData.append("activeSide", state.activeSide);
+
+        const frontAsset = state.frontAsset || state.backAsset;
+        const backAsset = state.backAsset;
+        if (frontAsset && frontAsset.exportBlob) {
+            formData.append("frontFile", frontAsset.exportBlob, frontAsset.name || "front.jpg");
+        }
+        if (backAsset && backAsset.exportBlob) {
+            formData.append("backFile", backAsset.exportBlob, backAsset.name || "back.jpg");
+        }
+
+        setStatus("Preparing backend export...");
+        await waitForPaint();
+
+        const response = await fetch(backendUrl, {
+            method: "POST",
+            body: formData,
+            credentials: "include"
+        });
+
+        if (!response.ok) {
+            const message = await readErrorText(response);
+            throw new Error(message || "Backend export failed.");
+        }
+
+        const blob = await response.blob();
+        const fileName = format === "jpg" ? `${fileBase}.jpg` : `${fileBase}.pdf`;
+        downloadBlob(blob, fileName);
+        setStatus(format === "jpg" ? "JPG export generated by backend at 300 DPI." : "PDF export generated by backend with front and back pages.");
+    }
+
+    async function exportSheetLegacy(format) {
         if (!canvas.previewStage) return;
         const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
         const sheet = getSheetDimensions();
@@ -1541,13 +1728,23 @@
     function isSupportedFile(file) {
         const name = String(file && file.name || "").toLowerCase();
         const type = String(file && file.type || "").toLowerCase();
-        return type.startsWith("image/") || type === "application/pdf" || /\.(jpg|jpeg|png|webp|pdf)$/.test(name);
+        return type.startsWith("image/") || type === "application/pdf" || /\.(jpg|jpeg|png|webp|avif|gif|bmp|tif|tiff|pdf)$/.test(name);
     }
 
     function isPdfFile(file) {
         const name = String(file && file.name || "").toLowerCase();
         const type = String(file && file.type || "").toLowerCase();
         return type === "application/pdf" || /\.pdf$/.test(name);
+    }
+
+    function isTiffFile(file) {
+        const name = String(file && file.name || "").toLowerCase();
+        const type = String(file && file.type || "").toLowerCase();
+        return type === "image/tiff" || type === "image/tif" || /\.(tif|tiff)$/.test(name);
+    }
+
+    function shouldUseBackendPreview(file) {
+        return isTiffFile(file) || Number(file && file.size || 0) >= BACKEND_PREVIEW_THRESHOLD_BYTES;
     }
 
     function readFileAsDataUrl(file) {
@@ -1575,6 +1772,26 @@
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
+    }
+
+    function downloadBlob(blob, fileName) {
+        const url = URL.createObjectURL(blob);
+        downloadUrl(url, fileName);
+        window.setTimeout(function () {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (_error) {
+                // Ignore revocation failures.
+            }
+        }, 4000);
+    }
+
+    async function readErrorText(response) {
+        try {
+            return cleanText(await response.text());
+        } catch (_error) {
+            return "";
+        }
     }
 
     function smartFillLabel(value) {
