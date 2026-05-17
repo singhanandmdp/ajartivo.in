@@ -21,13 +21,13 @@
             borderMargin: 0.125
         },
         "id-card": { label: "ID Card", count: 25, cols: 5, rows: 5, sheet: "12x18", fit: "contain", orientation: "portrait", margin: 36, spacing: 16, bleed: 8, zoom: 100 },
-        certificate: { label: "Certificate", count: 2, cols: 1, rows: 2, sheet: "A4", fit: "contain", orientation: "landscape", margin: 50, spacing: 22, bleed: 8, zoom: 100 },
-        "invitation-small": { label: "Invitation Card", count: 5, cols: 5, rows: 1, sheet: "12x18", fit: "cover", orientation: "landscape", smartFill: "business-card", margin: 44, spacing: 18, bleed: 10, zoom: 100 },
-        "invitation-large": { label: "Large Invitation", count: 4, cols: 2, rows: 2, sheet: "12x18", fit: "cover", orientation: "landscape", margin: 42, spacing: 18, bleed: 10, zoom: 100 },
+        certificate: { label: "Certificate", count: 2, cols: 1, rows: 2, sheet: "A4", fit: "contain", orientation: "portrait", margin: 50, spacing: 22, bleed: 8, zoom: 100 },
+        "invitation-small": { label: "Invitation Card", count: 5, cols: 5, rows: 1, sheet: "12x18", fit: "cover", orientation: "portrait", smartFill: "business-card", margin: 44, spacing: 18, bleed: 10, zoom: 100 },
+        "invitation-large": { label: "Large Invitation", count: 4, cols: 2, rows: 2, sheet: "12x18", fit: "cover", orientation: "portrait", margin: 42, spacing: 18, bleed: 10, zoom: 100 },
         sticker: { label: "Sticker", count: 24, cols: 6, rows: 4, sheet: "A4", fit: "cover", orientation: "portrait", margin: 34, spacing: 14, bleed: 8, zoom: 100 },
         labels: { label: "Labels", count: 18, cols: 6, rows: 3, sheet: "A4", fit: "contain", orientation: "portrait", margin: 34, spacing: 14, bleed: 8, zoom: 100 },
         flyer: { label: "Flyer", count: 4, cols: 2, rows: 2, sheet: "A3", fit: "contain", orientation: "portrait", margin: 40, spacing: 18, bleed: 10, zoom: 96 },
-        custom: { label: "Custom Layout", count: 16, cols: 4, rows: 4, sheet: "Custom", fit: "cover", orientation: "landscape", margin: 42, spacing: 18, bleed: 10, zoom: 100, customWidth: 12, customHeight: 18 }
+        custom: { label: "Custom Layout", count: 16, cols: 4, rows: 4, sheet: "Custom", fit: "cover", orientation: "portrait", margin: 42, spacing: 18, bleed: 10, zoom: 100, customWidth: 12, customHeight: 18 }
     };
 
     const SHEET_PRESETS = {
@@ -544,7 +544,7 @@
         state.toolId = TOOL_PRESETS[toolId] ? toolId : "business-card";
         const preset = TOOL_PRESETS[state.toolId];
         state.sheetSize = preset.sheet || "12x18";
-        state.orientation = preset.orientation || "landscape";
+        state.orientation = preset.orientation || "portrait";
         state.smartFill = preset.smartFill || (state.toolId === "invitation-small" ? "business-card" : "business-card");
         state.margin = Number(preset.margin != null ? preset.margin : state.margin);
         state.spacing = Number(preset.spacing != null ? preset.spacing : state.spacing);
