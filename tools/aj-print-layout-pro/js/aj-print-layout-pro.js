@@ -1052,7 +1052,13 @@
             width: sheetW,
             height: sheetH,
             fill: backgroundColor,
-            listening: false
+            listening: false,
+            stroke: "rgba(15,23,42,0.14)",
+            strokeWidth: 1,
+            shadowColor: "rgba(2,6,23,0.22)",
+            shadowBlur: 22,
+            shadowOpacity: 0.35,
+            shadowOffset: { x: 0, y: 12 }
         }));
 
         const pxPerIn = scale;
