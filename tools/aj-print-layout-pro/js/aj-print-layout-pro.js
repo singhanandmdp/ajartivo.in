@@ -1106,7 +1106,7 @@
                     cardH: drawCardH,
                     gapX: drawGapX,
                     gapY: drawGapY,
-                    fitScale: fitScale
+                    fitScale: scale
                 },
                 cols,
                 rows
@@ -1257,8 +1257,21 @@
         }));
 
         if (opts.image) {
-            const fit = fitToBox(opts.image, opts.width, opts.height, "cover");
-            group.add(new Konva.Image({ image: opts.image, x: fit.x, y: fit.y, width: fit.width, height: fit.height, crop: fit.crop }));
+            const inset = Math.max(2, Math.min(opts.width, opts.height) * 0.08);
+            const imageFit = fitToBox(
+                opts.image,
+                Math.max(1, opts.width - inset * 2),
+                Math.max(1, opts.height - inset * 2),
+                "contain"
+            );
+            group.add(new Konva.Image({
+                image: opts.image,
+                x: inset + imageFit.x,
+                y: inset + imageFit.y,
+                width: imageFit.width,
+                height: imageFit.height,
+                crop: imageFit.crop
+            }));
         } else {
             group.add(new Konva.Rect({
                 x: 0, y: 0, width: opts.width, height: opts.height,
