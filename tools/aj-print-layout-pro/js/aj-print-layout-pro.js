@@ -127,16 +127,11 @@
         businessCutMarks: true,
         frontAsset: null,
         backAsset: null,
-        editorImage: null,
-        previewExportRect: null,
-        editorBox: { x: 150, y: 100, width: 420, height: 260, rotation: 0 }
+        previewExportRect: null
     };
 
     const dom = {};
     const canvas = {
-        editorStage: null,
-        editorLayer: null,
-        editorTransformer: null,
         previewStage: null,
         previewLayer: null
     };
@@ -157,7 +152,7 @@
         const params = new URLSearchParams(window.location.search);
         const tool = params.get("tool") || params.get("id");
         if (tool && TOOL_PRESETS[tool]) {
-            if (dom.previewMount || dom.editorMount) {
+            if (dom.previewMount) {
                 document.body.classList.add("is-studio-mode");
             }
             applyToolPreset(tool);
@@ -208,7 +203,6 @@
         dom.backThumb = document.getElementById("backThumb");
         dom.frontName = document.getElementById("frontName");
         dom.backName = document.getElementById("backName");
-        dom.editorMount = document.getElementById("layoutEditorMount");
         dom.previewMount = document.getElementById("sheetPreviewMount");
         dom.statusText = document.getElementById("studioStatusText");
         dom.layoutCount = document.getElementById("layoutCount");
@@ -485,7 +479,6 @@
                 releaseAssetPreview(state.backAsset);
                 state.frontAsset = null;
                 state.backAsset = null;
-                state.editorImage = null;
                 updateThumbs();
                 setStatus("Uploads cleared.");
                 scheduleRender();
@@ -712,8 +705,6 @@
         if (dom.backName) dom.backName.textContent = state.backAsset ? state.backAsset.name : "Back Side";
         if (dom.frontThumb) setThumb(dom.frontThumb, state.frontAsset);
         if (dom.backThumb) setThumb(dom.backThumb, state.backAsset);
-        const current = activeAsset();
-        state.editorImage = current && current.image ? current.image : null;
     }
 
     function setThumb(node, asset) {
@@ -815,32 +806,6 @@
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
         }
 
-        if (dom.editorMount) {
-            canvas.editorStage = new Konva.Stage({
-                container: dom.editorMount,
-                width: dom.editorMount.clientWidth || 520,
-                height: dom.editorMount.clientHeight || 380
-            });
-            canvas.editorLayer = new Konva.Layer();
-            canvas.editorStage.add(canvas.editorLayer);
-            canvas.editorTransformer = new Konva.Transformer({
-                rotateEnabled: true,
-                keepRatio: false,
-                borderStroke: "#60a5fa",
-                anchorStroke: "#60a5fa",
-                anchorFill: "#050816",
-                anchorSize: 10
-            });
-            canvas.editorLayer.add(canvas.editorTransformer);
-
-            canvas.editorStage.on("click tap", function (event) {
-                if (event.target === canvas.editorStage) {
-                    canvas.editorTransformer.nodes([]);
-                    canvas.editorLayer.batchDraw();
-                }
-            });
-        }
-
         canvas.previewStage = new Konva.Stage({
             container: dom.previewMount,
             width: dom.previewMount.clientWidth || 720,
@@ -854,10 +819,6 @@
 
     function resizeStages() {
         if (!canvas.previewStage) return;
-        if (canvas.editorStage && dom.editorMount) {
-            canvas.editorStage.width(dom.editorMount.clientWidth || 520);
-            canvas.editorStage.height(dom.editorMount.clientHeight || 380);
-        }
         canvas.previewStage.width(dom.previewMount.clientWidth || 720);
         canvas.previewStage.height(dom.previewMount.clientHeight || 560);
         scheduleRender();
@@ -873,110 +834,7 @@
 
     function renderCanvas() {
         if (!canvas.previewStage) return;
-        if (canvas.editorStage) renderEditor();
         renderPreview();
-    }
-
-    function renderEditor() {
-        const layer = canvas.editorLayer;
-        if (!layer) return;
-        layer.destroyChildren();
-
-        const width = canvas.editorStage.width();
-        const height = canvas.editorStage.height();
-        const pad = 22;
-        const asset = activeAsset();
-
-        layer.add(new Konva.Rect({
-            x: 0, y: 0, width: width, height: height,
-            cornerRadius: 20,
-            fillLinearGradientStartPoint: { x: 0, y: 0 },
-            fillLinearGradientEndPoint: { x: width, y: height },
-            fillLinearGradientColorStops: [0, "rgba(255,255,255,0.95)", 0.45, "rgba(219,234,254,0.95)", 1, "rgba(238,242,255,0.95)"]
-        }));
-        layer.add(new Konva.Rect({
-            x: pad, y: pad, width: width - pad * 2, height: height - pad * 2,
-            cornerRadius: 18,
-            stroke: "rgba(191, 219, 254, 0.22)",
-            dash: [10, 10],
-            strokeWidth: 1.3
-        }));
-
-        if (asset && asset.image) {
-            const box = state.editorBox;
-            const fit = fitToBox(asset.image, box.width, box.height, "cover");
-            const imageNode = new Konva.Image({
-                image: asset.image,
-                x: box.x + fit.x,
-                y: box.y + fit.y,
-                width: fit.width,
-                height: fit.height,
-                rotation: box.rotation,
-                draggable: true,
-                shadowColor: "rgba(2, 6, 23, 0.28)",
-                shadowBlur: 18,
-                shadowOpacity: 0.34,
-                shadowOffset: { x: 0, y: 10 }
-            });
-
-            imageNode.dragBoundFunc(function (pos) {
-                return {
-                    x: clamp(pos.x, 28, width - imageNode.width() - 28),
-                    y: clamp(pos.y, 28, height - imageNode.height() - 28)
-                };
-            });
-
-            imageNode.on("dragend transformend", function () {
-                state.editorBox.x = imageNode.x();
-                state.editorBox.y = imageNode.y();
-                state.editorBox.width = imageNode.width() * imageNode.scaleX();
-                state.editorBox.height = imageNode.height() * imageNode.scaleY();
-                state.editorBox.rotation = imageNode.rotation();
-                imageNode.scaleX(1);
-                imageNode.scaleY(1);
-                scheduleRender();
-            });
-
-            canvas.editorTransformer.nodes([imageNode]);
-            layer.add(imageNode);
-            const badge = new Konva.Label({ x: 28, y: 24 });
-            badge.add(new Konva.Tag({ fill: "rgba(5,10,22,0.78)", cornerRadius: 999 }));
-            badge.add(new Konva.Text({ text: state.activeSide === "back" ? "Back Face" : "Front Face", padding: 10, fill: "#eff6ff", fontSize: 14, fontStyle: "bold" }));
-            layer.add(badge);
-        } else {
-            layer.add(new Konva.Rect({
-                x: 70, y: 54, width: width - 140, height: height - 108,
-                cornerRadius: 24,
-                fill: "rgba(255,255,255,0.8)",
-                stroke: "rgba(148,163,184,0.26)",
-                dash: [12, 10],
-                strokeWidth: 1.2
-            }));
-            layer.add(new Konva.Text({
-                x: 110,
-                y: Math.max(92, height * 0.32),
-                width: width - 220,
-                text: "Drop a JPG, PNG, WEBP, or PDF file here to begin editing the master tile.",
-                fill: "#1d4ed8",
-                align: "center",
-                fontSize: 20,
-                fontStyle: "bold"
-            }));
-            layer.add(new Konva.Text({
-                x: 110,
-                y: Math.max(146, height * 0.46),
-                width: width - 220,
-                text: "Drag, resize, and rotate handles are enabled once an asset loads.",
-                fill: "#5b6079",
-                align: "center",
-                fontSize: 15,
-                lineHeight: 1.7
-            }));
-            canvas.editorTransformer.nodes([]);
-        }
-
-        layer.add(canvas.editorTransformer);
-        layer.draw();
     }
 
     function renderPreview() {
@@ -1763,8 +1621,6 @@
     }
 
     function selectActiveAsset() {
-        const current = activeAsset();
-        state.editorImage = current && current.image ? current.image : null;
         scheduleRender();
     }
 
