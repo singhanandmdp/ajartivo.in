@@ -10,6 +10,7 @@
             sheet: "12x18",
             fit: "cover",
             orientation: "portrait",
+            businessFitToCard: true,
             margin: 0.125,
             spacing: 0.25,
             bleed: 10,
@@ -92,6 +93,7 @@
         businessGapY: 0.313,
         businessBorderMargin: 0.125,
         businessCardRotation: 0,
+        businessFitToCard: true,
         previewBackgroundMode: "white",
         previewBackgroundColor: "#ffffff",
         businessCutLeft: 2.402,
@@ -153,6 +155,7 @@
         dom.businessGapY = document.getElementById("businessGapY");
         dom.businessBorderMargin = document.getElementById("businessBorderMargin");
         dom.businessCardRotation = document.getElementById("businessCardRotation");
+        dom.businessFitToCard = document.getElementById("businessFitToCardToggle");
         dom.previewBackgroundMode = document.getElementById("previewBackgroundMode");
         dom.previewBackgroundColor = document.getElementById("previewBackgroundColor");
         dom.businessCutMarksToggle = document.getElementById("businessCutMarksToggle");
@@ -304,6 +307,13 @@
             dom.businessCardRotation.addEventListener("change", function (event) {
                 state.businessCardRotation = Number(event.target.value) === 90 ? 90 : 0;
                 syncUi();
+                scheduleRender();
+            });
+        }
+
+        if (dom.businessFitToCard) {
+            dom.businessFitToCard.addEventListener("change", function (event) {
+                state.businessFitToCard = Boolean(event.target.checked);
                 scheduleRender();
             });
         }
@@ -545,6 +555,7 @@
         const preset = TOOL_PRESETS[state.toolId];
         state.sheetSize = preset.sheet || "12x18";
         state.orientation = preset.orientation || "portrait";
+        state.businessFitToCard = preset.businessFitToCard != null ? Boolean(preset.businessFitToCard) : state.businessFitToCard;
         state.smartFill = preset.smartFill || (state.toolId === "invitation-small" ? "business-card" : "business-card");
         state.margin = Number(preset.margin != null ? preset.margin : state.margin);
         state.spacing = Number(preset.spacing != null ? preset.spacing : state.spacing);
@@ -561,6 +572,7 @@
         state.businessGapY = 0.313;
         state.businessBorderMargin = 0.125;
         state.businessCardRotation = 0;
+        state.businessFitToCard = true;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
         state.businessCutLeft = 2.402;
@@ -585,6 +597,7 @@
         if (dom.businessGapY) dom.businessGapY.value = state.businessGapY;
         if (dom.businessBorderMargin) dom.businessBorderMargin.value = state.businessBorderMargin;
         if (dom.businessCardRotation) dom.businessCardRotation.value = String(state.businessCardRotation);
+        if (dom.businessFitToCard) dom.businessFitToCard.checked = state.businessFitToCard;
         if (dom.previewBackgroundMode) dom.previewBackgroundMode.value = state.previewBackgroundMode;
         if (dom.previewBackgroundColor) dom.previewBackgroundColor.value = state.previewBackgroundColor;
         if (dom.businessCutMarksToggle) dom.businessCutMarksToggle.checked = state.businessCutMarks;
@@ -1091,6 +1104,7 @@
                     width: drawCardW,
                     height: drawCardH,
                     image: image,
+                    fitMode: state.businessFitToCard ? "stretch" : "contain",
                     index: r * cols + c + 1
                 }));
             }
@@ -1257,21 +1271,31 @@
         }));
 
         if (opts.image) {
-            const inset = Math.max(2, Math.min(opts.width, opts.height) * 0.08);
-            const imageFit = fitToBox(
-                opts.image,
-                Math.max(1, opts.width - inset * 2),
-                Math.max(1, opts.height - inset * 2),
-                "contain"
-            );
-            group.add(new Konva.Image({
-                image: opts.image,
-                x: inset + imageFit.x,
-                y: inset + imageFit.y,
-                width: imageFit.width,
-                height: imageFit.height,
-                crop: imageFit.crop
-            }));
+            if (opts.fitMode === "stretch") {
+                group.add(new Konva.Image({
+                    image: opts.image,
+                    x: 0,
+                    y: 0,
+                    width: opts.width,
+                    height: opts.height
+                }));
+            } else {
+                const inset = Math.max(2, Math.min(opts.width, opts.height) * 0.08);
+                const imageFit = fitToBox(
+                    opts.image,
+                    Math.max(1, opts.width - inset * 2),
+                    Math.max(1, opts.height - inset * 2),
+                    "contain"
+                );
+                group.add(new Konva.Image({
+                    image: opts.image,
+                    x: inset + imageFit.x,
+                    y: inset + imageFit.y,
+                    width: imageFit.width,
+                    height: imageFit.height,
+                    crop: imageFit.crop
+                }));
+            }
         } else {
             group.add(new Konva.Rect({
                 x: 0, y: 0, width: opts.width, height: opts.height,
