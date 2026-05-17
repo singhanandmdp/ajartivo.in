@@ -7,13 +7,14 @@
     <meta name="description" content="AJ Print Layout Pro Studio is the live Konva canvas workspace for preset-driven print layout editing, uploads, preview, and export.">
     <meta name="theme-color" content="#f5f8ff">
     <link rel="canonical" href="/tools/aj-print-layout-pro/studio.html">
+    <meta name="ajartivo-print-layout-backend-url" content="https://print-layout-backend.onrender.com">
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
     <script src="../../js/canonical-url.js"></script>
     <link rel="stylesheet" href="../../css/style.css">
     <link rel="stylesheet" href="../../css/tools-hub.css">
     <link rel="stylesheet" href="./css/aj-print-layout-pro.css">
 </head>
-<body id="top" class="print-layout-page">
+<body id="top" class="print-layout-page is-studio-mode">
     <div class="print-layout-backdrop" aria-hidden="true"></div>
     <div id="site-header"></div>
     <aside class="sidebar" id="sidebarMenu"></aside>
@@ -32,7 +33,7 @@
                 </div>
                 <div class="print-layout-actions" style="margin-top: 0;">
                     <a href="./index.html" class="print-layout-btn secondary">Back to Hub</a>
-                    <a href="./studio.html" class="print-layout-btn primary">Business Card</a>
+                    <a href="./studio.html?tool=business-card" class="print-layout-btn primary">Business Card</a>
                 </div>
             </div>
 
@@ -287,6 +288,18 @@
                                 <span>Mode</span>
                                 <strong id="layoutMeta">Default sheet layout</strong>
                             </div>
+                        </div>
+                    </article>
+
+                    <article class="print-layout-preview-card">
+                        <div class="print-layout-preview-head">
+                            <div>
+                                <h3>Canvas Editor</h3>
+                                <p>Move, resize, and rotate the master asset before the sheet is duplicated.</p>
+                            </div>
+                        </div>
+                        <div class="print-layout-stage-shell">
+                            <div id="layoutEditorMount" class="stage-mount" style="height: 380px;"></div>
                         </div>
                     </article>
 

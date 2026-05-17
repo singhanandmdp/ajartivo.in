@@ -1,8 +1,8 @@
 (function () {
     "use strict";
 
-    const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
+    const LOCAL_BACKEND_BASE_URL = "http://localhost:5101";
+    const LIVE_BACKEND_BASE_URL = "https://print-layout-backend.onrender.com";
     const BACKEND_PREVIEW_THRESHOLD_BYTES = 10 * 1024 * 1024;
 
     const TOOL_PRESETS = {
@@ -79,6 +79,27 @@
         ["Custom", "User defined sheet size for special production needs."]
     ];
 
+    const ICON_ASSET_MAP = {
+        cardIcon: "business-card.svg",
+        idIcon: "id-card.svg",
+        certificateIcon: "certificate.svg",
+        inviteIcon: "invitation-card.svg",
+        stickerIcon: "sticker.svg",
+        labelIcon: "labels.svg",
+        flyerIcon: "flyer.svg",
+        customIcon: "custom-layout.svg",
+        autoIcon: "auto-layout.svg",
+        spaceIcon: "smart-space-fill.svg",
+        duplexIcon: "back-to-back-printing.svg",
+        exportIcon: "pdf-jpg-export.svg",
+        marginIcon: "margin-control.svg",
+        cropIcon: "crop-marks.svg",
+        uploadIcon: "drag-drop-upload.svg",
+        previewIcon: "live-preview.svg",
+        optimizeIcon: "smart-sheet-optimization.svg",
+        sheetIcon: "sheet-size.svg"
+    };
+
     const state = {
         toolId: "business-card",
         activeSide: "front",
@@ -134,9 +155,11 @@
 
     function applyQueryParams() {
         const params = new URLSearchParams(window.location.search);
-        const tool = params.get("tool");
+        const tool = params.get("tool") || params.get("id");
         if (tool && TOOL_PRESETS[tool]) {
-            document.body.classList.add("is-studio-mode");
+            if (dom.previewMount || dom.editorMount) {
+                document.body.classList.add("is-studio-mode");
+            }
             applyToolPreset(tool);
         }
     }
@@ -1429,6 +1452,32 @@
     }
 
     function getBackendBaseUrl() {
+        if (isLocalRuntime()) {
+            const configured = cleanText(window.AJARTIVO_BACKEND_URL);
+            if (configured) {
+                return configured.replace(/\/+$/, "");
+            }
+
+            if (typeof window.AjArtivoGetBackendBaseUrl === "function") {
+                const base = cleanText(window.AjArtivoGetBackendBaseUrl());
+                if (base) {
+                    return base.replace(/\/+$/, "");
+                }
+            }
+
+            const meta = document.querySelector('meta[name="ajartivo-backend-url"]');
+            if (meta && cleanText(meta.content)) {
+                return cleanText(meta.content).replace(/\/+$/, "");
+            }
+
+            return LOCAL_BACKEND_BASE_URL;
+        }
+
+        const dedicatedMeta = document.querySelector('meta[name="ajartivo-print-layout-backend-url"]');
+        if (dedicatedMeta && cleanText(dedicatedMeta.content)) {
+            return cleanText(dedicatedMeta.content).replace(/\/+$/, "");
+        }
+
         const configured = cleanText(window.AJARTIVO_BACKEND_URL);
         if (configured) {
             return configured.replace(/\/+$/, "");
@@ -1446,7 +1495,7 @@
             return cleanText(meta.content).replace(/\/+$/, "");
         }
 
-        return isLocalRuntime() ? LOCAL_BACKEND_BASE_URL : LIVE_BACKEND_BASE_URL;
+        return LIVE_BACKEND_BASE_URL;
     }
 
     function isLocalRuntime() {
@@ -1842,6 +1891,11 @@
     }
 
     function iconHtml(name) {
+        const assetFile = ICON_ASSET_MAP[name];
+        if (assetFile) {
+            return `<img src="../icons/${assetFile}" alt="" aria-hidden="true" draggable="false">`;
+        }
+
         const icons = {
             cardIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"></rect><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>',
             idIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"></rect><path d="M8 9h8"></path><path d="M8 13h4"></path><circle cx="16" cy="14" r="1.3"></circle></svg>',
