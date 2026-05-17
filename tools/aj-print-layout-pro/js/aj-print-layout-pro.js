@@ -74,9 +74,6 @@
         ["Custom", "User defined sheet size for special production needs."]
     ];
 
-    const EXPORT_DPI_TARGET = 240;
-    const EXPORT_MAX_PIXELS = 12000000;
-
     const state = {
         toolId: "business-card",
         activeSide: "front",
@@ -1354,10 +1351,7 @@
         if (!canvas.previewStage) return;
         const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
         const sheet = getSheetDimensions();
-        const exportDpi = Math.min(
-            EXPORT_DPI_TARGET,
-            Math.max(120, Math.floor(Math.sqrt(EXPORT_MAX_PIXELS / Math.max(1, sheet.width * sheet.height))))
-        );
+        const exportDpi = 300;
         const exportRect = state.previewExportRect || { x: 0, y: 0, width: canvas.previewStage.width(), height: canvas.previewStage.height() };
         const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
         const targetHeight = Math.max(1, Math.round(sheet.height * exportDpi));
