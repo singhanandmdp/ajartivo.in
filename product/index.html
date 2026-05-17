@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        (function () {
+            var pathname = String(window.location.pathname || "");
+            var search = String(window.location.search || "");
+            var hash = String(window.location.hash || "");
+            var slugMatch = pathname.match(/\/product\/([^/?#]+)\/?$/i);
+
+            if (slugMatch && slugMatch[1]) {
+                var slug = slugMatch[1];
+                try {
+                    slug = decodeURIComponent(slug);
+                } catch (_error) {}
+                var query = "?slug=" + encodeURIComponent(slug);
+                if (search) {
+                    query += "&" + search.slice(1);
+                }
+                window.location.replace("../product.html" + query + hash);
+                return;
+            }
+
+            window.location.replace("../product.html" + search + hash);
+        })();
+    </script>
+</head>
+<body></body>
+</html>

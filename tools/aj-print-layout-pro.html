@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=/tools/aj-print-layout-pro/">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AJ Print Layout Pro - AJartivo</title>
+    <script>
+        (function () {
+            var target = "/tools/aj-print-layout-pro/" + String(window.location.search || "") + String(window.location.hash || "");
+            window.location.replace(target);
+        })();
+    </script>
 </head>
 <body>
     <p>Redirecting to AJ Print Layout Pro...</p>

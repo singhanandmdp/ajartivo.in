@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJartivo</title>
+    <script>
+        (function () {
+            var pathname = String(window.location.pathname || "");
+            var productIndex = pathname.toLowerCase().indexOf("/product/");
+            var basePath = productIndex >= 0 ? pathname.slice(0, productIndex) : pathname.replace(/\/[^/]*$/, "");
+            var cleanPath = pathname
+                .replace(/\/index\.html$/i, "/")
+                .replace(/\.html$/i, "");
+
+            if (cleanPath && cleanPath !== pathname && window.history && typeof window.history.replaceState === "function") {
+                window.history.replaceState({}, "", cleanPath + String(window.location.search || "") + String(window.location.hash || ""));
+            }
+
+            if (basePath === "/") {
+                basePath = "";
+            }
+
+            var match = pathname.match(/\/product\/([^/]+)\/?$/i);
+
+            if (match && match[1]) {
+                var slug = match[1];
+                var search = String(window.location.search || "");
+                try {
+                    slug = decodeURIComponent(slug);
+                } catch (_error) {}
+                window.location.replace((basePath || "") + "/product/" + encodeURIComponent(slug) + search + String(window.location.hash || ""));
+            }
+        })();
+    </script>
+</head>
+<body></body>
+</html>

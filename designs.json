@@ -1,0 +1,31 @@
+[
+ {
+  "name": "Birthday Banner",
+  "type": "PSD",
+  "image": "images/trending1.jpg",
+  "preview1": "images/preview1.jpg",
+  "preview2": "images/preview2.jpg",
+  "preview3": "images/preview3.jpg",
+  "download": "https://drive.google.com/file/d/FILEID/view"
+ },
+
+ {
+  "name": "Shop Banner",
+  "type": "PSD",
+  "image": "images/trending5.jpg",
+  "preview1": "images/shop1.jpg",
+  "preview2": "images/shop2.jpg",
+  "preview3": "images/shop3.jpg",
+  "download": "https://drive.google.com/file/d/FILEID/view"
+ },
+
+ {
+  "name": "Election Banner",
+  "type": "CDR",
+  "image": "images/trending4.jpg",
+  "preview1": "images/trending1.jpg",
+  "preview2": "images/trending2.jpg",
+  "preview3": "images/trending3.jpg",
+  "download": "https://drive.google.com/file/d/1abcXYZ/view"
+ }
+]

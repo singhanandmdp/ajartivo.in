@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var path = String(window.location.pathname || "");
+            var basePath = path.replace(/\/product(?:\/.*|\.html.*)?$/i, "/");
+            if (!basePath || basePath === path) {
+                basePath = path.replace(/\/[^/]*$/, "/");
+            }
+
+            if (basePath && basePath.slice(-1) !== "/") {
+                basePath += "/";
+            }
+
+            var base = document.createElement("base");
+            base.href = basePath || "/";
+            document.head.appendChild(base);
+        })();
+    </script>
+    <link rel="icon" href="Favicon.ico" type="image/x-icon">
+    <title>Product Details - AJartivo</title>
+    <meta name="description" content="View AJartivo product details, previews, access status, and download options for a design listing.">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="/product.html">
+    <meta property="og:type" content="product">
+    <meta property="og:title" content="Product Details - AJartivo">
+    <meta property="og:description" content="View product details, previews, and access options for an AJartivo design listing.">
+    <meta property="og:image" content="images/Hero/hero-bg.jpg">
+    <meta property="og:site_name" content="AJartivo">
+    <meta name="twitter:card" content="summary_large_image">
+    <script id="productJsonLd" type="application/ld+json"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="site-header"></div>
+
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="product-detail">
+        <section class="product-gallery-panel">
+            <div class="product-gallery-glow product-gallery-glow-one"></div>
+            <div class="product-gallery-glow product-gallery-glow-two"></div>
+
+            <div class="product-gallery-head">
+                <div>
+                    <p class="product-kicker">Product preview studio</p>
+                    <h2>Live design showcase</h2>
+                </div>
+                <span class="product-zoom-pill">Tap or hover to zoom</span>
+            </div>
+
+            <div class="product-gallery">
+                <button class="preview-box is-loading" id="previewTrigger" type="button" aria-label="Open image preview">
+                    <span class="preview-stage">
+                        <span class="preview-skeleton"></span>
+                        <span class="preview-pattern"></span>
+                        <img id="mainImage" src="images/Hero/hero-bg.jpg" alt="AJartivo product preview" loading="lazy" decoding="async">
+                    </span>
+                    <span class="preview-badge">Studio frame</span>
+                    <span class="preview-hint">Click for full preview</span>
+                </button>
+
+                <div class="thumbnail-row" id="thumbnailRow" hidden></div>
+
+                <div class="product-gallery-meta" id="productGalleryMeta">
+                    <article class="gallery-meta-card">
+                        <span>Product type</span>
+                        <strong id="galleryFormat">...</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Access state</span>
+                        <strong id="galleryAccess">...</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Views</span>
+                        <strong id="galleryViews">0</strong>
+                    </article>
+                    <article class="gallery-meta-card">
+                        <span>Downloads</span>
+                        <strong id="galleryDownloads">0</strong>
+                    </article>
+                </div>
+
+                <div class="product-gallery-caption" id="productGalleryCaption">
+                    <div class="product-gallery-tags" id="productGalleryTags">
+                        <span class="product-gallery-tag">Loading</span>
+                        <span class="product-gallery-tag">Preview</span>
+                        <span class="product-gallery-tag">Secure</span>
+                    </div>
+                    <p class="product-gallery-note" id="productGalleryNote">Loading design details...</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="product-info-panel">
+            <div class="product-info">
+                <p class="product-kicker">Loading asset</p>
+                <h1 id="productTitle">Loading product details...</h1>
+                <p class="product-lead" id="productDescription">Please wait while the product details, preview images, and access rules are being loaded.</p>
+
+                <div class="product-meta-row">
+                    <span class="product-meta-chip" id="productTypeChip">...</span>
+                    <span class="product-meta-chip">Secure access</span>
+                    <span class="product-meta-chip">Loading info</span>
+                </div>
+
+                <div class="product-pricing-board">
+                    <div class="price-card">
+                        <span class="price-kicker">Design price</span>
+                        <strong id="productPrice">Loading...</strong>
+                        <p id="productPriceNote">Checking price and access details.</p>
+                        <button class="download-btn" id="downloadBtn" type="button">Loading...</button>
+                        <div class="product-action-status" id="productActionStatus" aria-live="polite" hidden>
+                            <span class="product-action-spinner" aria-hidden="true"></span>
+                            <div class="product-action-copy">
+                                <strong id="productActionLabel">Preparing your download...</strong>
+                                <span id="productActionMessage">Please wait while we connect to secure delivery.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="custom-design-card">
+                        <span class="custom-design-badge">Custom design</span>
+                        <h3>Need your own version?</h3>
+                        <p>Custom design request area is available for personalized work.</p>
+                        <button class="custom-design-btn" id="customDesignBtn" type="button">Request Custom Design</button>
+                    </div>
+                </div>
+
+                <div class="product-feature-board">
+                    <div class="feature-board-head">
+                        <p class="product-kicker">Included</p>
+                        <h3>What comes with this product</h3>
+                    </div>
+
+                    <ul class="product-features" id="productFeatures">
+                        <li>Loading included features...</li>
+                    </ul>
+                </div>
+
+                <div class="product-action-row">
+                    <button class="product-secondary-btn" id="wishlistBtn" type="button">Save to Wishlist</button>
+                    <button class="product-secondary-btn" id="shareBtn" type="button">Share Design</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="product-lightbox" id="productLightbox" hidden>
+        <button class="product-lightbox-close" id="lightboxClose" type="button" aria-label="Close preview">x</button>
+        <img id="lightboxImage" src="images/Hero/hero-bg.jpg" alt="AJartivo zoomed product preview">
+    </div>
+
+    <section class="trending-section">
+        <div class="section-header">
+            <h2>Related Products</h2>
+        </div>
+
+        <div class="trending-grid" id="relatedDesignGrid"></div>
+    </section>
+
+    <div id="site-footer"></div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js?v=20260512-4"></script>
+    <script src="js/auth.js?v=20260512-4"></script>
+    <script src="payment.js?v=20260512-4"></script>
+    <script src="js/script.js?v=20260512-4"></script>
+    <script src="js/download-system.js?v=20260512-4"></script>
+</body>
+
+</html>

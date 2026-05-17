@@ -1,0 +1,294 @@
+.premium-plans-page {
+    background:
+        radial-gradient(circle at top left, rgba(255, 191, 73, 0.16), transparent 18%),
+        radial-gradient(circle at top right, rgba(109, 91, 255, 0.14), transparent 22%),
+        linear-gradient(180deg, #f8fbff 0%, #eef3fb 100%);
+}
+
+.premium-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+    display: grid;
+    gap: 34px;
+}
+
+.premium-hero,
+.plans-section,
+.premium-benefits-section {
+    border-radius: 34px;
+    border: 1px solid rgba(220, 228, 240, 0.96);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.08);
+}
+
+.premium-hero {
+    padding: 34px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    gap: 28px;
+    background:
+        radial-gradient(circle at top left, rgba(255, 196, 108, 0.18), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.14), transparent 22%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.94));
+}
+
+.premium-kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4056d6;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.premium-hero-copy h1,
+.plans-head h2 {
+    margin: 18px 0 14px;
+    font-size: clamp(34px, 5vw, 56px);
+    line-height: 1;
+    color: #16213a;
+}
+
+.plans-head h2 {
+    font-size: clamp(28px, 4vw, 42px);
+}
+
+.premium-hero-copy p,
+.plans-head p,
+.plan-copy,
+.premium-benefit-card p,
+.premium-hero-grid p {
+    color: #64748b;
+    line-height: 1.8;
+    font-size: 15px;
+}
+
+.premium-hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.premium-hero-pills span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #dbe4f2;
+    color: #233250;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.premium-hero-panel {
+    padding: 24px;
+    border-radius: 28px;
+    background: linear-gradient(145deg, #18233a 0%, #243457 100%);
+    color: #fff;
+}
+
+.premium-hero-panel-top {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.premium-hero-panel-top strong {
+    font-size: 24px;
+}
+
+.premium-hero-panel-top span {
+    color: rgba(226, 232, 240, 0.78);
+}
+
+.premium-hero-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.premium-hero-grid article {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-hero-grid strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 17px;
+}
+
+.premium-hero-grid p {
+    color: rgba(226, 232, 240, 0.78);
+    margin: 0;
+}
+
+.plans-section,
+.premium-benefits-section {
+    padding: 32px;
+}
+
+.plans-head {
+    margin-bottom: 24px;
+}
+
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.plan-card {
+    padding: 24px;
+    border-radius: 28px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid #dbe4f2;
+    display: grid;
+    gap: 14px;
+    box-shadow: 0 18px 36px rgba(148, 163, 184, 0.08);
+}
+
+.plan-card-featured {
+    transform: translateY(-8px);
+    background:
+        radial-gradient(circle at top right, rgba(109, 91, 255, 0.1), transparent 20%),
+        linear-gradient(180deg, #ffffff 0%, #f5f7ff 100%);
+    border-color: rgba(109, 91, 255, 0.22);
+}
+
+.plan-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #edf2ff;
+    color: #4056d6;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.plan-card h3 {
+    margin: 0;
+    font-size: 30px;
+    color: #18233a;
+}
+
+.plan-price {
+    margin: 0;
+    font-size: 38px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.plan-points {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.plan-points li {
+    position: relative;
+    padding-left: 18px;
+    color: #334155;
+    line-height: 1.6;
+}
+
+.plan-points li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff7bc1, #6d6bff);
+}
+
+.plan-cta {
+    min-height: 54px;
+    border: none;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #2f46ff, #7b88ff);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 18px 30px rgba(47, 70, 255, 0.22);
+}
+
+.plan-cta:disabled {
+    opacity: 0.72;
+    cursor: wait;
+}
+
+.plans-status {
+    margin: 18px 0 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.plans-status.is-success {
+    color: #15803d;
+}
+
+.plans-status.is-error {
+    color: #b91c1c;
+}
+
+.premium-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.premium-benefit-card {
+    padding: 22px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid #dbe4f2;
+}
+
+.premium-benefit-card h3 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    color: #18233a;
+}
+
+@media (max-width: 1050px) {
+    .premium-hero,
+    .plans-grid,
+    .premium-benefits-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .plan-card-featured {
+        transform: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .premium-shell {
+        padding: 26px 14px 54px;
+    }
+
+    .premium-hero,
+    .plans-section,
+    .premium-benefits-section {
+        padding: 20px 18px;
+        border-radius: 26px;
+    }
+}
