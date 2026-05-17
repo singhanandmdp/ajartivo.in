@@ -11,7 +11,7 @@
             fit: "cover",
             orientation: "landscape",
             businessCardRotation: 90,
-            businessFitToCard: true,
+            businessFitToCard: false,
             margin: 0.125,
             spacing: 0.25,
             bleed: 10,
@@ -94,7 +94,7 @@
         businessGapY: 0.313,
         businessBorderMargin: 0.125,
         businessCardRotation: 90,
-        businessFitToCard: true,
+        businessFitToCard: false,
         previewBackgroundMode: "white",
         previewBackgroundColor: "#ffffff",
         businessCutLeft: 2.402,
@@ -574,7 +574,7 @@
         state.businessGapY = 0.313;
         state.businessBorderMargin = 0.125;
         state.businessCardRotation = 90;
-        state.businessFitToCard = true;
+        state.businessFitToCard = false;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
         state.businessCutLeft = 2.402;
