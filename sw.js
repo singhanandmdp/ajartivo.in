@@ -91,7 +91,9 @@ function rewriteNavigationRequest(requestPath, scopePath, url) {
         "/tools/image-resizer": "tools/image-resizer.html",
         "/tools/image-converter": "tools/image-converter.html",
         "/tools/aj-colour-converter": "tools/aj-colour-converter.html",
-        "/tools/aj-print-layout-pro": "tools/aj-print-layout-pro.html",
+        "/tools/aj-print-layout-pro": "tools/aj-print-layout-pro/",
+        "/tools/aj-print-layout-pro/studio": "tools/aj-print-layout-pro/studio.html",
+        "/tools/aj-print-layout-pro/studio.html": "tools/aj-print-layout-pro/studio.html",
         "/tools/Aj Pixel Cut/website/aj-pixel-cut": "tools/Aj Pixel Cut/website/aj-pixel-cut.html"
     };
 
