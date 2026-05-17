@@ -1481,9 +1481,39 @@
             unit: "in",
             format: [sheet.width, sheet.height]
         });
-        doc.addImage(target, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
+        const frontTarget = await captureLegacyPdfPage("front", exportDpi, exportRect, pixelRatio);
+        const backTarget = await captureLegacyPdfPage("back", exportDpi, exportRect, pixelRatio);
+
+        doc.addImage(frontTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
+        doc.addPage([sheet.width, sheet.height], sheet.width >= sheet.height ? "landscape" : "portrait");
+        doc.addImage(backTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
         doc.save(fileBase + ".pdf");
-        setStatus("PDF export generated at sheet size.");
+        setStatus("PDF export generated with front and back pages.");
+    }
+
+    async function captureLegacyPdfPage(side, exportDpi, exportRect, pixelRatio) {
+        const originalSide = state.activeSide;
+        state.activeSide = side === "back" ? "back" : "front";
+        updateSideButtons();
+        selectActiveAsset();
+        await waitForPaint();
+
+        const dataUrl = patchJpegDpi(canvas.previewStage.toDataURL({
+            x: exportRect.x,
+            y: exportRect.y,
+            width: exportRect.width,
+            height: exportRect.height,
+            pixelRatio: pixelRatio,
+            mimeType: "image/jpeg",
+            quality: 0.98
+        }), exportDpi);
+
+        state.activeSide = originalSide;
+        updateSideButtons();
+        selectActiveAsset();
+        scheduleRender();
+
+        return dataUrl;
     }
 
     function waitForPaint() {
