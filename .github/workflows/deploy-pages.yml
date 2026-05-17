@@ -36,8 +36,7 @@ jobs:
             --exclude 'firebase-backup/' \
             --exclude 'firebase/' \
             --exclude 'functions/' \
-            --exclude 'supabase/' \
-            --exclude 'tools/'
+            --exclude 'supabase/'
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
