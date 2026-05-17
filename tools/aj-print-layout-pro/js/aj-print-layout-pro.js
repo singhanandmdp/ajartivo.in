@@ -93,7 +93,7 @@
         businessGapX: 0.25,
         businessGapY: 0.313,
         businessBorderMargin: 0.125,
-        businessCardRotation: 0,
+        businessCardRotation: 90,
         businessFitToCard: true,
         previewBackgroundMode: "white",
         previewBackgroundColor: "#ffffff",
