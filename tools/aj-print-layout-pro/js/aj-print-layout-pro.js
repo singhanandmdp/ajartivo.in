@@ -9,7 +9,8 @@
             rows: 5,
             sheet: "12x18",
             fit: "cover",
-            orientation: "portrait",
+            orientation: "landscape",
+            businessCardRotation: 90,
             businessFitToCard: true,
             margin: 0.125,
             spacing: 0.25,
@@ -78,7 +79,7 @@
         toolId: "business-card",
         activeSide: "front",
         sheetSize: "12x18",
-        orientation: "portrait",
+        orientation: "landscape",
         smartFill: "business-card",
         cropMarks: true,
         margin: 42,
@@ -555,6 +556,7 @@
         const preset = TOOL_PRESETS[state.toolId];
         state.sheetSize = preset.sheet || "12x18";
         state.orientation = preset.orientation || "portrait";
+        state.businessCardRotation = preset.businessCardRotation != null ? Number(preset.businessCardRotation) : state.businessCardRotation;
         state.businessFitToCard = preset.businessFitToCard != null ? Boolean(preset.businessFitToCard) : state.businessFitToCard;
         state.smartFill = preset.smartFill || (state.toolId === "invitation-small" ? "business-card" : "business-card");
         state.margin = Number(preset.margin != null ? preset.margin : state.margin);
@@ -571,7 +573,7 @@
         state.businessGapX = 0.25;
         state.businessGapY = 0.313;
         state.businessBorderMargin = 0.125;
-        state.businessCardRotation = 0;
+        state.businessCardRotation = 90;
         state.businessFitToCard = true;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
