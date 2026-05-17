@@ -74,6 +74,9 @@
         ["Custom", "User defined sheet size for special production needs."]
     ];
 
+    const EXPORT_DPI_TARGET = 240;
+    const EXPORT_MAX_PIXELS = 12000000;
+
     const state = {
         toolId: "business-card",
         activeSide: "front",
@@ -1347,15 +1350,20 @@
         });
     }
 
-    function exportSheet(format) {
+    async function exportSheet(format) {
         if (!canvas.previewStage) return;
         const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
         const sheet = getSheetDimensions();
-        const exportDpi = 300;
+        const exportDpi = Math.min(
+            EXPORT_DPI_TARGET,
+            Math.max(120, Math.floor(Math.sqrt(EXPORT_MAX_PIXELS / Math.max(1, sheet.width * sheet.height))))
+        );
         const exportRect = state.previewExportRect || { x: 0, y: 0, width: canvas.previewStage.width(), height: canvas.previewStage.height() };
         const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
         const targetHeight = Math.max(1, Math.round(sheet.height * exportDpi));
         const pixelRatio = targetWidth / Math.max(1, exportRect.width);
+        setStatus("Preparing export...");
+        await waitForPaint();
         const target = patchJpegDpi(canvas.previewStage.toDataURL({
             x: exportRect.x,
             y: exportRect.y,
@@ -1368,7 +1376,7 @@
 
         if (format === "jpg") {
             downloadUrl(target, fileBase + ".jpg");
-            setStatus("JPG export generated at 300 DPI.");
+            setStatus("JPG export generated at " + exportDpi + " DPI.");
             return;
         }
 
@@ -1386,6 +1394,14 @@
         doc.addImage(target, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
         doc.save(fileBase + ".pdf");
         setStatus("PDF export generated at sheet size.");
+    }
+
+    function waitForPaint() {
+        return new Promise(function (resolve) {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(resolve);
+            });
+        });
     }
 
     function patchJpegDpi(dataUrl, dpi) {
