@@ -60,7 +60,7 @@
         toolId: "business-card",
         activeSide: "front",
         sheetSize: "12x18",
-        orientation: "landscape",
+        orientation: "portrait",
         smartFill: "business-card",
         cropMarks: true,
         margin: 42,

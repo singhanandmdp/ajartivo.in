@@ -21,10 +21,10 @@ body.print-layout-page {
     min-height: 100vh;
     overflow-x: hidden;
     background:
-        radial-gradient(circle at 15% 8%, rgba(96, 165, 250, 0.16), transparent 24%),
-        radial-gradient(circle at 82% 12%, rgba(168, 85, 247, 0.16), transparent 22%),
-        radial-gradient(circle at 75% 72%, rgba(251, 113, 133, 0.12), transparent 18%),
-        linear-gradient(180deg, var(--plp-bg) 0%, #04050b 55%, #020308 100%);
+        radial-gradient(circle at 14% 10%, rgba(96, 165, 250, 0.20), transparent 22%),
+        radial-gradient(circle at 84% 14%, rgba(168, 85, 247, 0.14), transparent 20%),
+        radial-gradient(circle at 72% 80%, rgba(251, 113, 133, 0.12), transparent 16%),
+        linear-gradient(180deg, #f8fbff 0%, #eef4ff 48%, #f7f7fb 100%);
     color: var(--plp-text);
     padding-top: 74px;
 }
@@ -34,12 +34,12 @@ body.print-layout-page {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.6;
+    opacity: 0.28;
     background-image:
-        linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+        linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
     background-size: 54px 54px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 96%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.72), transparent 96%);
 }
 
 .print-layout-shell {
