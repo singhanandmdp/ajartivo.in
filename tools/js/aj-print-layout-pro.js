@@ -174,7 +174,7 @@
                     <p>${escapeHtml(item[2])}</p>
                     <div class="print-layout-tool-footer">
                         <span class="print-layout-tool-chip">SVG icon</span>
-                        <button type="button" class="print-layout-tool-open" data-tool-target="${escapeHtml(item[0])}">Open Tool</button>
+                        <button type="button" class="print-layout-tool-open" data-tool-target="${escapeHtml(item[0])}">Open Studio</button>
                     </div>
                 </article>`;
             }).join("");
@@ -214,8 +214,10 @@
     function bindUi() {
         document.querySelectorAll("[data-tool-target]").forEach(function (button) {
             button.addEventListener("click", function () {
-                setTool(button.getAttribute("data-tool-target") || "business-card");
-                document.getElementById("studioSection").scrollIntoView({ behavior: "smooth", block: "start" });
+                const toolId = button.getAttribute("data-tool-target") || "business-card";
+                const url = new URL("studio.html", window.location.href);
+                url.searchParams.set("tool", toolId);
+                window.location.href = url.toString();
             });
         });
 
