@@ -3,7 +3,9 @@
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5101";
     const LIVE_BACKEND_BASE_URL = "https://print-layout-backend.onrender.com";
-    const BACKEND_PREVIEW_THRESHOLD_BYTES = 10 * 1024 * 1024;
+    const EXPORT_MODAL_COUNTDOWN_START = 3;
+    const EXPORT_MODAL_STEP_MS = 650;
+    const EXPORT_MODAL_MIN_VISIBLE_MS = 1800;
 
     const TOOL_PRESETS = {
         "business-card": {
@@ -127,13 +129,20 @@
         businessCutMarks: true,
         frontAsset: null,
         backAsset: null,
-        previewExportRect: null
+        previewExportRect: null,
+        isExporting: false
     };
 
     const dom = {};
     const canvas = {
         previewStage: null,
         previewLayer: null
+    };
+
+    const exportUi = {
+        countdownTimer: 0,
+        startTime: 0,
+        isVisible: false
     };
 
     document.addEventListener("DOMContentLoaded", init);
@@ -212,6 +221,11 @@
         dom.supportNote = document.getElementById("supportNote");
         dom.exportPdf = document.getElementById("exportPdfButton");
         dom.exportJpg = document.getElementById("exportJpgButton");
+        dom.exportModal = document.getElementById("exportStatusModal");
+        dom.exportModalTitle = document.getElementById("exportModalTitle");
+        dom.exportModalStatus = document.getElementById("exportModalStatus");
+        dom.exportModalCountdown = document.getElementById("exportModalCountdown");
+        dom.exportModalProgress = document.getElementById("exportModalProgress");
         dom.layoutSheetLabel = document.getElementById("layoutSheetLabel");
         dom.smartFillPanel = document.getElementById("smartFillPanel");
     }
@@ -496,13 +510,13 @@
 
         if (dom.exportPdf) {
             dom.exportPdf.addEventListener("click", function () {
-                exportSheet("pdf");
+                runExport("pdf");
             });
         }
 
         if (dom.exportJpg) {
             dom.exportJpg.addEventListener("click", function () {
-                exportSheet("jpg");
+                runExport("jpg");
             });
         }
 
@@ -775,7 +789,7 @@
                 previewUrl: assetPreview.previewUrl,
                 exportBlob: assetPreview.exportBlob,
                 sourceKind: assetPreview.sourceKind,
-                image: await loadImage(assetPreview.preview)
+                image: assetPreview.image || await loadImage(assetPreview.preview)
             };
 
             if (state.activeSide === "back") {
@@ -1240,45 +1254,46 @@
     async function loadAssetPreview(file) {
         if (isPdfFile(file)) {
             const preview = await renderPdfPreview(file);
+            const previewImage = await loadImage(preview);
             return {
                 preview: preview,
                 previewUrl: preview,
                 exportBlob: await dataUrlToBlob(preview),
-                sourceKind: "pdf-preview"
+                sourceKind: "pdf-preview",
+                image: previewImage
             };
         }
 
         if (shouldUseBackendPreview(file)) {
-            try {
-                const previewBlob = await fetchBackendPreview(file);
-                const previewUrl = URL.createObjectURL(previewBlob);
-                return {
-                    preview: previewUrl,
-                    previewUrl: previewUrl,
-                    exportBlob: file,
-                    sourceKind: "backend-preview"
-                };
-            } catch (_error) {
-                if (!isTiffFile(file)) {
-                    const previewUrl = URL.createObjectURL(file);
-                    return {
-                        preview: previewUrl,
-                        previewUrl: previewUrl,
-                        exportBlob: file,
-                        sourceKind: "local-fallback"
-                    };
-                }
-                throw _error;
-            }
+            const previewBlob = await fetchBackendPreview(file);
+            const previewUrl = URL.createObjectURL(previewBlob);
+            return {
+                preview: previewUrl,
+                previewUrl: previewUrl,
+                exportBlob: file,
+                sourceKind: "backend-preview",
+                image: await loadImage(previewUrl)
+            };
         }
 
         const previewUrl = URL.createObjectURL(file);
-        return {
-            preview: previewUrl,
-            previewUrl: previewUrl,
-            exportBlob: file,
-            sourceKind: "local-file"
-        };
+        try {
+            const image = await loadImage(previewUrl);
+            return {
+                preview: previewUrl,
+                previewUrl: previewUrl,
+                exportBlob: file,
+                sourceKind: "local-file",
+                image: image
+            };
+        } catch (error) {
+            try {
+                URL.revokeObjectURL(previewUrl);
+            } catch (_revokeError) {
+                // Ignore revocation failures.
+            }
+            throw error;
+        }
     }
 
     async function fetchBackendPreview(file) {
@@ -1372,8 +1387,36 @@
         }
     }
 
+    async function runExport(format) {
+        if (state.isExporting) {
+            return;
+        }
+
+        state.isExporting = true;
+        const startedAt = Date.now();
+        beginExportFeedback(format);
+
+        try {
+            setStatus(format === "jpg" ? "Preparing JPG download..." : "Preparing PDF download...");
+            await waitForPaint();
+            await sleep(120);
+            await exportSheet(format);
+        } catch (error) {
+            console.error(error);
+            setStatus("Export failed. Please try again.");
+        } finally {
+            const elapsed = Date.now() - startedAt;
+            if (elapsed < EXPORT_MODAL_MIN_VISIBLE_MS) {
+                await sleep(EXPORT_MODAL_MIN_VISIBLE_MS - elapsed);
+            }
+
+            finishExportFeedback();
+            state.isExporting = false;
+        }
+    }
+
     async function exportSheet(format) {
-        if (state.toolId === "business-card" && hasRenderableBackendAssets()) {
+        if (state.toolId === "business-card" && shouldUseBackendExport()) {
             try {
                 await exportSheetViaBackend(format);
                 return;
@@ -1386,8 +1429,11 @@
         await exportSheetLegacy(format);
     }
 
-    function hasRenderableBackendAssets() {
-        return Boolean((state.frontAsset && state.frontAsset.exportBlob) || (state.backAsset && state.backAsset.exportBlob));
+    function shouldUseBackendExport() {
+        return Boolean(
+            (state.frontAsset && state.frontAsset.sourceKind === "backend-preview") ||
+            (state.backAsset && state.backAsset.sourceKind === "backend-preview")
+        );
     }
 
     async function exportSheetViaBackend(format) {
@@ -1423,7 +1469,7 @@
             formData.append("backFile", backAsset.exportBlob, backAsset.name || "back.jpg");
         }
 
-        setStatus("Preparing backend export...");
+        setStatus("Sending the file to the export engine...");
         await waitForPaint();
 
         const response = await fetch(backendUrl, {
@@ -1440,11 +1486,16 @@
         const blob = await response.blob();
         const fileName = format === "jpg" ? `${fileBase}.jpg` : `${fileBase}.pdf`;
         downloadBlob(blob, fileName);
-        setStatus(format === "jpg" ? "JPG export generated by backend at 300 DPI." : "PDF export generated by backend with front and back pages.");
+        setStatus(format === "jpg"
+            ? "JPG export generated by backend at 300 DPI."
+            : (state.backAsset ? "PDF export generated by backend with front and back pages." : "PDF export generated by backend with a single page."));
     }
 
     async function exportSheetLegacy(format) {
-        if (!canvas.previewStage) return;
+        if (!canvas.previewStage) {
+            setStatus("Please upload a file first.");
+            return;
+        }
         const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
         const sheet = getSheetDimensions();
         const exportDpi = 300;
@@ -1452,7 +1503,7 @@
         const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
         const targetHeight = Math.max(1, Math.round(sheet.height * exportDpi));
         const pixelRatio = targetWidth / Math.max(1, exportRect.width);
-        setStatus("Preparing export...");
+        setStatus("Rendering the sheet in browser...");
         await waitForPaint();
         const target = patchJpegDpi(canvas.previewStage.toDataURL({
             x: exportRect.x,
@@ -1482,13 +1533,16 @@
             format: [sheet.width, sheet.height]
         });
         const frontTarget = await captureLegacyPdfPage("front", exportDpi, exportRect, pixelRatio);
-        const backTarget = await captureLegacyPdfPage("back", exportDpi, exportRect, pixelRatio);
+        const hasBackSide = Boolean(state.backAsset);
+        const backTarget = hasBackSide ? await captureLegacyPdfPage("back", exportDpi, exportRect, pixelRatio) : null;
 
         doc.addImage(frontTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
-        doc.addPage([sheet.width, sheet.height], sheet.width >= sheet.height ? "landscape" : "portrait");
-        doc.addImage(backTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
+        if (backTarget) {
+            doc.addPage([sheet.width, sheet.height], sheet.width >= sheet.height ? "landscape" : "portrait");
+            doc.addImage(backTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
+        }
         doc.save(fileBase + ".pdf");
-        setStatus("PDF export generated with front and back pages.");
+        setStatus(backTarget ? "PDF export generated with front and back pages." : "PDF export generated with a single page.");
     }
 
     async function captureLegacyPdfPage(side, exportDpi, exportRect, pixelRatio) {
@@ -1522,6 +1576,121 @@
                 requestAnimationFrame(resolve);
             });
         });
+    }
+
+    function sleep(ms) {
+        return new Promise(function (resolve) {
+            window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+        });
+    }
+
+    function beginExportFeedback(format) {
+        if (!dom.exportModal) return;
+
+        exportUi.isVisible = true;
+        exportUi.startTime = Date.now();
+
+        if (exportUi.countdownTimer) {
+            clearInterval(exportUi.countdownTimer);
+            exportUi.countdownTimer = 0;
+        }
+
+        if (dom.exportModalTitle) {
+            dom.exportModalTitle.textContent = format === "jpg" ? "Preparing JPG download" : "Preparing PDF download";
+        }
+
+        if (dom.exportModalStatus) {
+            dom.exportModalStatus.textContent = "Optimizing the sheet and starting the export engine...";
+        }
+
+        if (dom.exportModalCountdown) {
+            dom.exportModalCountdown.textContent = String(EXPORT_MODAL_COUNTDOWN_START);
+        }
+
+        if (dom.exportModalProgress) {
+            dom.exportModalProgress.style.width = "18%";
+        }
+
+        dom.exportModal.classList.add("is-visible");
+        updateExportButtons(true);
+
+        let remaining = EXPORT_MODAL_COUNTDOWN_START;
+        exportUi.countdownTimer = window.setInterval(function () {
+            if (!exportUi.isVisible) {
+                if (exportUi.countdownTimer) {
+                    clearInterval(exportUi.countdownTimer);
+                    exportUi.countdownTimer = 0;
+                }
+                return;
+            }
+
+            remaining -= 1;
+
+            if (remaining > 0) {
+                if (dom.exportModalCountdown) {
+                    dom.exportModalCountdown.textContent = String(remaining);
+                }
+
+                if (dom.exportModalProgress) {
+                    dom.exportModalProgress.style.width = String(Math.min(84, 18 + ((EXPORT_MODAL_COUNTDOWN_START - remaining) * 22))) + "%";
+                }
+
+                if (dom.exportModalStatus) {
+                    dom.exportModalStatus.textContent = remaining === 2
+                        ? "Rendering the layout..."
+                        : "Finalizing the download...";
+                }
+                return;
+            }
+
+            if (dom.exportModalCountdown) {
+                dom.exportModalCountdown.textContent = "...";
+            }
+
+            if (dom.exportModalProgress) {
+                dom.exportModalProgress.style.width = "82%";
+            }
+
+            if (dom.exportModalStatus) {
+                dom.exportModalStatus.textContent = "Finalizing the file for download...";
+            }
+
+            if (exportUi.countdownTimer) {
+                clearInterval(exportUi.countdownTimer);
+                exportUi.countdownTimer = 0;
+            }
+        }, EXPORT_MODAL_STEP_MS);
+    }
+
+    function finishExportFeedback() {
+        exportUi.isVisible = false;
+
+        if (exportUi.countdownTimer) {
+            clearInterval(exportUi.countdownTimer);
+            exportUi.countdownTimer = 0;
+        }
+
+        if (dom.exportModal) {
+            dom.exportModal.classList.remove("is-visible");
+        }
+        updateExportButtons(false);
+
+        if (dom.exportModalCountdown) {
+            dom.exportModalCountdown.textContent = String(EXPORT_MODAL_COUNTDOWN_START);
+        }
+
+        if (dom.exportModalProgress) {
+            dom.exportModalProgress.style.width = "0%";
+        }
+    }
+
+    function updateExportButtons(isDisabled) {
+        if (dom.exportPdf) {
+            dom.exportPdf.disabled = Boolean(isDisabled);
+        }
+        if (dom.exportJpg) {
+            dom.exportJpg.disabled = Boolean(isDisabled);
+        }
     }
 
     function patchJpegDpi(dataUrl, dpi) {
@@ -1679,7 +1848,13 @@
     }
 
     function shouldUseBackendPreview(file) {
-        return isTiffFile(file) || Number(file && file.size || 0) >= BACKEND_PREVIEW_THRESHOLD_BYTES;
+        return isTiffFile(file) || isHeicFile(file);
+    }
+
+    function isHeicFile(file) {
+        const name = String(file && file.name || "").toLowerCase();
+        const type = String(file && file.type || "").toLowerCase();
+        return type === "image/heic" || type === "image/heif" || /\.(heic|heif)$/.test(name);
     }
 
     function readFileAsDataUrl(file) {
@@ -1737,8 +1912,12 @@
     }
 
     function setStatus(message) {
-        if (dom.statusText) dom.statusText.textContent = message;
-        if (dom.supportNote) dom.supportNote.textContent = message;
+        const text = String(message || "");
+        if (dom.statusText) dom.statusText.textContent = text;
+        if (dom.supportNote) dom.supportNote.textContent = text;
+        if (exportUi.isVisible && dom.exportModalStatus) {
+            dom.exportModalStatus.textContent = text;
+        }
     }
 
     function clamp(value, min, max) {

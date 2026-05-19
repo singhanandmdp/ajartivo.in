@@ -757,6 +757,14 @@ body.print-layout-page {
     border-color: rgba(96, 165, 250, 0.26);
 }
 
+.print-layout-btn:disabled,
+.print-layout-secondary-btn:disabled,
+.print-layout-ghost-btn:disabled {
+    opacity: 0.7;
+    cursor: progress;
+    transform: none;
+}
+
 .print-layout-preview-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1176,6 +1184,217 @@ body.print-layout-page {
     color: var(--plp-muted);
     font-size: 0.9rem;
     line-height: 1.7;
+}
+
+.print-layout-export-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.print-layout-export-modal.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.print-layout-export-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(96, 165, 250, 0.18), transparent 24%),
+        radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.18), transparent 24%),
+        rgba(3, 7, 18, 0.72);
+    backdrop-filter: blur(14px);
+}
+
+.print-layout-export-modal-card {
+    position: relative;
+    width: min(100%, 560px);
+    overflow: hidden;
+    border-radius: 28px;
+    padding: 28px;
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    background:
+        radial-gradient(circle at top, rgba(96, 165, 250, 0.16), transparent 32%),
+        linear-gradient(180deg, rgba(8, 12, 24, 0.98), rgba(5, 10, 20, 0.95));
+    box-shadow: 0 34px 100px rgba(2, 6, 23, 0.5);
+    transform: translateY(16px) scale(0.98);
+    transition: transform 240ms ease, opacity 240ms ease;
+}
+
+.print-layout-export-modal.is-visible .print-layout-export-modal-card {
+    transform: translateY(0) scale(1);
+}
+
+.print-layout-export-modal-card::before,
+.print-layout-export-modal-card::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+}
+
+.print-layout-export-modal-card::before {
+    inset: -1px;
+    border-radius: inherit;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 28%, transparent 72%, rgba(255, 255, 255, 0.08)),
+        radial-gradient(circle at 20% 20%, rgba(96, 165, 250, 0.12), transparent 18%),
+        radial-gradient(circle at 85% 18%, rgba(168, 85, 247, 0.1), transparent 18%);
+    opacity: 0.95;
+    mix-blend-mode: screen;
+}
+
+.print-layout-export-modal-card::after {
+    inset: 16px;
+    border-radius: 22px;
+    border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.print-layout-export-copy,
+.print-layout-export-track,
+.print-layout-export-note {
+    position: relative;
+    z-index: 1;
+}
+
+.print-layout-export-copy {
+    display: grid;
+    gap: 10px;
+}
+
+.print-layout-export-copy h3 {
+    color: #f8fbff;
+    font-size: clamp(1.5rem, 4vw, 2.05rem);
+    letter-spacing: -0.04em;
+}
+
+.print-layout-export-copy p {
+    color: var(--plp-muted);
+    line-height: 1.7;
+}
+
+.print-layout-export-counter {
+    position: relative;
+    z-index: 1;
+    width: 112px;
+    height: 112px;
+    margin: 22px auto 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(96, 165, 250, 0.24);
+    background:
+        radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.18), transparent 36%),
+        linear-gradient(135deg, rgba(37, 99, 235, 0.34), rgba(168, 85, 247, 0.28));
+    box-shadow:
+        inset 0 0 0 12px rgba(8, 12, 24, 0.55),
+        0 18px 40px rgba(37, 99, 235, 0.18);
+    color: #eff6ff;
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    animation: printLayoutExportPulse 1.8s ease-in-out infinite;
+}
+
+.print-layout-export-track {
+    height: 10px;
+    margin-top: 20px;
+    overflow: hidden;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.print-layout-export-track span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #60a5fa 0%, #a855f7 54%, #fb7185 100%);
+    box-shadow: 0 0 18px rgba(96, 165, 250, 0.28);
+    transition: width 220ms ease;
+    animation: printLayoutExportShimmer 1.35s linear infinite;
+}
+
+.print-layout-export-orbit {
+    position: absolute;
+    inset: 18px auto auto 18px;
+    width: 126px;
+    height: 126px;
+    pointer-events: none;
+}
+
+.print-layout-export-orbit span {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(96, 165, 250, 0.14);
+    animation: printLayoutExportSpin 10s linear infinite;
+}
+
+.print-layout-export-orbit span:nth-child(2) {
+    inset: 12px;
+    animation-duration: 13s;
+    animation-direction: reverse;
+}
+
+.print-layout-export-orbit span:nth-child(3) {
+    inset: 24px;
+    animation-duration: 16s;
+}
+
+.print-layout-export-note {
+    margin-top: 16px;
+    color: var(--plp-soft);
+    line-height: 1.65;
+    font-size: 0.92rem;
+}
+
+@keyframes printLayoutExportSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes printLayoutExportPulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.03);
+    }
+}
+
+@keyframes printLayoutExportShimmer {
+    0% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.15);
+    }
+    100% {
+        filter: brightness(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .print-layout-export-modal,
+    .print-layout-export-modal-card,
+    .print-layout-export-counter,
+    .print-layout-export-track span,
+    .print-layout-export-orbit span {
+        transition: none !important;
+        animation: none !important;
+    }
 }
 
 .print-layout-space-fill-banner {
