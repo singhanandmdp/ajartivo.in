@@ -10,7 +10,6 @@
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
     <script src="../../js/canonical-url.js"></script>
     <link rel="stylesheet" href="../../css/style.css">
-    <link rel="stylesheet" href="../../css/tools-hub.css">
     <link rel="stylesheet" href="./css/aj-print-layout-pro.css">
 </head>
 <body class="print-layout-page">
@@ -49,20 +48,6 @@
                     </a>
                 </div>
 
-                <div class="print-layout-metrics" aria-label="Hero highlights">
-                    <article class="print-layout-metric">
-                        <span>Default output</span>
-                        <strong>25 pcs on 12x18</strong>
-                    </article>
-                    <article class="print-layout-metric">
-                        <span>Export</span>
-                        <strong>PDF and JPG</strong>
-                    </article>
-                    <article class="print-layout-metric">
-                        <span>Engine</span>
-                        <strong>Konva.js canvas</strong>
-                    </article>
-                </div>
             </div>
 
             <div class="print-layout-hero-visual">
@@ -72,23 +57,9 @@
                             src="./images/aj-layout-pro.webp"
                             alt="AJ Layout Pro hero preview"
                             class="print-layout-hero-image"
-                            loading="lazy"
+                            loading="eager"
+                            fetchpriority="high"
                             decoding="async">
-                        <div class="print-layout-hero-overlay">
-                            <div class="print-layout-hero-overlay-card">
-                                <div>
-                                    <strong>Live layout preview</strong>
-                                    <span>Responsive studio feel with crisp export output</span>
-                                </div>
-                                <span class="print-layout-chip">Premium</span>
-                            </div>
-                            <div class="print-layout-hero-overlay-chiprow">
-                                <span>Auto layout</span>
-                                <span>Smart space fill</span>
-                                <span>Crop marks</span>
-                                <span>PDF.js upload</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -105,7 +76,119 @@
                     <p>Each card uses SVG icons only, smooth hover motion, and a direct action into the matching layout setup.</p>
                 </div>
             </div>
-            <div class="print-layout-card-grid" id="toolCategoryGrid"></div>
+            <div class="print-layout-card-grid" id="toolCategoryGrid">
+                <a class="print-layout-tool-card" href="./studio.html?tool=business-card" aria-label="Open Business Card tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Business Card</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/business-card.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Business Card</h3>
+                    <p>25-up business card sheets with crop marks, bleed, and clean spacing.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">business card</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=id-card" aria-label="Open ID Card tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">ID Card</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/id-card.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>ID Card</h3>
+                    <p>Compact id card layouts with portrait or landscape handling.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">id card</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=certificate" aria-label="Open Certificate tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Certificate</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/certificate.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Certificate</h3>
+                    <p>Two-up certificate layouts with centered spacing and premium balance.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">certificate</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=invitation-small" aria-label="Open Invitation Card tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Invitation Card</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/invitation-card.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Invitation Card</h3>
+                    <p>Small invitation mode with smart space fill for the open bottom area.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">invitation small</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=sticker" aria-label="Open Sticker tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Sticker</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/sticker.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Sticker</h3>
+                    <p>Dense sticker sheets that stay crisp during export.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">sticker</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=labels" aria-label="Open Labels tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Labels</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/labels.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Labels</h3>
+                    <p>Label grids that keep alignment clean and production-friendly.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">labels</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=flyer" aria-label="Open Flyer tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Flyer</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/flyer.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Flyer</h3>
+                    <p>Flyer arrangements for larger artwork and simple imposition.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">flyer</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+
+                <a class="print-layout-tool-card" href="./studio.html?tool=custom" aria-label="Open Custom Layout tool">
+                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
+                    <div class="print-layout-card-top">
+                        <span class="print-layout-tool-chip">Custom Layout</span>
+                        <div class="print-layout-icon" aria-hidden="true"><img src="../icons/custom-layout.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <h3>Custom Layout</h3>
+                    <p>Custom sheet dimensions and flexible repeat settings.</p>
+                    <div class="print-layout-tool-footer">
+                        <span class="print-layout-tool-meta">custom layout</span>
+                        <span class="print-layout-tool-launch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+                    </div>
+                </a>
+            </div>
         </section>
 
         <section class="print-layout-section" aria-label="Features">
@@ -119,21 +202,106 @@
                     <p>From crop marks to smart sheet optimization, the page keeps the workflow practical and production-friendly.</p>
                 </div>
             </div>
-            <div class="print-layout-feature-grid" id="featureGrid"></div>
-        </section>
+            <div class="print-layout-feature-grid" id="featureGrid">
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Auto Layout</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/auto-layout.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Generate repeated print layouts automatically from a single design.</p>
+                </article>
 
-        <section class="print-layout-section" aria-label="Sheet sizes">
-            <div class="print-layout-section-head">
-                <div class="section-copy">
-                    <span class="print-layout-section-label">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"></path><path d="M15 3v4h4"></path></svg>
-                        Sheet Size
-                    </span>
-                    <h2>Popular sizes and custom setup</h2>
-                    <p>Choose common print sheet sizes or switch to a custom dimension when a job needs something unusual.</p>
-                </div>
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Smart Space Fill</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/smart-space-fill.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Use leftover invitation space for extra cards, labels, or mini tags.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Back To Back Printing</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/back-to-back-printing.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Keep front and back side previews easy to manage.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>PDF &amp; JPG Export</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/pdf-jpg-export.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Export high quality output without leaving the browser.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Margin Control</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/margin-control.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Adjust margins for a cleaner print boundary.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Crop Marks</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/crop-marks.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Add precise cut marks for finishing work.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Drag &amp; Drop Upload</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/drag-drop-upload.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Upload JPG, PNG, WEBP, or PDF files quickly.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Live Preview</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/live-preview.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>See each change update the preview in real time.</p>
+                </article>
+
+                <article class="print-layout-feature-card">
+                    <div class="print-layout-feature-top">
+                        <div>
+                            <span class="print-layout-section-label">Feature</span>
+                            <h3>Smart Sheet Optimization</h3>
+                        </div>
+                        <div class="print-layout-feature-icon" aria-hidden="true"><img src="../icons/smart-sheet-optimization.svg" alt="" aria-hidden="true" draggable="false"></div>
+                    </div>
+                    <p>Keep the sheet efficient while staying print ready.</p>
+                </article>
             </div>
-            <div class="print-layout-size-grid" id="sizeGrid"></div>
         </section>
 
         <section class="print-layout-section" aria-label="Preview examples">
@@ -157,11 +325,7 @@
                         <span class="print-layout-tool-chip">Crop marks</span>
                     </div>
                     <div class="print-layout-demo-sheet business" aria-hidden="true">
-                        <span class="demo-block one"></span>
-                        <span class="demo-block two"></span>
-                        <span class="demo-block three"></span>
-                        <span class="demo-block four"></span>
-                        <span class="demo-block five"></span>
+                        <img src="./images/business%20card.webp" alt="" class="print-layout-demo-image">
                     </div>
                     <p class="print-layout-demo-note">Best for repeat business cards with strong spacing and fast sheet fill.</p>
                 </article>
@@ -175,8 +339,7 @@
                         <span class="print-layout-tool-chip">Auto center</span>
                     </div>
                     <div class="print-layout-demo-sheet certificate" aria-hidden="true">
-                        <span class="demo-block one"></span>
-                        <span class="demo-block two"></span>
+                        <img src="./images/certificate.webp" alt="" class="print-layout-demo-image">
                     </div>
                     <p class="print-layout-demo-note">Large artwork stays centered and print-ready with clear margins.</p>
                 </article>
@@ -190,10 +353,7 @@
                         <span class="print-layout-tool-chip">Blank area</span>
                     </div>
                     <div class="print-layout-demo-sheet invitation" aria-hidden="true">
-                        <span class="demo-block one"></span>
-                        <span class="demo-block two"></span>
-                        <span class="demo-block three"></span>
-                        <span class="demo-block blank"></span>
+                        <img src="./images/invitation%20card.webp" alt="" class="print-layout-demo-image">
                     </div>
                     <p class="print-layout-demo-note">The lower blank strip can be reused for business cards, labels, or mini tags.</p>
                 </article>
@@ -219,7 +379,7 @@
                             <h3>Upload Design</h3>
                         </div>
                         <div class="print-layout-step-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M12 16V4"></path><path d="M8 8l4-4 4 4"></path></svg>
+                            <img src="../icons/drag-drop-upload.svg" alt="" loading="lazy" decoding="async" draggable="false">
                         </div>
                     </div>
                     <p>Drop or browse JPG, PNG, WEBP, or PDF files and load the current face instantly.</p>
@@ -231,7 +391,7 @@
                             <h3>Select Layout</h3>
                         </div>
                         <div class="print-layout-step-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path></svg>
+                            <img src="../icons/custom-layout.svg" alt="" loading="lazy" decoding="async" draggable="false">
                         </div>
                     </div>
                     <p>Switch between business card, certificate, invitation, labels, flyer, and custom sheet modes.</p>
@@ -243,7 +403,7 @@
                             <h3>Adjust Settings</h3>
                         </div>
                         <div class="print-layout-step-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M5 19h14"></path><path d="M7 16l4-8 4 6 2-4"></path></svg>
+                            <img src="../icons/margin-control.svg" alt="" loading="lazy" decoding="async" draggable="false">
                         </div>
                     </div>
                     <p>Control margins, spacing, bleed, crop marks, zoom, and smart space fill options.</p>
@@ -255,7 +415,7 @@
                             <h3>Export PDF/JPG</h3>
                         </div>
                         <div class="print-layout-step-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="M8 7l4-4 4 4"></path><path d="M5 15v4h14v-4"></path></svg>
+                            <img src="../icons/pdf-jpg-export.svg" alt="" loading="lazy" decoding="async" draggable="false">
                         </div>
                     </div>
                     <p>Download clean output that is ready for client delivery or print production.</p>
@@ -265,10 +425,8 @@
 
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
+    <div id="site-footer"></div>
+
     <script src="../../js/script.js?v=20260516-1"></script>
-    <script src="./js/aj-print-layout-pro.js?v=20260517-26"></script>
 </body>
 </html>
