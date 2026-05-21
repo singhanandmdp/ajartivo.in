@@ -2,10 +2,13 @@
     "use strict";
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5101";
-    const LIVE_BACKEND_BASE_URL = "https://print-layout-backend.onrender.com";
+    const LIVE_BACKEND_BASE_URL = "https://print-layout-backend.vercel.app";
     const EXPORT_MODAL_COUNTDOWN_START = 3;
     const EXPORT_MODAL_STEP_MS = 650;
     const EXPORT_MODAL_MIN_VISIBLE_MS = 1800;
+    const PDF_JS_CDN_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js";
+    const PDF_JS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
+    let pdfJsLoadPromise = null;
 
     const TOOL_PRESETS = {
         "business-card": {
@@ -46,60 +49,6 @@
         Letter: { label: "Letter", width: 11, height: 8.5 },
         Legal: { label: "Legal", width: 14, height: 8.5 },
         Custom: { label: "Custom", width: 18, height: 12 }
-    };
-
-    const CATEGORY_DATA = [
-        ["business-card", "Business Card", "25-up business card sheets with crop marks, bleed, and clean spacing.", "cardIcon"],
-        ["id-card", "ID Card", "Compact id card layouts with portrait or landscape handling.", "idIcon"],
-        ["certificate", "Certificate", "Two-up certificate layouts with centered spacing and premium balance.", "certificateIcon"],
-        ["invitation-small", "Invitation Card", "Small invitation mode with smart space fill for the open bottom area.", "inviteIcon"],
-        ["sticker", "Sticker", "Dense sticker sheets that stay crisp during export.", "stickerIcon"],
-        ["labels", "Labels", "Label grids that keep alignment clean and production-friendly.", "labelIcon"],
-        ["flyer", "Flyer", "Flyer arrangements for larger artwork and simple imposition.", "flyerIcon"],
-        ["custom", "Custom Layout", "Custom sheet dimensions and flexible repeat settings.", "customIcon"]
-    ];
-
-    const FEATURE_DATA = [
-        ["Auto Layout", "Generate repeated print layouts automatically from a single design.", "autoIcon"],
-        ["Smart Space Fill", "Use leftover invitation space for extra cards, labels, or mini tags.", "spaceIcon"],
-        ["Back To Back Printing", "Keep front and back side previews easy to manage.", "duplexIcon"],
-        ["PDF & JPG Export", "Export high quality output without leaving the browser.", "exportIcon"],
-        ["Margin Control", "Adjust margins for a cleaner print boundary.", "marginIcon"],
-        ["Crop Marks", "Add precise cut marks for finishing work.", "cropIcon"],
-        ["Drag & Drop Upload", "Upload JPG, PNG, WEBP, or PDF files quickly.", "uploadIcon"],
-        ["Live Preview", "See each change update the preview in real time.", "previewIcon"],
-        ["Smart Sheet Optimization", "Keep the sheet efficient while staying print ready.", "optimizeIcon"]
-    ];
-
-    const SIZE_DATA = [
-        ["12x18", "Common for cards, invitation sheets, and mixed layouts."],
-        ["A4", "Best for labels, certificates, and compact print jobs."],
-        ["A3", "More room for larger flyer and poster-style layouts."],
-        ["13x19", "Premium production size with wide layout flexibility."],
-        ["Letter", "Useful for US office workflows and proofs."],
-        ["Legal", "Long format for special jobs and extended compositions."],
-        ["Custom", "User defined sheet size for special production needs."]
-    ];
-
-    const ICON_ASSET_MAP = {
-        cardIcon: "business-card.svg",
-        idIcon: "id-card.svg",
-        certificateIcon: "certificate.svg",
-        inviteIcon: "invitation-card.svg",
-        stickerIcon: "sticker.svg",
-        labelIcon: "labels.svg",
-        flyerIcon: "flyer.svg",
-        customIcon: "custom-layout.svg",
-        autoIcon: "auto-layout.svg",
-        spaceIcon: "smart-space-fill.svg",
-        duplexIcon: "back-to-back-printing.svg",
-        exportIcon: "pdf-jpg-export.svg",
-        marginIcon: "margin-control.svg",
-        cropIcon: "crop-marks.svg",
-        uploadIcon: "drag-drop-upload.svg",
-        previewIcon: "live-preview.svg",
-        optimizeIcon: "smart-sheet-optimization.svg",
-        sheetIcon: "sheet-size.svg"
     };
 
     const state = {
@@ -150,7 +99,6 @@
     function init() {
         cacheDom();
         applyQueryParams();
-        renderStaticSections();
         bindUi();
         syncUi();
         initCanvas();
@@ -169,9 +117,6 @@
     }
 
     function cacheDom() {
-        dom.categoryGrid = document.getElementById("toolCategoryGrid");
-        dom.featureGrid = document.getElementById("featureGrid");
-        dom.sizeGrid = document.getElementById("sizeGrid");
         dom.smartFillPanel = document.getElementById("smartFillPanel");
         dom.smartFillButtons = Array.from(document.querySelectorAll("[data-smart-fill]"));
         dom.toolSelect = document.getElementById("toolModeSelect");
@@ -230,69 +175,7 @@
         dom.smartFillPanel = document.getElementById("smartFillPanel");
     }
 
-    function renderStaticSections() {
-        if (dom.categoryGrid) {
-            dom.categoryGrid.innerHTML = CATEGORY_DATA.map(function (item) {
-                return `<article class="print-layout-tool-card" data-tool-target="${escapeHtml(item[0])}" tabindex="0" role="button" aria-label="Open ${escapeHtml(item[1])} tool">
-                    <span class="print-layout-tool-glow" aria-hidden="true"></span>
-                    <div class="print-layout-card-top">
-                        <span class="print-layout-tool-chip">${escapeHtml(item[1])}</span>
-                        <div class="print-layout-icon" aria-hidden="true">${iconHtml(item[3])}</div>
-                    </div>
-                    <h3>${escapeHtml(item[1])}</h3>
-                    <p>${escapeHtml(item[2])}</p>
-                    <div class="print-layout-tool-footer">
-                        <span class="print-layout-tool-meta">${escapeHtml(item[0].replace(/-/g, " "))}</span>
-                        <span class="print-layout-tool-launch" aria-hidden="true">${iconHtml("arrowIcon")}</span>
-                    </div>
-                </article>`;
-            }).join("");
-        }
-
-        if (dom.featureGrid) {
-            dom.featureGrid.innerHTML = FEATURE_DATA.map(function (item) {
-                return `<article class="print-layout-feature-card">
-                    <div class="print-layout-feature-top">
-                        <div>
-                            <span class="print-layout-section-label">Feature</span>
-                            <h3>${escapeHtml(item[0])}</h3>
-                        </div>
-                        <div class="print-layout-feature-icon" aria-hidden="true">${iconHtml(item[2])}</div>
-                    </div>
-                    <p>${escapeHtml(item[1])}</p>
-                </article>`;
-            }).join("");
-        }
-
-        if (dom.sizeGrid) {
-            dom.sizeGrid.innerHTML = SIZE_DATA.map(function (item) {
-                return `<article class="print-layout-size-card">
-                    <div class="print-layout-size-top">
-                        <div>
-                            <span class="print-layout-size-chip">${escapeHtml(item[0])}</span>
-                            <h3>${escapeHtml(item[0])}</h3>
-                        </div>
-                        <div class="print-layout-size-icon" aria-hidden="true">${iconHtml("sheetIcon")}</div>
-                    </div>
-                    <p>${escapeHtml(item[1])}</p>
-                </article>`;
-            }).join("");
-        }
-    }
-
     function bindUi() {
-        document.querySelectorAll("[data-tool-target]").forEach(function (button) {
-            button.addEventListener("click", function () {
-                openTool(button.getAttribute("data-tool-target") || "business-card");
-            });
-            button.addEventListener("keydown", function (event) {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openTool(button.getAttribute("data-tool-target") || "business-card");
-                }
-            });
-        });
-
         if (dom.toolSelect) {
             dom.toolSelect.addEventListener("change", function (event) {
                 setTool(event.target.value);
@@ -523,18 +406,6 @@
         window.addEventListener("resize", debounce(function () {
             resizeStages();
         }, 120));
-    }
-
-    function openTool(toolId) {
-        const safeTool = TOOL_PRESETS[toolId] ? toolId : "business-card";
-        const targetUrl = buildToolUrl(safeTool);
-        window.location.href = targetUrl;
-    }
-
-    function buildToolUrl(toolId) {
-        const url = new URL("studio.html", window.location.href);
-        url.searchParams.set("tool", toolId);
-        return url.pathname + url.search + url.hash;
     }
 
     function bindRange(input, output, onChange) {
@@ -816,10 +687,6 @@
             return;
         }
 
-        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
-        }
-
         canvas.previewStage = new Konva.Stage({
             container: dom.previewMount,
             width: dom.previewMount.clientWidth || 720,
@@ -836,6 +703,36 @@
         canvas.previewStage.width(dom.previewMount.clientWidth || 720);
         canvas.previewStage.height(dom.previewMount.clientHeight || 560);
         scheduleRender();
+    }
+
+    function ensurePdfJs() {
+        if (window.pdfjsLib) {
+            if (window.pdfjsLib.GlobalWorkerOptions) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_JS_WORKER_URL;
+            }
+            return Promise.resolve(window.pdfjsLib);
+        }
+
+        if (!pdfJsLoadPromise) {
+            pdfJsLoadPromise = new Promise(function (resolve, reject) {
+                const script = document.createElement("script");
+                script.src = PDF_JS_CDN_URL;
+                script.async = true;
+                script.onload = function () {
+                    if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_JS_WORKER_URL;
+                    }
+                    resolve(window.pdfjsLib);
+                };
+                script.onerror = function () {
+                    pdfJsLoadPromise = null;
+                    reject(new Error("PDF.js unavailable"));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        return pdfJsLoadPromise;
     }
 
     function scheduleRender() {
@@ -1231,11 +1128,9 @@
     }
 
     function renderPdfPreview(file) {
-        if (!window.pdfjsLib) {
-            return Promise.reject(new Error("PDF.js unavailable"));
-        }
-        const bufferPromise = file.arrayBuffer();
-        return bufferPromise.then(function (buffer) {
+        return ensurePdfJs().then(function () {
+            return file.arrayBuffer();
+        }).then(function (buffer) {
             return window.pdfjsLib.getDocument({ data: buffer }).promise;
         }).then(function (pdf) {
             return pdf.getPage(1);
@@ -1416,29 +1311,25 @@
     }
 
     async function exportSheet(format) {
-        if (state.toolId === "business-card" && shouldUseBackendExport()) {
-            try {
-                await exportSheetViaBackend(format);
-                return;
-            } catch (error) {
-                console.error(error);
-                setStatus("Backend export failed, falling back to browser export.");
-            }
-        }
-
-        await exportSheetLegacy(format);
-    }
-
-    function shouldUseBackendExport() {
-        return Boolean(
-            (state.frontAsset && state.frontAsset.sourceKind === "backend-preview") ||
-            (state.backAsset && state.backAsset.sourceKind === "backend-preview")
-        );
+        await exportSheetViaBackend(format);
     }
 
     async function exportSheetViaBackend(format) {
-        const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/export");
+        if (!canvas.previewStage) {
+            setStatus("Please upload a file first.");
+            return;
+        }
+
         const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
+        const sheet = getSheetDimensions();
+        const exportDpi = 300;
+        const exportRect = state.previewExportRect || { x: 0, y: 0, width: canvas.previewStage.width(), height: canvas.previewStage.height() };
+        const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
+        const pixelRatio = targetWidth / Math.max(1, exportRect.width);
+        const hasBackSide = Boolean(state.backAsset);
+        const sidesToCapture = format === "jpg"
+            ? [state.activeSide === "back" && hasBackSide ? "back" : "front"]
+            : (hasBackSide ? ["front", "back"] : ["front"]);
         const formData = new FormData();
         formData.append("format", format === "jpg" ? "jpg" : "pdf");
         formData.append("settings", JSON.stringify({
@@ -1460,18 +1351,20 @@
         }));
         formData.append("activeSide", state.activeSide);
 
-        const frontAsset = state.frontAsset || state.backAsset;
-        const backAsset = state.backAsset;
-        if (frontAsset && frontAsset.exportBlob) {
-            formData.append("frontFile", frontAsset.exportBlob, frontAsset.name || "front.jpg");
-        }
-        if (backAsset && backAsset.exportBlob) {
-            formData.append("backFile", backAsset.exportBlob, backAsset.name || "back.jpg");
-        }
-
-        setStatus("Sending the file to the export engine...");
+        setStatus("Preparing the preview for backend export...");
         await waitForPaint();
 
+        for (let i = 0; i < sidesToCapture.length; i += 1) {
+            const side = sidesToCapture[i];
+            const dataUrl = patchJpegDpi(await captureExportPageDataUrl(side, exportRect, pixelRatio), exportDpi);
+            const blob = await dataUrlToBlob(dataUrl);
+            formData.append(side === "back" ? "renderedBack" : "renderedFront", blob, `${fileBase}-${side}.jpg`);
+        }
+
+        setStatus("Sending the rendered preview to the export backend...");
+        await waitForPaint();
+
+        const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/export");
         const response = await fetch(backendUrl, {
             method: "POST",
             body: formData,
@@ -1487,87 +1380,32 @@
         const fileName = format === "jpg" ? `${fileBase}.jpg` : `${fileBase}.pdf`;
         downloadBlob(blob, fileName);
         setStatus(format === "jpg"
-            ? "JPG export generated by backend at 300 DPI."
-            : (state.backAsset ? "PDF export generated by backend with front and back pages." : "PDF export generated by backend with a single page."));
+            ? "JPG export generated by the backend from the live preview."
+            : (hasBackSide ? "PDF export generated by the backend from front and back previews." : "PDF export generated by the backend from a single preview page."));
     }
 
-    async function exportSheetLegacy(format) {
-        if (!canvas.previewStage) {
-            setStatus("Please upload a file first.");
-            return;
-        }
-        const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
-        const sheet = getSheetDimensions();
-        const exportDpi = 300;
-        const exportRect = state.previewExportRect || { x: 0, y: 0, width: canvas.previewStage.width(), height: canvas.previewStage.height() };
-        const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
-        const targetHeight = Math.max(1, Math.round(sheet.height * exportDpi));
-        const pixelRatio = targetWidth / Math.max(1, exportRect.width);
-        setStatus("Rendering the sheet in browser...");
-        await waitForPaint();
-        const target = patchJpegDpi(canvas.previewStage.toDataURL({
-            x: exportRect.x,
-            y: exportRect.y,
-            width: exportRect.width,
-            height: exportRect.height,
-            pixelRatio: pixelRatio,
-            mimeType: "image/jpeg",
-            quality: 0.98
-        }), exportDpi);
-
-        if (format === "jpg") {
-            downloadUrl(target, fileBase + ".jpg");
-            setStatus("JPG export generated at " + exportDpi + " DPI.");
-            return;
-        }
-
-        if (!window.jspdf || !window.jspdf.jsPDF) {
-            setStatus("jsPDF is unavailable, so PDF export could not run.");
-            return;
-        }
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({
-            orientation: sheet.width >= sheet.height ? "landscape" : "portrait",
-            unit: "in",
-            format: [sheet.width, sheet.height]
-        });
-        const frontTarget = await captureLegacyPdfPage("front", exportDpi, exportRect, pixelRatio);
-        const hasBackSide = Boolean(state.backAsset);
-        const backTarget = hasBackSide ? await captureLegacyPdfPage("back", exportDpi, exportRect, pixelRatio) : null;
-
-        doc.addImage(frontTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
-        if (backTarget) {
-            doc.addPage([sheet.width, sheet.height], sheet.width >= sheet.height ? "landscape" : "portrait");
-            doc.addImage(backTarget, "JPEG", 0, 0, sheet.width, sheet.height, undefined, "FAST");
-        }
-        doc.save(fileBase + ".pdf");
-        setStatus(backTarget ? "PDF export generated with front and back pages." : "PDF export generated with a single page.");
-    }
-
-    async function captureLegacyPdfPage(side, exportDpi, exportRect, pixelRatio) {
+    async function captureExportPageDataUrl(side, exportRect, pixelRatio) {
         const originalSide = state.activeSide;
         state.activeSide = side === "back" ? "back" : "front";
         updateSideButtons();
         selectActiveAsset();
-        await waitForPaint();
-
-        const dataUrl = patchJpegDpi(canvas.previewStage.toDataURL({
-            x: exportRect.x,
-            y: exportRect.y,
-            width: exportRect.width,
-            height: exportRect.height,
-            pixelRatio: pixelRatio,
-            mimeType: "image/jpeg",
-            quality: 0.98
-        }), exportDpi);
-
-        state.activeSide = originalSide;
-        updateSideButtons();
-        selectActiveAsset();
-        scheduleRender();
-
-        return dataUrl;
+        try {
+            await waitForPaint();
+            return canvas.previewStage.toDataURL({
+                x: exportRect.x,
+                y: exportRect.y,
+                width: exportRect.width,
+                height: exportRect.height,
+                pixelRatio: pixelRatio,
+                mimeType: "image/jpeg",
+                quality: 0.98
+            });
+        } finally {
+            state.activeSide = originalSide;
+            updateSideButtons();
+            selectActiveAsset();
+            scheduleRender();
+        }
     }
 
     function waitForPaint() {
@@ -1935,15 +1773,6 @@
         return String(text || "download").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     }
 
-    function escapeHtml(value) {
-        return String(value || "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
-
     function debounce(fn, wait) {
         let timer = 0;
         return function () {
@@ -1953,35 +1782,5 @@
                 fn.apply(null, args);
             }, wait);
         };
-    }
-
-    function iconHtml(name) {
-        const assetFile = ICON_ASSET_MAP[name];
-        if (assetFile) {
-            return `<img src="../icons/${assetFile}" alt="" aria-hidden="true" draggable="false">`;
-        }
-
-        const icons = {
-            cardIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"></rect><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>',
-            idIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"></rect><path d="M8 9h8"></path><path d="M8 13h4"></path><circle cx="16" cy="14" r="1.3"></circle></svg>',
-            certificateIcon: '<svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"></path><path d="M9 7h6"></path><path d="M9 11h6"></path><path d="M12 15l2 3 2-1-1-2"></path></svg>',
-            inviteIcon: '<svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h5"></path><path d="M8 16h4"></path></svg>',
-            stickerIcon: '<svg viewBox="0 0 24 24"><path d="M6 4h12l2 2v12l-2 2H8l-4-4V6z"></path><path d="M8 10h6"></path></svg>',
-            labelIcon: '<svg viewBox="0 0 24 24"><path d="M5 5h10l4 4v10H5z"></path><path d="M15 5v4h4"></path><path d="M8 12h6"></path></svg>',
-            flyerIcon: '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path></svg>',
-            customIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 8h8"></path><path d="M8 12h4"></path></svg>',
-            autoIcon: '<svg viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M12 4v16"></path><path d="M8 8l4-4 4 4"></path><path d="M16 16l-4 4-4-4"></path></svg>',
-            spaceIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"></rect><path d="M8 9h8"></path><path d="M8 13h4"></path><path d="M13 13h3"></path></svg>',
-            duplexIcon: '<svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M13 4v4h5"></path></svg>',
-            exportIcon: '<svg viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="M8 7l4-4 4 4"></path><path d="M5 15v4h14v-4"></path></svg>',
-            marginIcon: '<svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z"></path><path d="M8 8h8"></path><path d="M8 12h4"></path></svg>',
-            cropIcon: '<svg viewBox="0 0 24 24"><path d="M6 3v15h15"></path><path d="M3 6h15v15"></path></svg>',
-            uploadIcon: '<svg viewBox="0 0 24 24"><path d="M12 16V4"></path><path d="M8 8l4-4 4 4"></path><path d="M5 16v4h14v-4"></path></svg>',
-            previewIcon: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="3"></rect><path d="M8 11l2 2 4-5"></path></svg>',
-            optimizeIcon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>',
-            sheetIcon: '<svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"></path><path d="M15 3v4h4"></path></svg>',
-            arrowIcon: '<svg viewBox="0 0 24 24"><path d="M5 12h12"></path><path d="M13 6l6 6-6 6"></path></svg>'
-        };
-        return icons[name] || icons.sheetIcon;
     }
 })();

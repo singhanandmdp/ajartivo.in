@@ -7,11 +7,10 @@
     <meta name="description" content="AJ Print Layout Pro Studio is the live Konva canvas workspace for preset-driven print layout editing, uploads, preview, and export.">
     <meta name="theme-color" content="#f5f8ff">
     <link rel="canonical" href="/tools/aj-print-layout-pro/studio.html">
-    <meta name="ajartivo-print-layout-backend-url" content="https://print-layout-backend.onrender.com">
+    <meta name="ajartivo-print-layout-backend-url" content="https://print-layout-backend.vercel.app">
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
     <script src="../../js/canonical-url.js"></script>
     <link rel="stylesheet" href="../../css/style.css">
-    <link rel="stylesheet" href="../../css/tools-hub.css">
     <link rel="stylesheet" href="./css/aj-print-layout-pro.css">
 </head>
 <body id="top" class="print-layout-page is-studio-mode">
@@ -252,14 +251,14 @@
                         <div class="print-layout-control-head">
                             <div>
                                 <h3>Export</h3>
-                                <p>Use the same preview image for JPG and PDF output.</p>
+                                <p>Preview stays in the browser while JPG and PDF files are prepared by the backend.</p>
                             </div>
                         </div>
                         <div class="print-layout-export-row">
                             <button type="button" class="print-layout-btn primary" id="exportPdfButton">Export PDF</button>
                             <button type="button" class="print-layout-btn secondary" id="exportJpgButton">Export JPG</button>
                         </div>
-                        <p class="print-layout-support-note" id="supportNote">Upload JPG, PNG, WEBP, or PDF files. Export opens a short loading popup before the file starts downloading.</p>
+                        <p class="print-layout-support-note" id="supportNote">Upload JPG, PNG, WEBP, or PDF files. Export uses the live preview and the backend to prepare the download.</p>
                     </article>
                 </aside>
 
@@ -331,9 +330,7 @@
     <div id="site-footer"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
     <script src="../../js/script.js?v=20260516-1"></script>
-    <script src="./js/aj-print-layout-pro.js?v=20260519-1"></script>
+    <script src="./js/aj-print-layout-pro.js?v=20260521-1"></script>
 </body>
 </html>
