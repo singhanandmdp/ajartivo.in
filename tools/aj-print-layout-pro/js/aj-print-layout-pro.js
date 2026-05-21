@@ -91,7 +91,12 @@
     const exportUi = {
         countdownTimer: 0,
         startTime: 0,
-        isVisible: false
+        isVisible: false,
+        isErrored: false,
+        lastFormat: "",
+        lastError: "",
+        abortController: null,
+        dismissRequested: false
     };
 
     document.addEventListener("DOMContentLoaded", init);
@@ -167,10 +172,14 @@
         dom.exportPdf = document.getElementById("exportPdfButton");
         dom.exportJpg = document.getElementById("exportJpgButton");
         dom.exportModal = document.getElementById("exportStatusModal");
+        dom.exportModalBackdrop = dom.exportModal && dom.exportModal.querySelector(".print-layout-export-modal-backdrop");
+        dom.exportModalClose = document.getElementById("exportModalCloseButton");
         dom.exportModalTitle = document.getElementById("exportModalTitle");
         dom.exportModalStatus = document.getElementById("exportModalStatus");
         dom.exportModalCountdown = document.getElementById("exportModalCountdown");
         dom.exportModalProgress = document.getElementById("exportModalProgress");
+        dom.exportModalNote = document.getElementById("exportModalNote");
+        dom.exportModalRetry = document.getElementById("exportModalRetryButton");
         dom.layoutSheetLabel = document.getElementById("layoutSheetLabel");
         dom.smartFillPanel = document.getElementById("smartFillPanel");
     }
@@ -400,6 +409,26 @@
         if (dom.exportJpg) {
             dom.exportJpg.addEventListener("click", function () {
                 runExport("jpg");
+            });
+        }
+
+        if (dom.exportModalRetry) {
+            dom.exportModalRetry.addEventListener("click", function () {
+                if (exportUi.lastFormat && !state.isExporting) {
+                    runExport(exportUi.lastFormat);
+                }
+            });
+        }
+
+        if (dom.exportModalClose) {
+            dom.exportModalClose.addEventListener("click", function () {
+                closeExportModal();
+            });
+        }
+
+        if (dom.exportModalBackdrop) {
+            dom.exportModalBackdrop.addEventListener("click", function () {
+                closeExportModal();
             });
         }
 
@@ -1288,25 +1317,42 @@
         }
 
         state.isExporting = true;
+        exportUi.lastFormat = format;
+        exportUi.lastError = "";
+        exportUi.isErrored = false;
+        exportUi.dismissRequested = false;
         const startedAt = Date.now();
         beginExportFeedback(format);
+
+        let exportSucceeded = false;
+        let exportCancelled = false;
 
         try {
             setStatus(format === "jpg" ? "Preparing JPG download..." : "Preparing PDF download...");
             await waitForPaint();
             await sleep(120);
             await exportSheet(format);
+            exportSucceeded = true;
         } catch (error) {
             console.error(error);
-            setStatus("Export failed. Please try again.");
+            if (isAbortError(error)) {
+                exportCancelled = true;
+            } else {
+                showExportFailure(error, format);
+            }
         } finally {
             const elapsed = Date.now() - startedAt;
-            if (elapsed < EXPORT_MODAL_MIN_VISIBLE_MS) {
+            if (exportSucceeded && elapsed < EXPORT_MODAL_MIN_VISIBLE_MS) {
                 await sleep(EXPORT_MODAL_MIN_VISIBLE_MS - elapsed);
             }
 
-            finishExportFeedback();
             state.isExporting = false;
+            if (exportSucceeded || exportCancelled) {
+                finishExportFeedback();
+                if (exportCancelled) {
+                    setStatus("Export cancelled.");
+                }
+            }
         }
     }
 
@@ -1365,11 +1411,30 @@
         await waitForPaint();
 
         const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/export");
-        const response = await fetch(backendUrl, {
-            method: "POST",
-            body: formData,
-            credentials: "include"
-        });
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        exportUi.abortController = controller;
+
+        if (exportUi.dismissRequested) {
+            if (controller) {
+                controller.abort();
+            } else {
+                throw new Error("Export cancelled.");
+            }
+        }
+
+        let response;
+        try {
+            response = await fetch(backendUrl, {
+                method: "POST",
+                body: formData,
+                credentials: "include",
+                signal: controller ? controller.signal : undefined
+            });
+        } finally {
+            if (exportUi.abortController === controller) {
+                exportUi.abortController = null;
+            }
+        }
 
         if (!response.ok) {
             const message = await readErrorText(response);
@@ -1426,6 +1491,7 @@
         if (!dom.exportModal) return;
 
         exportUi.isVisible = true;
+        exportUi.isErrored = false;
         exportUi.startTime = Date.now();
 
         if (exportUi.countdownTimer) {
@@ -1441,6 +1507,10 @@
             dom.exportModalStatus.textContent = "Optimizing the sheet and starting the export engine...";
         }
 
+        if (dom.exportModalNote) {
+            dom.exportModalNote.textContent = "Please keep this tab open. The file will download as soon as the preview is ready.";
+        }
+
         if (dom.exportModalCountdown) {
             dom.exportModalCountdown.textContent = String(EXPORT_MODAL_COUNTDOWN_START);
         }
@@ -1449,7 +1519,12 @@
             dom.exportModalProgress.style.width = "18%";
         }
 
+        if (dom.exportModalRetry) {
+            dom.exportModalRetry.hidden = true;
+        }
+
         dom.exportModal.classList.add("is-visible");
+        dom.exportModal.classList.remove("is-error");
         updateExportButtons(true);
 
         let remaining = EXPORT_MODAL_COUNTDOWN_START;
@@ -1502,6 +1577,7 @@
 
     function finishExportFeedback() {
         exportUi.isVisible = false;
+        exportUi.isErrored = false;
 
         if (exportUi.countdownTimer) {
             clearInterval(exportUi.countdownTimer);
@@ -1510,6 +1586,10 @@
 
         if (dom.exportModal) {
             dom.exportModal.classList.remove("is-visible");
+            dom.exportModal.classList.remove("is-error");
+        }
+        if (dom.exportModalRetry) {
+            dom.exportModalRetry.hidden = true;
         }
         updateExportButtons(false);
 
@@ -1520,6 +1600,64 @@
         if (dom.exportModalProgress) {
             dom.exportModalProgress.style.width = "0%";
         }
+
+        if (dom.exportModalNote) {
+            dom.exportModalNote.textContent = "Please keep this tab open. The file will download as soon as the preview is ready.";
+        }
+    }
+
+    function showExportFailure(error, format) {
+        const message = cleanText(error && error.message) || "Export failed. Please try again.";
+        exportUi.lastError = message;
+        exportUi.isErrored = true;
+
+        if (dom.exportModal) {
+            dom.exportModal.classList.add("is-visible");
+            dom.exportModal.classList.add("is-error");
+        }
+
+        if (dom.exportModalTitle) {
+            dom.exportModalTitle.textContent = format === "jpg" ? "JPG export failed" : "PDF export failed";
+        }
+
+        if (dom.exportModalStatus) {
+            dom.exportModalStatus.textContent = message;
+        }
+
+        if (dom.exportModalCountdown) {
+            dom.exportModalCountdown.textContent = "!";
+        }
+
+        if (dom.exportModalProgress) {
+            dom.exportModalProgress.style.width = "100%";
+        }
+
+        if (dom.exportModalNote) {
+            dom.exportModalNote.textContent = "You can retry the export or close this popup.";
+        }
+
+        if (dom.exportModalRetry) {
+            dom.exportModalRetry.hidden = false;
+        }
+    }
+
+    function closeExportModal() {
+        exportUi.dismissRequested = true;
+        if (exportUi.abortController) {
+            try {
+                exportUi.abortController.abort();
+            } catch (_error) {
+                // Ignore abort failures.
+            }
+        }
+
+        finishExportFeedback();
+    }
+
+    function isAbortError(error) {
+        const name = String(error && error.name || "").toLowerCase();
+        const message = String(error && error.message || "").toLowerCase();
+        return name === "aborterror" || message.indexOf("aborted") !== -1 || message.indexOf("cancelled") !== -1;
     }
 
     function updateExportButtons(isDisabled) {

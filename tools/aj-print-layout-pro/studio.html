@@ -309,6 +309,12 @@
     <div class="print-layout-export-modal" id="exportStatusModal" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="exportModalTitle" aria-describedby="exportModalStatus">
         <div class="print-layout-export-modal-backdrop" aria-hidden="true"></div>
         <div class="print-layout-export-modal-card">
+            <button type="button" class="print-layout-export-close" id="exportModalCloseButton" aria-label="Close export popup">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18 6 6 18"></path>
+                    <path d="M6 6 18 18"></path>
+                </svg>
+            </button>
             <div class="print-layout-export-orbit" aria-hidden="true">
                 <span></span>
                 <span></span>
@@ -323,7 +329,10 @@
             <div class="print-layout-export-track" aria-hidden="true">
                 <span id="exportModalProgress"></span>
             </div>
-            <p class="print-layout-export-note">Please keep this tab open. The file will download as soon as the preview is ready.</p>
+            <p class="print-layout-export-note" id="exportModalNote">Please keep this tab open. The file will download as soon as the preview is ready.</p>
+            <div class="print-layout-export-actions">
+                <button type="button" class="print-layout-btn secondary print-layout-export-retry" id="exportModalRetryButton" hidden>Retry</button>
+            </div>
         </div>
     </div>
 
