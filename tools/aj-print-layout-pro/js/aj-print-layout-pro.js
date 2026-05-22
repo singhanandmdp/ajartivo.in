@@ -2367,12 +2367,15 @@
         anchor.rel = "noopener";
         anchor.style.display = "none";
         document.body.appendChild(anchor);
-        window.requestAnimationFrame(function () {
+
+        // Click synchronously so the browser keeps the user gesture for the download.
+        try {
             anchor.click();
+        } finally {
             window.setTimeout(function () {
                 anchor.remove();
             }, 0);
-        });
+        }
     }
 
     function downloadBlob(blob, fileName) {
@@ -2384,7 +2387,7 @@
             } catch (_error) {
                 // Ignore revocation failures.
             }
-        }, 4000);
+        }, 10000);
     }
 
     function getDownloadFileName(response, fallbackBase, format) {
