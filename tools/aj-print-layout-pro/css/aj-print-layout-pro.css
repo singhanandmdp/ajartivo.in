@@ -754,6 +754,55 @@ body.print-layout-page {
     outline-offset: 2px;
 }
 
+.print-layout-thumb-rotate {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(15, 23, 42, 0.48);
+    color: rgba(255, 255, 255, 0.92);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.16);
+    opacity: 0.95;
+    transition: transform 180ms ease, opacity 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.print-layout-thumb-rotate svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.print-layout-thumb-rotate:hover,
+.print-layout-thumb-rotate:focus-visible {
+    transform: scale(1.06);
+    opacity: 1;
+    background: rgba(15, 23, 42, 0.66);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
+.print-layout-thumb-rotate:focus-visible {
+    outline: 2px solid rgba(96, 165, 250, 0.55);
+    outline-offset: 2px;
+}
+
+.print-layout-thumb-rotate:disabled {
+    opacity: 0.34;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .print-layout-upload-thumb img {
     width: 100%;
     height: 100%;
@@ -1672,6 +1721,20 @@ body.print-layout-page {
 
 .print-layout-thumb-upload:hover,
 .print-layout-thumb-upload:focus-visible {
+    background: rgba(37, 99, 235, 0.16);
+    color: #10203a;
+    border-color: rgba(37, 99, 235, 0.32);
+}
+
+.print-layout-thumb-rotate {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(37, 99, 235, 0.22);
+    color: #10203a;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.08);
+}
+
+.print-layout-thumb-rotate:hover,
+.print-layout-thumb-rotate:focus-visible {
     background: rgba(37, 99, 235, 0.16);
     color: #10203a;
     border-color: rgba(37, 99, 235, 0.32);

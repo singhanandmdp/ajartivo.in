@@ -63,11 +63,23 @@
                             <article class="print-layout-upload-thumb">
                                 <img id="frontThumb" alt="">
                                 <button type="button" class="print-layout-thumb-upload" data-thumb-upload="front" aria-label="Upload front design">+</button>
+                                <button type="button" class="print-layout-thumb-rotate" data-thumb-rotate="front" aria-label="Rotate front design 90 degrees">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M7 7a8 8 0 1 1-1 8"></path>
+                                        <path d="M7 3v4h4"></path>
+                                    </svg>
+                                </button>
                                 <span id="frontName">Front Side</span>
                             </article>
                             <article class="print-layout-upload-thumb">
                                 <img id="backThumb" alt="">
                                 <button type="button" class="print-layout-thumb-upload" data-thumb-upload="back" aria-label="Upload back design">+</button>
+                                <button type="button" class="print-layout-thumb-rotate" data-thumb-rotate="back" aria-label="Rotate back design 90 degrees">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M7 7a8 8 0 1 1-1 8"></path>
+                                        <path d="M7 3v4h4"></path>
+                                    </svg>
+                                </button>
                                 <span id="backName">Back Side</span>
                             </article>
                         </div>
@@ -77,39 +89,11 @@
                         <div class="print-layout-control-head">
                             <div>
                                 <h3>Layout Settings</h3>
-                                <p>Adjust the sheet from the drop-downs and sliders below.</p>
+                                <p>Adjust the preview using the controls below.</p>
                             </div>
                         </div>
 
                         <div class="print-layout-control-list">
-                            <div class="print-layout-control">
-                                <label for="toolModeSelect">Layout mode <small>Current setup</small></label>
-                                <select id="toolModeSelect">
-                                    <option value="business-card">Business Card</option>
-                                    <option value="id-card">ID Card</option>
-                                    <option value="certificate">Certificate</option>
-                                    <option value="invitation-small">Invitation Card</option>
-                                    <option value="invitation-large">Large Invitation</option>
-                                    <option value="sticker">Sticker</option>
-                                    <option value="labels">Labels</option>
-                                    <option value="flyer">Flyer</option>
-                                    <option value="custom">Custom Layout</option>
-                                </select>
-                            </div>
-
-                            <div class="print-layout-control">
-                                <label for="sheetSizeSelect">Sheet size <small id="layoutSheetLabel">12x18</small></label>
-                                <select id="sheetSizeSelect">
-                                    <option value="12x18">12x18</option>
-                                    <option value="A4">A4</option>
-                                    <option value="A3">A3</option>
-                                    <option value="13x19">13x19</option>
-                                    <option value="Letter">Letter</option>
-                                    <option value="Legal">Legal</option>
-                                    <option value="Custom">Custom</option>
-                                </select>
-                            </div>
-
                             <div class="print-layout-control print-layout-hide">
                                 <label for="customWidth">Custom width <small>inch</small></label>
                                 <input id="customWidth" type="number" step="0.1" min="4" max="40" value="12">
@@ -160,10 +144,10 @@
                                         <input id="businessBorderMargin" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="0.125">
                                     </div>
                                     <div class="print-layout-control">
-                                        <label for="businessCardRotation">Card rotation <small>portrait / landscape</small></label>
+                                        <label for="businessCardRotation">Sheet rotation <small>portrait / landscape</small></label>
                                         <select id="businessCardRotation">
                                             <option value="0">Portrait</option>
-                                            <option value="90" selected>Landscape</option>
+                                            <option value="90">Landscape</option>
                                         </select>
                                     </div>
                                     <div class="print-layout-checkbox-row">
@@ -190,14 +174,6 @@
                                         </label>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="print-layout-control">
-                                <label for="orientationSelect">Orientation <small>Landscape or portrait</small></label>
-                                <select id="orientationSelect">
-                                    <option value="landscape" selected>Landscape</option>
-                                    <option value="portrait">Portrait</option>
-                                </select>
                             </div>
 
                             <div class="print-layout-control">
@@ -247,6 +223,9 @@
                         </div>
                     </article>
 
+                </aside>
+
+                <section class="print-layout-studio-main">
                     <article class="print-layout-control-card">
                         <div class="print-layout-control-head">
                             <div>
@@ -260,9 +239,22 @@
                         </div>
                         <p class="print-layout-support-note" id="supportNote">Upload JPG, PNG, WEBP, or PDF files. Export uses the live preview and the backend to prepare the download.</p>
                     </article>
-                </aside>
 
-                <section class="print-layout-studio-main">
+                    <article class="print-layout-preview-card">
+                        <div class="print-layout-preview-head">
+                            <div>
+                                <h3>Sheet Preview</h3>
+                                <p>Watch the grid, crop marks, and invitation smart-fill area update live.</p>
+                            </div>
+                            <div class="print-layout-preview-actions">
+                                <span class="print-layout-zoom-hint" id="sheetPreviewZoomHint" aria-hidden="true">Drag to zoom • 100%</span>
+                            </div>
+                        </div>
+                        <div class="print-layout-stage-shell" id="sheetPreviewShell" title="Drag up or down to zoom the preview">
+                            <div id="sheetPreviewMount" class="stage-mount" style="height: 1120px;"></div>
+                        </div>
+                    </article>
+
                     <article class="print-layout-status-card">
                         <div class="print-layout-status-row">
                             <div>
@@ -287,18 +279,6 @@
                                 <span>Mode</span>
                                 <strong id="layoutMeta">Default sheet layout</strong>
                             </div>
-                        </div>
-                    </article>
-
-                    <article class="print-layout-preview-card">
-                        <div class="print-layout-preview-head">
-                            <div>
-                                <h3>Sheet Preview</h3>
-                                <p>Watch the grid, crop marks, and invitation smart-fill area update live.</p>
-                            </div>
-                        </div>
-                        <div class="print-layout-stage-shell">
-                            <div id="sheetPreviewMount" class="stage-mount" style="height: 1120px;"></div>
                         </div>
                     </article>
                 </section>

@@ -18,8 +18,8 @@
             rows: 5,
             sheet: "12x18",
             fit: "cover",
-            orientation: "landscape",
-            businessCardRotation: 90,
+            orientation: "portrait",
+            businessCardRotation: 0,
             businessFitToCard: false,
             margin: 0.125,
             spacing: 0.25,
@@ -55,7 +55,7 @@
         toolId: "business-card",
         activeSide: "front",
         sheetSize: "12x18",
-        orientation: "landscape",
+        orientation: "portrait",
         smartFill: "business-card",
         cropMarks: true,
         margin: 42,
@@ -69,7 +69,7 @@
         businessGapX: 0.25,
         businessGapY: 0.313,
         businessBorderMargin: 0.125,
-        businessCardRotation: 90,
+        businessCardRotation: 0,
         businessFitToCard: false,
         previewBackgroundMode: "white",
         previewBackgroundColor: "#ffffff",
@@ -99,6 +99,13 @@
         dismissRequested: false
     };
 
+    const previewZoomDragState = {
+        active: false,
+        pointerId: null,
+        startY: 0,
+        startZoom: 100
+    };
+
     document.addEventListener("DOMContentLoaded", init);
 
     function init() {
@@ -126,7 +133,6 @@
         dom.smartFillButtons = Array.from(document.querySelectorAll("[data-smart-fill]"));
         dom.toolSelect = document.getElementById("toolModeSelect");
         dom.sheetSelect = document.getElementById("sheetSizeSelect");
-        dom.orientationSelect = document.getElementById("orientationSelect");
         dom.smartFillSelect = document.getElementById("smartFillSelect");
         dom.customWidth = document.getElementById("customWidth");
         dom.customHeight = document.getElementById("customHeight");
@@ -158,6 +164,7 @@
         dom.browseButton = document.getElementById("printLayoutBrowseButton");
         dom.clearButton = document.getElementById("printLayoutClearButton");
         dom.thumbUploadButtons = Array.from(document.querySelectorAll("[data-thumb-upload]"));
+        dom.thumbRotateButtons = Array.from(document.querySelectorAll("[data-thumb-rotate]"));
         dom.frontThumb = document.getElementById("frontThumb");
         dom.backThumb = document.getElementById("backThumb");
         dom.frontName = document.getElementById("frontName");
@@ -199,13 +206,6 @@
             });
         }
 
-        if (dom.orientationSelect) {
-            dom.orientationSelect.addEventListener("change", function (event) {
-                state.orientation = event.target.value;
-                scheduleRender();
-            });
-        }
-
         bindBusinessCardInput(dom.businessCardWidth, function (value) {
             state.businessCardWidth = value;
             syncUi();
@@ -233,7 +233,7 @@
 
         if (dom.businessCardRotation) {
             dom.businessCardRotation.addEventListener("change", function (event) {
-                state.businessCardRotation = Number(event.target.value) === 90 ? 90 : 0;
+                setSheetOrientation(event.target.value);
                 syncUi();
                 scheduleRender();
             });
@@ -400,6 +400,13 @@
             });
         });
 
+        dom.thumbRotateButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                const side = button.getAttribute("data-thumb-rotate") === "back" ? "back" : "front";
+                void rotateUploadedAsset(side);
+            });
+        });
+
         if (dom.exportPdf) {
             dom.exportPdf.addEventListener("click", function () {
                 runExport("pdf");
@@ -491,8 +498,7 @@
         state.toolId = TOOL_PRESETS[toolId] ? toolId : "business-card";
         const preset = TOOL_PRESETS[state.toolId];
         state.sheetSize = preset.sheet || "12x18";
-        state.orientation = preset.orientation || "portrait";
-        state.businessCardRotation = preset.businessCardRotation != null ? Number(preset.businessCardRotation) : state.businessCardRotation;
+        setSheetOrientation(preset.orientation || "portrait");
         state.businessFitToCard = preset.businessFitToCard != null ? Boolean(preset.businessFitToCard) : state.businessFitToCard;
         state.smartFill = preset.smartFill || (state.toolId === "invitation-small" ? "business-card" : "business-card");
         state.margin = Number(preset.margin != null ? preset.margin : state.margin);
@@ -509,7 +515,7 @@
         state.businessGapX = 0.25;
         state.businessGapY = 0.313;
         state.businessBorderMargin = 0.125;
-        state.businessCardRotation = 90;
+        setSheetOrientation("portrait");
         state.businessFitToCard = false;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
@@ -525,7 +531,6 @@
         const tool = TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"];
         if (dom.toolSelect) dom.toolSelect.value = state.toolId;
         if (dom.sheetSelect) dom.sheetSelect.value = state.sheetSize;
-        if (dom.orientationSelect) dom.orientationSelect.value = state.orientation;
         if (dom.smartFillSelect) dom.smartFillSelect.value = state.smartFill;
         if (dom.customWidth) dom.customWidth.value = state.customWidth;
         if (dom.customHeight) dom.customHeight.value = state.customHeight;
@@ -534,7 +539,7 @@
         if (dom.businessGapX) dom.businessGapX.value = state.businessGapX;
         if (dom.businessGapY) dom.businessGapY.value = state.businessGapY;
         if (dom.businessBorderMargin) dom.businessBorderMargin.value = state.businessBorderMargin;
-        if (dom.businessCardRotation) dom.businessCardRotation.value = String(state.businessCardRotation);
+        if (dom.businessCardRotation) dom.businessCardRotation.value = state.orientation === "portrait" ? "0" : "90";
         if (dom.businessFitToCard) dom.businessFitToCard.checked = state.businessFitToCard;
         if (dom.previewBackgroundMode) dom.previewBackgroundMode.value = state.previewBackgroundMode;
         if (dom.previewBackgroundColor) dom.previewBackgroundColor.value = state.previewBackgroundColor;
@@ -619,6 +624,18 @@
         if (dom.backName) dom.backName.textContent = state.backAsset ? state.backAsset.name : "Back Side";
         if (dom.frontThumb) setThumb(dom.frontThumb, state.frontAsset);
         if (dom.backThumb) setThumb(dom.backThumb, state.backAsset);
+        if (dom.thumbRotateButtons) {
+            dom.thumbRotateButtons.forEach(function (button) {
+                const side = button.getAttribute("data-thumb-rotate") === "back" ? "back" : "front";
+                const asset = side === "back" ? state.backAsset : state.frontAsset;
+                const sideLabel = side === "back" ? "back" : "front";
+                button.disabled = !asset || asset.isRotating;
+                button.setAttribute(
+                    "aria-label",
+                    asset ? "Rotate " + sideLabel + " design 90 degrees" : "Upload " + sideLabel + " design before rotating"
+                );
+            });
+        }
     }
 
     function setThumb(node, asset) {
@@ -635,7 +652,7 @@
     }
 
     function isBusinessCardLandscape() {
-        return state.toolId === "business-card" && Number(state.businessCardRotation) === 90;
+        return state.toolId === "business-card" && state.orientation === "landscape";
     }
 
     function getBusinessCardLayout(dimensions) {
@@ -689,7 +706,9 @@
                 previewUrl: assetPreview.previewUrl,
                 exportBlob: assetPreview.exportBlob,
                 sourceKind: assetPreview.sourceKind,
-                image: assetPreview.image || await loadImage(assetPreview.preview)
+                image: assetPreview.image || await loadImage(assetPreview.preview),
+                rotation: 0,
+                isRotating: false
             };
 
             if (state.activeSide === "back") {
@@ -1241,6 +1260,75 @@
     async function dataUrlToBlob(dataUrl) {
         const response = await fetch(dataUrl);
         return response.blob();
+    }
+
+    function setSheetOrientation(value) {
+        const isLandscape = String(value).toLowerCase() === "landscape" || Number(value) === 90;
+        state.orientation = isLandscape ? "landscape" : "portrait";
+        state.businessCardRotation = isLandscape ? 90 : 0;
+    }
+
+    async function rotateUploadedAsset(side) {
+        const asset = side === "back" ? state.backAsset : state.frontAsset;
+        const sideLabel = side === "back" ? "back" : "front";
+
+        if (!asset || !asset.image) {
+            setStatus("Upload a " + sideLabel + " design first.");
+            return;
+        }
+
+        if (asset.isRotating) {
+            return;
+        }
+
+        asset.isRotating = true;
+        updateThumbs();
+
+        try {
+            const rotatedPreview = createRotatedDataUrl(asset.image, 90);
+            const rotatedImage = await loadImage(rotatedPreview);
+            const previousPreviewUrl = asset.previewUrl || asset.preview;
+
+            asset.preview = rotatedPreview;
+            asset.previewUrl = rotatedPreview;
+            asset.image = rotatedImage;
+            asset.rotation = ((Number(asset.rotation) || 0) + 90) % 360;
+
+            if (previousPreviewUrl && typeof previousPreviewUrl === "string" && previousPreviewUrl.startsWith("blob:")) {
+                releaseAssetPreview({ previewUrl: previousPreviewUrl });
+            }
+
+            setStatus("Rotated the " + sideLabel + " design 90 degrees.");
+        } catch (error) {
+            console.error(error);
+            setStatus("Rotation failed. Please try again.");
+        } finally {
+            asset.isRotating = false;
+            updateThumbs();
+            scheduleRender();
+        }
+    }
+
+    function createRotatedDataUrl(image, degrees) {
+        const normalized = ((Number(degrees) % 360) + 360) % 360;
+        const quarterTurn = normalized === 90 || normalized === 270;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+            throw new Error("Canvas unavailable.");
+        }
+
+        canvas.width = quarterTurn ? image.height : image.width;
+        canvas.height = quarterTurn ? image.width : image.height;
+
+        context.save();
+        context.translate(canvas.width / 2, canvas.height / 2);
+        context.rotate(normalized * Math.PI / 180);
+        context.drawImage(image, -image.width / 2, -image.height / 2);
+        context.restore();
+
+        return canvas.toDataURL("image/png");
     }
 
     function resolveBackendBaseUrl(path) {
