@@ -6,6 +6,7 @@
     const EXPORT_MODAL_COUNTDOWN_START = 3;
     const EXPORT_MODAL_STEP_MS = 650;
     const EXPORT_MODAL_MIN_VISIBLE_MS = 1800;
+    const EXPORT_DPI = 300;
     const PDF_JS_CDN_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js";
     const PDF_JS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
     let pdfJsLoadPromise = null;
@@ -818,8 +819,9 @@
         const x = Math.max(0, (width - previewWidth) / 2);
         const y = Math.max(0, (height - previewHeight) / 2);
         state.previewExportRect = { x: x, y: y, width: previewWidth, height: previewHeight };
-        const pad = Math.max(10, (isBusiness ? state.businessBorderMargin : state.margin * 0.8) * 96 * zoom);
-        const spacing = Math.max(8, (isBusiness ? state.businessGapX : state.spacing / 18) * 96 * zoom);
+        const previewScale = Math.max(1, previewWidth / Math.max(1, dimensions.width));
+        const pad = Math.max(10, (isBusiness ? state.businessBorderMargin : toInches(state.margin)) * previewScale);
+        const spacing = Math.max(8, (isBusiness ? state.businessGapX : toInches(state.spacing)) * previewScale);
         const asset = activeAsset();
         const image = asset && asset.image ? asset.image : null;
 
@@ -1262,6 +1264,469 @@
         return response.blob();
     }
 
+    function toInches(value) {
+        return Number(value || 0) / 72;
+    }
+
+    function buildExportPayload(format) {
+        const sheet = buildExportSheetSpec();
+        const pages = buildExportPages(sheet, format);
+        const sources = {
+            front: buildSourceDescriptor(state.frontAsset, "front"),
+            back: buildSourceDescriptor(state.backAsset, "back")
+        };
+        const layout = {
+            version: 2,
+            toolId: state.toolId,
+            activeSide: state.activeSide,
+            sheet: sheet,
+            pages: pages,
+            items: pages.length ? pages[0].items : [],
+            marks: pages.length ? pages[0].marks : [],
+            sources: sources,
+            export: { format: format === "jpg" ? "jpg" : "pdf" }
+        };
+
+        return {
+            settings: {
+                toolId: state.toolId,
+                sheetSize: state.sheetSize,
+                orientation: state.orientation,
+                activeSide: state.activeSide,
+                businessCardWidth: state.businessCardWidth,
+                businessCardHeight: state.businessCardHeight,
+                businessGapX: state.businessGapX,
+                businessGapY: state.businessGapY,
+                businessBorderMargin: state.businessBorderMargin,
+                businessCardRotation: state.businessCardRotation,
+                businessFitToCard: state.businessFitToCard,
+                businessCutMarks: state.businessCutMarks,
+                businessCutLeft: state.businessCutLeft,
+                businessCutTop: state.businessCutTop,
+                previewBackgroundMode: state.previewBackgroundMode,
+                previewBackgroundColor: state.previewBackgroundColor,
+                customWidth: state.customWidth,
+                customHeight: state.customHeight,
+                margin: state.margin,
+                spacing: state.spacing,
+                bleed: state.bleed,
+                zoom: state.zoom,
+                sheet: sheet,
+                layout: layout,
+                pages: pages,
+                items: layout.items,
+                export: layout.export
+            },
+            frontFile: buildFilePayload(state.frontAsset, "front"),
+            backFile: buildFilePayload(state.backAsset, "back"),
+            hasBackSide: Boolean(state.backAsset)
+        };
+    }
+
+    function buildExportSheetSpec() {
+        const dimensions = getSheetDimensions();
+        return {
+            width: Number(dimensions.width) || 1,
+            height: Number(dimensions.height) || 1,
+            dpi: EXPORT_DPI
+        };
+    }
+
+    function buildExportPages(sheet, format) {
+        const pages = [];
+        const sides = format === "jpg"
+            ? [state.activeSide === "back" && state.backAsset ? "back" : "front"]
+            : (state.backAsset ? ["front", "back"] : ["front"]);
+
+        for (let i = 0; i < sides.length; i += 1) {
+            const side = sides[i];
+            const asset = getAssetForSide(side);
+            if (!asset) {
+                continue;
+            }
+
+            const page = buildLayoutPage(side, asset, sheet);
+            if (page && page.items.length) {
+                pages.push(page);
+            }
+        }
+
+        return pages;
+    }
+
+    function buildLayoutPage(side, asset, sheet) {
+        if (state.toolId === "business-card") {
+            return buildBusinessCardPage(side, asset, sheet);
+        }
+
+        if (state.toolId === "invitation-small") {
+            return buildInvitationPage(side, asset, sheet);
+        }
+
+        return buildGenericGridPage(side, asset, sheet);
+    }
+
+    function buildBusinessCardPage(side, asset, sheet) {
+        const isLandscapeCard = isBusinessCardLandscape();
+        const cardWidthIn = isLandscapeCard ? clamp(state.businessCardHeight, 1, 6) : clamp(state.businessCardWidth, 1, 6);
+        const cardHeightIn = isLandscapeCard ? clamp(state.businessCardWidth, 1, 6) : clamp(state.businessCardHeight, 1, 6);
+        const gapXIn = isLandscapeCard ? clamp(state.businessGapY, 0, 1) : clamp(state.businessGapX, 0, 1);
+        const gapYIn = isLandscapeCard ? clamp(state.businessGapX, 0, 1) : clamp(state.businessGapY, 0, 1);
+        const placement = buildGridPlacement({
+            sheet: sheet,
+            boundsIn: {
+                x: clamp(state.businessBorderMargin, 0, 1),
+                y: clamp(state.businessBorderMargin, 0, 1),
+                width: Math.max(0, sheet.width - (clamp(state.businessBorderMargin, 0, 1) * 2)),
+                height: Math.max(0, sheet.height - (clamp(state.businessBorderMargin, 0, 1) * 2))
+            },
+            cols: 5,
+            rows: 5,
+            itemCount: 25,
+            itemWidthIn: cardWidthIn,
+            itemHeightIn: cardHeightIn,
+            spacingXIn: gapXIn,
+            spacingYIn: gapYIn,
+            fit: state.businessFitToCard ? "stretch" : "contain",
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            includeMarks: state.businessCutMarks,
+            markShiftXIn: Number(state.businessCutLeft) - 2.402,
+            markShiftYIn: Number(state.businessCutTop) - 3.585,
+            itemInsetIn: state.businessFitToCard ? 0 : Math.max(0.02, Math.min(cardWidthIn, cardHeightIn) * 0.08),
+            itemKind: "business-card"
+        });
+
+        return {
+            side: side,
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            background: state.previewBackgroundMode === "color" ? state.previewBackgroundColor : "#ffffff",
+            items: placement.items,
+            marks: placement.marks,
+            grid: placement.grid
+        };
+    }
+
+    function buildGenericGridPage(side, asset, sheet) {
+        const tool = TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"];
+        const spacingIn = toInches(state.spacing);
+        const marginIn = toInches(state.margin);
+        const placement = buildGridPlacement({
+            sheet: sheet,
+            boundsIn: {
+                x: marginIn,
+                y: marginIn,
+                width: Math.max(0, sheet.width - marginIn * 2),
+                height: Math.max(0, sheet.height - marginIn * 2)
+            },
+            cols: Math.max(1, Number(tool.cols) || 1),
+            rows: Math.max(1, Number(tool.rows) || 1),
+            itemCount: Math.max(1, Number(tool.count) || 1),
+            spacingXIn: spacingIn,
+            spacingYIn: spacingIn,
+            fit: tool.fit || "cover",
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            includeMarks: state.cropMarks,
+            itemKind: tool.label || state.toolId
+        });
+
+        return {
+            side: side,
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            background: state.previewBackgroundMode === "color" ? state.previewBackgroundColor : "#ffffff",
+            items: placement.items,
+            marks: placement.marks,
+            grid: placement.grid
+        };
+    }
+
+    function buildInvitationPage(side, asset, sheet) {
+        const spacingIn = toInches(state.spacing);
+        const marginIn = toInches(state.margin);
+        const contentWidthIn = Math.max(0, sheet.width - marginIn * 2);
+        const contentHeightIn = Math.max(0, sheet.height - marginIn * 2);
+        const blankHeightIn = contentHeightIn * 0.32;
+        const topHeightIn = Math.max(0.1, contentHeightIn - blankHeightIn - spacingIn);
+        const cardWidthIn = Math.max(0.1, (contentWidthIn - spacingIn * 4) / 5);
+        const cardHeightIn = Math.max(0.1, Math.min(topHeightIn, cardWidthIn / 1.7));
+        const topPlacement = buildGridPlacement({
+            sheet: sheet,
+            boundsIn: {
+                x: marginIn,
+                y: marginIn,
+                width: contentWidthIn,
+                height: topHeightIn
+            },
+            cols: 5,
+            rows: 1,
+            itemCount: 5,
+            itemWidthIn: cardWidthIn,
+            itemHeightIn: cardHeightIn,
+            spacingXIn: spacingIn,
+            spacingYIn: 0,
+            fit: "cover",
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            includeMarks: false,
+            itemKind: "invitation-top"
+        });
+
+        const blankYIn = marginIn + contentHeightIn - blankHeightIn;
+        const smartFill = buildInvitationSmartFillPage(side, asset, sheet, {
+            x: marginIn,
+            y: blankYIn,
+            width: contentWidthIn,
+            height: blankHeightIn
+        }, spacingIn);
+
+        return {
+            side: side,
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            background: state.previewBackgroundMode === "color" ? state.previewBackgroundColor : "#ffffff",
+            items: topPlacement.items.concat(smartFill.items),
+            marks: topPlacement.marks.concat(smartFill.marks),
+            grid: {
+                top: topPlacement.grid,
+                smartFill: smartFill.grid
+            }
+        };
+    }
+
+    function buildInvitationSmartFillPage(side, asset, sheet, boundsIn, spacingIn) {
+        const smartFill = state.smartFill || "keep-blank";
+        if (smartFill === "keep-blank") {
+            return {
+                items: [],
+                marks: [],
+                grid: null
+            };
+        }
+
+        let cols = 4;
+        let rows = 2;
+        let fit = "cover";
+
+        if (smartFill === "labels") {
+            cols = 6;
+            rows = 2;
+            fit = "contain";
+        } else if (smartFill === "mini-tags") {
+            cols = 5;
+            rows = 2;
+            fit = "contain";
+        }
+
+        const fillPadIn = Math.max(0.12, spacingIn * 0.8);
+        const fillBounds = {
+            x: boundsIn.x + fillPadIn,
+            y: boundsIn.y + fillPadIn,
+            width: Math.max(0, boundsIn.width - fillPadIn * 2),
+            height: Math.max(0, boundsIn.height - fillPadIn * 2)
+        };
+
+        const fillPlacement = buildGridPlacement({
+            sheet: sheet,
+            boundsIn: fillBounds,
+            cols: cols,
+            rows: rows,
+            itemCount: cols * rows,
+            spacingXIn: spacingIn,
+            spacingYIn: spacingIn,
+            fit: fit,
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            includeMarks: state.cropMarks,
+            itemKind: "invitation-fill"
+        });
+
+        return fillPlacement;
+    }
+
+    function buildGridPlacement(options) {
+        const sheet = options.sheet || { width: 1, height: 1, dpi: EXPORT_DPI };
+        const bounds = options.boundsIn || {
+            x: Number(options.marginIn) || 0,
+            y: Number(options.marginIn) || 0,
+            width: Math.max(0, sheet.width - ((Number(options.marginIn) || 0) * 2)),
+            height: Math.max(0, sheet.height - ((Number(options.marginIn) || 0) * 2))
+        };
+        const cols = Math.max(1, Math.floor(Number(options.cols) || 1));
+        const rows = Math.max(1, Math.floor(Number(options.rows) || 1));
+        const spacingXIn = Math.max(0, Number(options.spacingXIn) || 0);
+        const spacingYIn = Math.max(0, Number(options.spacingYIn) || spacingXIn);
+        let itemWidthIn = Number(options.itemWidthIn);
+        let itemHeightIn = Number(options.itemHeightIn);
+
+        if (!Number.isFinite(itemWidthIn) || itemWidthIn <= 0) {
+            itemWidthIn = Math.max(0.001, (bounds.width - (spacingXIn * (cols - 1))) / cols);
+        }
+
+        if (!Number.isFinite(itemHeightIn) || itemHeightIn <= 0) {
+            itemHeightIn = Math.max(0.001, (bounds.height - (spacingYIn * (rows - 1))) / rows);
+        }
+
+        const minTotalW = cols * itemWidthIn + (cols - 1) * spacingXIn;
+        const minTotalH = rows * itemHeightIn + (rows - 1) * spacingYIn;
+        const fitScale = Math.min(
+            1,
+            bounds.width / Math.max(minTotalW, 0.001),
+            bounds.height / Math.max(minTotalH, 0.001)
+        );
+        const drawItemW = itemWidthIn * fitScale;
+        const drawItemH = itemHeightIn * fitScale;
+        const drawGapX = cols > 1 ? Math.max(0, (bounds.width - cols * drawItemW) / (cols - 1)) : 0;
+        const drawGapY = rows > 1 ? Math.max(0, (bounds.height - rows * drawItemH) / (rows - 1)) : 0;
+        const totalW = cols * drawItemW + (cols - 1) * drawGapX;
+        const totalH = rows * drawItemH + (rows - 1) * drawGapY;
+        const startX = bounds.x + Math.max(0, (bounds.width - totalW) / 2);
+        const startY = bounds.y + Math.max(0, (bounds.height - totalH) / 2);
+        const itemCount = Math.max(0, Number(options.itemCount) || (cols * rows));
+        const sourceKey = cleanText(options.sourceKey) || "front";
+        const sourceRotation = Number(options.sourceRotation) || 0;
+        const itemFit = cleanText(options.fit) || "cover";
+        const itemInsetIn = Math.max(0, Number(options.itemInsetIn) || 0);
+        const itemKind = cleanText(options.itemKind) || "grid";
+        const includeMarks = options.includeMarks !== false;
+        const markShiftXIn = Number(options.markShiftXIn) || 0;
+        const markShiftYIn = Number(options.markShiftYIn) || 0;
+        const items = [];
+
+        for (let row = 0; row < rows; row += 1) {
+            for (let col = 0; col < cols; col += 1) {
+                const index = row * cols + col;
+                if (index >= itemCount) {
+                    continue;
+                }
+
+                const xIn = startX + col * (drawItemW + drawGapX);
+                const yIn = startY + row * (drawItemH + drawGapY);
+                items.push({
+                    imageKey: sourceKey,
+                    sourceKey: sourceKey,
+                    x: roundTo(xIn * sheet.dpi, 2),
+                    y: roundTo(yIn * sheet.dpi, 2),
+                    width: roundTo(drawItemW * sheet.dpi, 2),
+                    height: roundTo(drawItemH * sheet.dpi, 2),
+                    rotation: sourceRotation,
+                    fit: itemFit,
+                    inset: roundTo(itemInsetIn * sheet.dpi, 2),
+                    kind: itemKind,
+                    index: index + 1
+                });
+            }
+        }
+
+        const marks = includeMarks ? buildGridMarks({
+            startXIn: startX,
+            startYIn: startY,
+            itemWidthIn: drawItemW,
+            itemHeightIn: drawItemH,
+            gapXIn: drawGapX,
+            gapYIn: drawGapY,
+            cols: cols,
+            rows: rows,
+            shiftXIn: markShiftXIn,
+            shiftYIn: markShiftYIn,
+            sheet: sheet
+        }) : [];
+
+        return {
+            items: items,
+            marks: marks,
+            grid: {
+                xIn: startX,
+                yIn: startY,
+                itemWidthIn: drawItemW,
+                itemHeightIn: drawItemH,
+                gapXIn: drawGapX,
+                gapYIn: drawGapY,
+                cols: cols,
+                rows: rows,
+                fitScale: fitScale
+            }
+        };
+    }
+
+    function buildGridMarks(options) {
+        const sheet = options.sheet || { dpi: EXPORT_DPI };
+        const cols = Math.max(1, Math.floor(Number(options.cols) || 1));
+        const rows = Math.max(1, Math.floor(Number(options.rows) || 1));
+        const itemWidthIn = Math.max(0.001, Number(options.itemWidthIn) || 0.001);
+        const itemHeightIn = Math.max(0.001, Number(options.itemHeightIn) || 0.001);
+        const gapXIn = Math.max(0, Number(options.gapXIn) || 0);
+        const gapYIn = Math.max(0, Number(options.gapYIn) || 0);
+        const startXIn = Number(options.startXIn) || 0;
+        const startYIn = Number(options.startYIn) || 0;
+        const shiftXIn = Number(options.shiftXIn) || 0;
+        const shiftYIn = Number(options.shiftYIn) || 0;
+        const dpi = Number(sheet.dpi) || EXPORT_DPI;
+        const markSizeIn = Math.max(0.01, Math.min(gapXIn || itemWidthIn * 0.12, gapYIn || itemHeightIn * 0.12) * 0.25);
+        const marks = [];
+
+        for (let row = 0; row < rows - 1; row += 1) {
+            for (let col = 0; col < cols - 1; col += 1) {
+                const xIn = startXIn + itemWidthIn + (gapXIn / 2) + (col * (itemWidthIn + gapXIn)) + shiftXIn;
+                const yIn = startYIn + itemHeightIn + (gapYIn / 2) + (row * (itemHeightIn + gapYIn)) + shiftYIn;
+                const xPx = roundTo(xIn * dpi, 2);
+                const yPx = roundTo(yIn * dpi, 2);
+                const sizePx = roundTo(markSizeIn * dpi, 2);
+
+                marks.push({
+                    x1: roundTo(xPx - (sizePx / 2), 2),
+                    y1: yPx,
+                    x2: roundTo(xPx + (sizePx / 2), 2),
+                    y2: yPx,
+                    stroke: "rgba(15, 23, 42, 0.45)",
+                    strokeWidth: 1.2
+                });
+                marks.push({
+                    x1: xPx,
+                    y1: roundTo(yPx - (sizePx / 2), 2),
+                    x2: xPx,
+                    y2: roundTo(yPx + (sizePx / 2), 2),
+                    stroke: "rgba(15, 23, 42, 0.45)",
+                    strokeWidth: 1.2
+                });
+            }
+        }
+
+        return marks;
+    }
+
+    function buildSourceDescriptor(asset, side) {
+        if (!asset) {
+            return null;
+        }
+
+        return {
+            side: side,
+            name: asset.name || (side === "back" ? "Back Side" : "Front Side"),
+            fileName: asset.file && asset.file.name ? asset.file.name : asset.name || (side + ".jpg"),
+            mimeType: asset.file && asset.file.type ? asset.file.type : "",
+            rotation: Number(asset.rotation) || 0,
+            sourceKind: asset.sourceKind || "local-file"
+        };
+    }
+
+    function buildFilePayload(asset, side) {
+        if (!asset || !asset.file) {
+            return null;
+        }
+
+        return {
+            file: asset.file,
+            name: asset.file.name || asset.name || (side + ".jpg")
+        };
+    }
+
+    function getAssetForSide(side) {
+        return side === "back" ? state.backAsset : state.frontAsset;
+    }
+
     function setSheetOrientation(value) {
         const isLandscape = String(value).toLowerCase() === "landscape" || Number(value) === 90;
         state.orientation = isLandscape ? "landscape" : "portrait";
@@ -1454,48 +1919,28 @@
             return;
         }
 
-        const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
-        const sheet = getSheetDimensions();
-        const exportDpi = 300;
-        const exportRect = state.previewExportRect || { x: 0, y: 0, width: canvas.previewStage.width(), height: canvas.previewStage.height() };
-        const targetWidth = Math.max(1, Math.round(sheet.width * exportDpi));
-        const pixelRatio = targetWidth / Math.max(1, exportRect.width);
-        const hasBackSide = Boolean(state.backAsset);
-        const sidesToCapture = format === "jpg"
-            ? [state.activeSide === "back" && hasBackSide ? "back" : "front"]
-            : (hasBackSide ? ["front", "back"] : ["front"]);
-        const formData = new FormData();
-        formData.append("format", format === "jpg" ? "jpg" : "pdf");
-        formData.append("settings", JSON.stringify({
-            toolId: state.toolId,
-            sheetSize: state.sheetSize,
-            orientation: state.orientation,
-            businessCardWidth: state.businessCardWidth,
-            businessCardHeight: state.businessCardHeight,
-            businessGapX: state.businessGapX,
-            businessGapY: state.businessGapY,
-            businessBorderMargin: state.businessBorderMargin,
-            businessCardRotation: state.businessCardRotation,
-            businessFitToCard: state.businessFitToCard,
-            businessCutMarks: state.businessCutMarks,
-            previewBackgroundMode: state.previewBackgroundMode,
-            previewBackgroundColor: state.previewBackgroundColor,
-            customWidth: state.customWidth,
-            customHeight: state.customHeight
-        }));
-        formData.append("activeSide", state.activeSide);
-
-        setStatus("Preparing the preview for backend export...");
-        await waitForPaint();
-
-        for (let i = 0; i < sidesToCapture.length; i += 1) {
-            const side = sidesToCapture[i];
-            const dataUrl = patchJpegDpi(await captureExportPageDataUrl(side, exportRect, pixelRatio), exportDpi);
-            const blob = await dataUrlToBlob(dataUrl);
-            formData.append(side === "back" ? "renderedBack" : "renderedFront", blob, `${fileBase}-${side}.jpg`);
+        const payload = buildExportPayload(format);
+        if (!payload.frontFile && !payload.backFile) {
+            setStatus("Please upload a file first.");
+            return;
         }
 
-        setStatus("Sending the rendered preview to the export backend...");
+        const fileBase = slugify((TOOL_PRESETS[state.toolId] || TOOL_PRESETS["business-card"]).label + "-" + state.sheetSize);
+        const formData = new FormData();
+        formData.append("format", format === "jpg" ? "jpg" : "pdf");
+        formData.append("settings", JSON.stringify(payload.settings));
+        formData.append("activeSide", state.activeSide);
+        if (payload.frontFile) {
+            formData.append("frontFile", payload.frontFile.file, payload.frontFile.name);
+        }
+        if (payload.backFile) {
+            formData.append("backFile", payload.backFile.file, payload.backFile.name);
+        }
+
+        setStatus("Preparing the layout payload for backend export...");
+        await waitForPaint();
+
+        setStatus("Sending original files and layout to the export backend...");
         await waitForPaint();
 
         const backendUrl = resolveBackendBaseUrl("/tools/aj-print-layout-pro/export");
@@ -1533,32 +1978,8 @@
         const fileName = format === "jpg" ? `${fileBase}.jpg` : `${fileBase}.pdf`;
         downloadBlob(blob, fileName);
         setStatus(format === "jpg"
-            ? "JPG export generated by the backend from the live preview."
-            : (hasBackSide ? "PDF export generated by the backend from front and back previews." : "PDF export generated by the backend from a single preview page."));
-    }
-
-    async function captureExportPageDataUrl(side, exportRect, pixelRatio) {
-        const originalSide = state.activeSide;
-        state.activeSide = side === "back" ? "back" : "front";
-        updateSideButtons();
-        selectActiveAsset();
-        try {
-            await waitForPaint();
-            return canvas.previewStage.toDataURL({
-                x: exportRect.x,
-                y: exportRect.y,
-                width: exportRect.width,
-                height: exportRect.height,
-                pixelRatio: pixelRatio,
-                mimeType: "image/jpeg",
-                quality: 0.98
-            });
-        } finally {
-            state.activeSide = originalSide;
-            updateSideButtons();
-            selectActiveAsset();
-            scheduleRender();
-        }
+            ? "JPG export generated by the backend from original files and layout JSON."
+            : (payload.hasBackSide ? "PDF export generated by the backend from front and back layout pages." : "PDF export generated by the backend from a single layout page."));
     }
 
     function waitForPaint() {
