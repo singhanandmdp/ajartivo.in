@@ -467,7 +467,7 @@ function rewriteRootRelativeUrls(container) {
 function normalizeAppAnchorHref(value) {
     const trimmed = String(value || "").trim();
     if (!trimmed) return trimmed;
-    if (/^(?:#|javascript:|mailto:|tel:|data:)/i.test(trimmed)) return trimmed;
+    if (/^(?:#|javascript:|mailto:|tel:|data:|blob:)/i.test(trimmed)) return trimmed;
 
     try {
         const resolvedUrl = new URL(trimmed, window.location.href);
@@ -484,6 +484,10 @@ function normalizeAppAnchorHref(value) {
 
 function rewriteDocumentAppLinks() {
     document.querySelectorAll("a[href]").forEach((element) => {
+        if (element.hasAttribute("download")) {
+            return;
+        }
+
         const href = element.getAttribute("href");
         const rewrittenHref = normalizeAppAnchorHref(href);
         if (rewrittenHref && rewrittenHref !== href) {
@@ -495,6 +499,10 @@ function rewriteDocumentAppLinks() {
 document.addEventListener("click", (event) => {
     const anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
     if (!anchor) return;
+
+    if (anchor.hasAttribute("download")) {
+        return;
+    }
 
     const href = anchor.getAttribute("href");
     rememberClickedProductLink(href);
