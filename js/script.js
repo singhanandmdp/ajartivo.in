@@ -1,5 +1,5 @@
 const AJARTIVO_BOOT_KEY = "__ajartivoScriptBooted";
-const AJARTIVO_PARTIAL_CACHE_VERSION = "20260510-3";
+const AJARTIVO_PARTIAL_CACHE_VERSION = "20260527-3";
 const AJARTIVO_PARTIAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const AJARTIVO_PARTIAL_CACHE_PREFIX = "ajartivo_partial_html_";
 const AJARTIVO_PERF_LOG_PREFIX = "[AJartivo Perf]";
@@ -598,9 +598,9 @@ function loadFooter() {
     if (!container) return;
     if (container.dataset.partialLoaded === "true") return;
 
-    ensureStylesheet("/css/style.css");
+    ensureStylesheet(`/css/style.css?v=${encodeURIComponent(AJARTIVO_PARTIAL_CACHE_VERSION)}`);
 
-    fetchCachedPartial("/pages/footer.html", "footer", "footer")
+    fetchCachedPartial(`/pages/footer.html?v=${encodeURIComponent(AJARTIVO_PARTIAL_CACHE_VERSION)}`, "footer", "footer")
         .then((data) => {
             container.innerHTML = data;
             rewriteRootRelativeUrls(container);

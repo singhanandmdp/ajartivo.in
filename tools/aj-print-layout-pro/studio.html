@@ -32,11 +32,11 @@
                 </div>
                 <div class="print-layout-actions" style="margin-top: 0;">
                     <a href="./index.html" class="print-layout-btn secondary">Back to Hub</a>
-                    <a href="./studio.html?tool=business-card" class="print-layout-btn primary">Business Card</a>
+                    <a href="./studio.html?tool=business-card" class="print-layout-btn primary">Visiting Card</a>
                 </div>
             </div>
 
-            <div class="print-layout-studio-grid" style="grid-template-columns: minmax(300px, 0.78fr) minmax(0, 1.22fr);">
+            <div class="print-layout-studio-grid">
                 <aside class="print-layout-studio-sidebar">
                     <article class="print-layout-control-card">
                         <div class="print-layout-control-head">
@@ -47,10 +47,10 @@
                         </div>
 
                             <div class="print-layout-dropzone" id="printLayoutDropzone" role="button" tabindex="0" aria-label="Drop files here or browse">
-                                <input id="printLayoutFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.pdf,image/*,application/pdf">
+                                <input id="printLayoutFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.pdf,image/jpeg,image/png,image/webp,image/tiff,image/x-tiff,image/tif,application/pdf">
                                 <div>
                                 <span class="print-layout-tool-chip">Drag and drop</span>
-                                <h4>Drop JPG, PNG, WEBP, TIFF, or PDF files</h4>
+                                <h4>Drop JPG, PNG, WEBP, TIF/TIFF, or PDF files</h4>
                                 <p>Large image and TIFF uploads are previewed through the backend for smoother editing.</p>
                             </div>
                             <div class="print-layout-dropzone-actions">
@@ -107,7 +107,7 @@
                             <div class="print-layout-business-panel" id="businessCardPanel">
                                 <div class="print-layout-business-panel-head">
                                     <div>
-                                        <h4>Business Card Layout</h4>
+                                        <h4>Visiting Card Layout</h4>
                                         <p>Default 25-up grid with exact sizing and auto-adjusting spacing pinned to the border.</p>
                                     </div>
                                     <button type="button" class="print-layout-ghost-btn" id="resetBusinessCardButton">Reset Defaults</button>
@@ -117,7 +117,7 @@
                                         <strong>Back-to-back editing</strong>
                                         <p id="businessSideLabel">Editing front side.</p>
                                     </div>
-                                    <div class="print-layout-side-toggle" role="tablist" aria-label="Business card side">
+                                    <div class="print-layout-side-toggle" role="tablist" aria-label="Visiting card side">
                                         <button type="button" data-side-toggle="front" class="is-active">Front</button>
                                         <button type="button" data-side-toggle="back">Back</button>
                                     </div>
@@ -179,7 +179,7 @@
                             <div class="print-layout-control">
                                 <label for="smartFillSelect">Smart space fill <small>Invitation only</small></label>
                                 <select id="smartFillSelect">
-                                    <option value="business-card">Add Business Card</option>
+                                    <option value="business-card">Add Visiting Card</option>
                                     <option value="labels">Add Labels</option>
                                     <option value="mini-tags">Add Mini Tags</option>
                                     <option value="keep-blank">Keep Blank</option>
@@ -190,7 +190,7 @@
                                 <h4>Invitation blank area</h4>
                                 <p>When extra empty space is available, the preview can suggest a useful fill mode.</p>
                                 <div class="print-layout-smartfill-options">
-                                    <button type="button" data-smart-fill="business-card" class="is-active">Add Business Card</button>
+                                    <button type="button" data-smart-fill="business-card" class="is-active">Add Visiting Card</button>
                                     <button type="button" data-smart-fill="labels">Add Labels</button>
                                     <button type="button" data-smart-fill="mini-tags">Add Mini Tags</button>
                                     <button type="button" data-smart-fill="keep-blank">Keep Blank</button>
@@ -237,7 +237,7 @@
                             <button type="button" class="print-layout-btn primary" id="exportPdfButton">Export PDF</button>
                             <button type="button" class="print-layout-btn secondary" id="exportJpgButton">Export JPG</button>
                         </div>
-                        <p class="print-layout-support-note" id="supportNote">Upload JPG, PNG, WEBP, or PDF files. Export uses the live preview and the backend to prepare the download.</p>
+                        <p class="print-layout-support-note" id="supportNote">Upload JPG, PNG, WEBP, TIFF, or PDF files. Export uses the live preview and the backend to prepare the download.</p>
                     </article>
 
                     <article class="print-layout-preview-card">
@@ -247,11 +247,11 @@
                                 <p>Watch the grid, crop marks, and invitation smart-fill area update live.</p>
                             </div>
                             <div class="print-layout-preview-actions">
-                                <span class="print-layout-zoom-hint" id="sheetPreviewZoomHint" aria-hidden="true">Drag to zoom • 100%</span>
+                                <span class="print-layout-zoom-hint" id="sheetPreviewZoomHint" aria-hidden="true">Drag to zoom - 100%</span>
                             </div>
                         </div>
                         <div class="print-layout-stage-shell" id="sheetPreviewShell" title="Drag up or down to zoom the preview">
-                            <div id="sheetPreviewMount" class="stage-mount" style="height: 1120px;"></div>
+                            <div id="sheetPreviewMount" class="stage-mount"></div>
                         </div>
                     </article>
 
@@ -259,7 +259,7 @@
                         <div class="print-layout-status-row">
                             <div>
                                 <h3>Live Studio Status</h3>
-                                <p id="studioStatusText">Business Card is ready.</p>
+                                <p id="studioStatusText">Visiting Card is ready.</p>
                             </div>
                         </div>
                         <div class="print-layout-summary-grid">
@@ -273,7 +273,7 @@
                             </div>
                             <div class="print-layout-summary-card">
                                 <span>Preview</span>
-                                <strong id="livePreviewLabel">Business Card</strong>
+                                <strong id="livePreviewLabel">Visiting Card</strong>
                             </div>
                             <div class="print-layout-summary-card">
                                 <span>Mode</span>

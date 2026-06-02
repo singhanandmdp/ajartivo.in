@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AJ Background Remover</title>
 
-<meta name="aj-pixel-cut-api" content="https://pixel-cut-backend.onrender.com">
+<meta name="aj-pixel-cut-api" content="https://ajartivo-backend.onrender.com">
 <link rel="stylesheet" href="../style.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -34,9 +34,9 @@
 
         <div class="demo-compare-card">
             <div class="demo-stage" id="demoCompareStage">
-                <img class="demo-image demo-before" id="demoBeforeImage" src="Image/before.jpg" alt="Before example image">
+                <img class="demo-image demo-before" id="demoBeforeImage" src="Image/before.webp" alt="Before example image">
                 <div class="demo-after-wrap" id="demoAfterWrap">
-                    <img class="demo-image demo-after" id="demoAfterImage" src="Image/after.png" alt="After example image">
+                    <img class="demo-image demo-after" id="demoAfterImage" src="Image/after.webp" alt="After example image">
                 </div>
                 <div class="demo-label demo-label-before">Before</div>
                 <div class="demo-label demo-label-after">After</div>
@@ -67,6 +67,16 @@
                 <i class="fa-solid fa-upload"></i>
                 Upload Image
             </button>
+        </div>
+
+        <p class="pixel-cut-status" id="ajPixelCutStatus" aria-live="polite" hidden></p>
+        <div class="pixel-cut-upgrade" id="ajPixelCutUpgrade" hidden>
+            <div class="pixel-cut-upgrade-copy">
+                <span class="pixel-cut-upgrade-kicker">Premium limit reached</span>
+                <strong id="ajPixelCutUpgradeTitle">You have used your 5 free removals</strong>
+                <p id="ajPixelCutUpgradeText">Upgrade to Premium to keep sending images to PhotoRoom without the free limit.</p>
+            </div>
+            <a class="pixel-cut-upgrade-btn" href="/premium" id="ajPixelCutUpgradeBtn">Upgrade to Premium</a>
         </div>
 
         <!-- RESULT -->

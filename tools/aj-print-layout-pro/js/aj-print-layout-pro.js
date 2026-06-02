@@ -13,7 +13,7 @@
 
     const TOOL_PRESETS = {
         "business-card": {
-            label: "Business Card",
+            label: "Visiting Card",
             count: 25,
             cols: 5,
             rows: 5,
@@ -1210,15 +1210,26 @@
         }
 
         if (shouldUseBackendPreview(file)) {
-            const previewBlob = await fetchBackendPreview(file);
-            const previewUrl = URL.createObjectURL(previewBlob);
-            return {
-                preview: previewUrl,
-                previewUrl: previewUrl,
-                exportBlob: file,
-                sourceKind: "backend-preview",
-                image: await loadImage(previewUrl)
-            };
+            try {
+                const previewBlob = await fetchBackendPreview(file);
+                const previewUrl = URL.createObjectURL(previewBlob);
+                return {
+                    preview: previewUrl,
+                    previewUrl: previewUrl,
+                    exportBlob: file,
+                    sourceKind: "backend-preview",
+                    image: await loadImage(previewUrl)
+                };
+            } catch (_error) {
+                const previewUrl = createFallbackPreviewDataUrl(file);
+                return {
+                    preview: previewUrl,
+                    previewUrl: previewUrl,
+                    exportBlob: file,
+                    sourceKind: "fallback-preview",
+                    image: await loadImage(previewUrl)
+                };
+            }
         }
 
         const previewUrl = URL.createObjectURL(file);
@@ -1262,6 +1273,34 @@
     async function dataUrlToBlob(dataUrl) {
         const response = await fetch(dataUrl);
         return response.blob();
+    }
+
+    function createFallbackPreviewDataUrl(file) {
+        const isTiff = isTiffFile(file);
+        const title = isTiff ? "TIFF preview" : "Preview";
+        const subtitle = isTiff ? "Backend preview unavailable" : "Preview unavailable";
+        const svg = [
+            '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720">',
+            '<defs>',
+            '<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">',
+            '<stop offset="0%" stop-color="#f8fbff"/>',
+            '<stop offset="100%" stop-color="#eef4ff"/>',
+            '</linearGradient>',
+            '</defs>',
+            '<rect width="960" height="720" rx="42" fill="url(#bg)"/>',
+            '<rect x="42" y="42" width="876" height="636" rx="34" fill="#ffffff" stroke="#d9e5ff" stroke-width="6"/>',
+            '<rect x="80" y="80" width="112" height="40" rx="20" fill="#dbeafe"/>',
+            '<text x="104" y="107" fill="#1d4ed8" font-family="Arial, sans-serif" font-size="20" font-weight="700">Upload</text>',
+            '<text x="80" y="196" fill="#172033" font-family="Arial, sans-serif" font-size="48" font-weight="700">' + title + '</text>',
+            '<text x="80" y="250" fill="#64748b" font-family="Arial, sans-serif" font-size="28">' + subtitle + '</text>',
+            '<text x="80" y="300" fill="#64748b" font-family="Arial, sans-serif" font-size="24">The file stayed loaded so you can keep working.</text>',
+            '<rect x="80" y="372" width="800" height="168" rx="28" fill="#f8fbff" stroke="#c7d7ff" stroke-width="4" stroke-dasharray="14 12"/>',
+            '<text x="120" y="440" fill="#1e293b" font-family="Arial, sans-serif" font-size="30" font-weight="700">Your uploaded file is available</text>',
+            '<text x="120" y="488" fill="#64748b" font-family="Arial, sans-serif" font-size="22">Preview rendering will use the backend when it is reachable.</text>',
+            '</svg>'
+        ].join("");
+
+        return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
     }
 
     function toInches(value) {
@@ -2329,7 +2368,7 @@
     function isTiffFile(file) {
         const name = String(file && file.name || "").toLowerCase();
         const type = String(file && file.type || "").toLowerCase();
-        return type === "image/tiff" || type === "image/tif" || /\.(tif|tiff)$/.test(name);
+        return type === "image/tiff" || type === "image/tif" || type === "image/x-tiff" || /\.(tif|tiff)$/.test(name);
     }
 
     function shouldUseBackendPreview(file) {
@@ -2438,7 +2477,7 @@
     }
 
     function smartFillLabel(value) {
-        if (value === "business-card") return "Business Card";
+        if (value === "business-card") return "Visiting Card";
         if (value === "labels") return "Labels";
         if (value === "mini-tags") return "Mini Tags";
         return "Keep Blank";

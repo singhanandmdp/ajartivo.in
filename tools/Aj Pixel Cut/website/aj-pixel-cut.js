@@ -8,6 +8,9 @@ const afterCanvas = document.getElementById("afterCanvas");
 const afterCtx = afterCanvas.getContext("2d");
 const brushPreview = document.getElementById("brushPreview");
 
+fitCanvasToStage(beforeCanvas);
+fitCanvasToStage(afterCanvas);
+
 const resultWrapper = document.getElementById("resultWrapper");
 const downloadBtn = document.getElementById("downloadBtn");
 const actionRow = document.querySelector(".action-row");
@@ -39,8 +42,177 @@ const restoreOriginalBtn = document.getElementById("restoreOriginalBtn");
 const historyUndoBtn = document.getElementById("historyUndoBtn");
 const historyRedoBtn = document.getElementById("historyRedoBtn");
 const backendApiMeta = document.querySelector('meta[name="aj-pixel-cut-api"]');
-const pixelCutApiBase = (backendApiMeta?.content || "https://pixel-cut-backend.onrender.com").replace(/\/$/, "");
+const localBackendApiBase = "http://localhost:5000";
+const pixelCutApiBase = (backendApiMeta?.content || "https://ajartivo-backend.onrender.com").replace(/\/$/, "");
 const pixelCutRemoveBgUrl = `${pixelCutApiBase}/smart-remove-bg`;
+const pixelCutBaseRemoveBgUrl = `${pixelCutApiBase}/remove-bg`;
+const FREE_PIXELCUT_LIMIT = 5;
+const PREMIUM_UPGRADE_URL = "/premium";
+const USAGE_KEY = "ajpc_usage_v1";
+const premiumUpgradeCard = document.getElementById("ajPixelCutUpgrade");
+const premiumUpgradeTitle = document.getElementById("ajPixelCutUpgradeTitle");
+const premiumUpgradeText = document.getElementById("ajPixelCutUpgradeText");
+const premiumUpgradeBtn = document.getElementById("ajPixelCutUpgradeBtn");
+const statusEl = document.getElementById("ajPixelCutStatus");
+
+function cleanText(value){
+    if(value == null){
+        return "";
+    }
+    if(typeof value === "string"){
+        return value.trim();
+    }
+    if(value instanceof Error){
+        return cleanText(value.message);
+    }
+    if(typeof value === "object" && typeof value.message === "string"){
+        return value.message.trim();
+    }
+    return String(value).trim();
+}
+
+function setStatus(message, kind = "info"){
+    const text = cleanText(message);
+
+    if(statusEl){
+        statusEl.textContent = text;
+        statusEl.dataset.state = kind;
+        statusEl.hidden = !text;
+    }
+
+    if(text && kind === "error"){
+        console.error(`[Pixel Cut] ${text}`);
+    }
+}
+
+function fitCanvasToStage(canvas) {
+    if (!canvas) return;
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.maxWidth = "none";
+    canvas.style.maxHeight = "none";
+    canvas.style.objectFit = "contain";
+}
+
+function buildPixelCutCandidateUrls() {
+    const urls = [];
+
+    if (isLocalRuntime()) {
+        urls.push(
+            `${localBackendApiBase}/smart-remove-bg`,
+            `${localBackendApiBase}/remove-bg`
+        );
+    }
+
+    urls.push(pixelCutRemoveBgUrl, pixelCutBaseRemoveBgUrl);
+    return urls;
+}
+
+function isLocalRuntime() {
+    const hostname = cleanText(window.location && window.location.hostname).toLowerCase();
+    return !hostname || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
+}
+
+function readUsage() {
+    try {
+        const raw = window.localStorage.getItem(USAGE_KEY);
+        if (!raw) {
+            return { count: 0, bytes: 0 };
+        }
+
+        const parsed = JSON.parse(raw);
+        return {
+            count: Math.max(0, Number(parsed && parsed.count || 0)),
+            bytes: Math.max(0, Number(parsed && parsed.bytes || 0))
+        };
+    } catch (_error) {
+        return { count: 0, bytes: 0 };
+    }
+}
+
+function bumpUsage(file) {
+    const usage = readUsage();
+    const next = {
+        count: usage.count + 1,
+        bytes: usage.bytes + Math.max(0, Number(file && file.size || 0))
+    };
+
+    try {
+        window.localStorage.setItem(USAGE_KEY, JSON.stringify(next));
+    } catch (_error) {
+        // ignore localStorage write errors
+    }
+
+    return next;
+}
+
+function getPixelCutSession() {
+    const services = window.AjArtivoSupabase;
+    if (!services || typeof services.getSession !== "function") {
+        return null;
+    }
+
+    return services.getSession();
+}
+
+function isPremiumPixelCutUser() {
+    const session = getPixelCutSession();
+    return Boolean(session && (session.premiumActive === true || session.isPremium === true));
+}
+
+function getPixelCutUsageLimit() {
+    return FREE_PIXELCUT_LIMIT;
+}
+
+function getPixelCutUsageState() {
+    const usage = readUsage();
+    const limit = getPixelCutUsageLimit();
+    const premium = isPremiumPixelCutUser();
+    return {
+        count: usage.count,
+        bytes: usage.bytes,
+        limit: limit,
+        remaining: premium ? -1 : Math.max(0, limit - usage.count),
+        premium: premium
+    };
+}
+
+function updatePremiumGate() {
+    const state = getPixelCutUsageState();
+    if (!premiumUpgradeCard) {
+        return state;
+    }
+
+    const showGate = !state.premium && state.count >= state.limit;
+    premiumUpgradeCard.hidden = !showGate;
+
+    if (showGate) {
+        if (premiumUpgradeTitle) {
+            premiumUpgradeTitle.textContent = `You have used your ${state.limit} free removals`;
+        }
+        if (premiumUpgradeText) {
+            premiumUpgradeText.textContent = "Upgrade to Premium to keep sending images to PhotoRoom without the free limit.";
+        }
+        if (premiumUpgradeBtn) {
+            premiumUpgradeBtn.textContent = "Upgrade to Premium";
+            premiumUpgradeBtn.href = PREMIUM_UPGRADE_URL;
+        }
+    } else if (state.premium) {
+        if (premiumUpgradeTitle) {
+            premiumUpgradeTitle.textContent = "Premium access active";
+        }
+        if (premiumUpgradeText) {
+            premiumUpgradeText.textContent = "Your premium account can keep using the background remover without the free limit.";
+        }
+        if (premiumUpgradeBtn) {
+            premiumUpgradeBtn.textContent = "Manage Premium";
+            premiumUpgradeBtn.href = PREMIUM_UPGRADE_URL;
+        }
+    }
+
+    return state;
+}
 
 const refinePanel = document.getElementById("refinePanel");
 const resizePanel = document.getElementById("resizePanel");
@@ -1309,6 +1481,12 @@ async function handleFile(file){
     }
     activeUploadController = new AbortController();
 
+    const usageState = updatePremiumGate();
+    if (!usageState.premium && usageState.count >= usageState.limit) {
+        setStatus("You have used all 5 free removals. Upgrade to Premium to keep going.", "error");
+        return;
+    }
+
     if(currentOriginalUrl){
         URL.revokeObjectURL(currentOriginalUrl);
         currentOriginalUrl = "";
@@ -1348,21 +1526,51 @@ async function handleFile(file){
 
     const formData = new FormData();
     formData.append("image", file);
+    const candidateUrls = buildPixelCutCandidateUrls();
+    setStatus("Removing background...", "info");
 
     try{
-        const res = await fetch(pixelCutRemoveBgUrl, {
-            method: "POST",
-            body: formData,
-            signal: activeUploadController.signal
-        });
+        let res = null;
+        let lastErrorMessage = "";
+
+        for (const url of candidateUrls) {
+            try {
+                res = await fetch(url, {
+                    method: "POST",
+                    body: formData,
+                    signal: activeUploadController.signal
+                });
+            } catch (fetchError) {
+                lastErrorMessage = cleanText(fetchError && fetchError.message) || `Could not reach ${url}.`;
+                continue;
+            }
+
+            if (res.ok) {
+                break;
+            }
+
+            lastErrorMessage = `Request failed (${res.status}) from ${url}.`;
+
+            if (res.status !== 404) {
+                try {
+                    const data = await res.json();
+                    if (data && data.error) {
+                        lastErrorMessage = cleanText(data.error);
+                    }
+                } catch (_error) {
+                    // ignore JSON parse errors
+                }
+                break;
+            }
+        }
 
         if(currentToken !== uploadToken){
             return;
         }
 
-        if(!res.ok){
-            const text = await res.text();
-            throw new Error(text || `Request failed (${res.status})`);
+        if(!res || !res.ok){
+            setStatus(lastErrorMessage || "Could not reach the Pixel Cut backend.", "error");
+            return;
         }
 
         const blob = await res.blob();
@@ -1409,12 +1617,16 @@ async function handleFile(file){
         syncTextStyleButtons();
         renderCanvas();
         pushHistory();
+        bumpUsage(file);
+        setStatus("Background removed successfully.", "success");
+        updatePremiumGate();
     }catch(err){
         if(err.name === "AbortError"){
             return;
         }
         scan.style.display = "none";
         alert("Error: " + err.message);
+        setStatus(err && err.message ? err.message : "Unexpected error while removing the background.", "error");
     }
 }
 
@@ -1899,3 +2111,7 @@ if(demoCompareSlider){
     demoCompareSlider.addEventListener("input", syncDemoCompareSlider);
     syncDemoCompareSlider();
 }
+
+window.addEventListener("ajartivo:session-changed", updatePremiumGate);
+window.addEventListener("ajartivo:account-updated", updatePremiumGate);
+updatePremiumGate();

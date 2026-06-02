@@ -969,6 +969,10 @@ body.print-layout-page {
     border-radius: 14px;
 }
 
+.print-layout-stage-shell #sheetPreviewMount.stage-mount {
+    height: clamp(680px, 78vh, 1120px);
+}
+
 .print-layout-stage-shell .stage-mount > div {
     margin: 0 auto;
 }
@@ -1491,6 +1495,15 @@ body.print-layout-page {
         padding: 18px 14px 56px;
     }
 
+    .print-layout-section-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .print-layout-section-head .print-layout-actions {
+        width: 100%;
+    }
+
     .print-layout-section-head,
     .print-layout-hero {
         padding-left: 18px;
@@ -1519,6 +1532,21 @@ body.print-layout-page {
     .print-layout-control-group {
         display: grid;
     }
+
+    .print-layout-control-head,
+    .print-layout-preview-head,
+    .print-layout-status-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .print-layout-preview-actions {
+        align-self: flex-start;
+    }
+
+    .print-layout-stage-shell #sheetPreviewMount.stage-mount {
+        height: min(72vh, 820px);
+    }
 }
 
 @media (max-width: 560px) {
@@ -1544,6 +1572,29 @@ body.print-layout-page {
 
     .print-layout-hero-frame {
         padding: 12px;
+    }
+
+    .print-layout-studio {
+        padding: 14px;
+    }
+
+    .print-layout-control-card,
+    .print-layout-preview-card,
+    .print-layout-status-card {
+        padding: 14px;
+    }
+
+    .print-layout-dropzone {
+        min-height: 170px;
+        padding: 14px;
+    }
+
+    .print-layout-upload-thumb {
+        min-height: 136px;
+    }
+
+    .print-layout-stage-shell #sheetPreviewMount.stage-mount {
+        height: min(62vh, 620px);
     }
 }
 

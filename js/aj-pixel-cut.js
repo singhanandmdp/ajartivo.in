@@ -2,7 +2,7 @@
     "use strict";
 
     const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
-    const LIVE_BACKEND_BASE_URL = "https://pixel-cut-backend.onrender.com";
+    const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const HISTORY_KEY = "ajpc_history_v1";
     const USAGE_KEY = "ajpc_usage_v1";
 
