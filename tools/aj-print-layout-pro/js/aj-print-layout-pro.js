@@ -1908,6 +1908,11 @@
             return;
         }
 
+        const downloadSession = await requireDownloadSession();
+        if (!downloadSession) {
+            return;
+        }
+
         state.isExporting = true;
         exportUi.lastFormat = format;
         exportUi.lastError = "";
@@ -1946,6 +1951,17 @@
                 }
             }
         }
+    }
+
+    async function requireDownloadSession() {
+        if (!window.AjArtivoDownloadAuth || typeof window.AjArtivoDownloadAuth.ensureDownloadSession !== "function") {
+            return null;
+        }
+
+        return window.AjArtivoDownloadAuth.ensureDownloadSession({
+            reason: "download",
+            nextPath: `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`
+        });
     }
 
     async function exportSheet(format) {

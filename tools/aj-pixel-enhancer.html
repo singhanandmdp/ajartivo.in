@@ -1,31 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aj Pixel Enhancer - AJartivo</title>
-    <script src="../js/canonical-url.js"></script>
-    <link rel="icon" href="../Favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/tools-hub.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AJ Pixel Enhancer</title>
+
+<meta name="aj-pixel-cut-api" content="https://ajartivo-backend.onrender.com">
+<link rel="stylesheet" href="aj-pixel-enhancer/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-<body class="tools-hub-page">
-    <main class="tool-placeholder-shell">
-        <section class="tool-placeholder-hero">
-            <span class="tool-placeholder-kicker">Tool Placeholder</span>
-            <h1>Aj Pixel Enhancer</h1>
-            <p>This page is set aside for the future enhancer workflow. The navigation path is in place so the tool can be built later without changing the public tools dashboard.</p>
-        </section>
-        <section class="tool-placeholder-panel">
-            <div class="tool-placeholder-meta">
-                <article><span>Status</span><strong>UI placeholder ready</strong></article>
-                <article><span>Planned focus</span><strong>Quality and clarity uplift</strong></article>
-                <article><span>Next step</span><strong>Processing logic will be added later</strong></article>
+
+<body class="aj-pixel-cut-page">
+
+<div id="site-header"></div>
+
+<aside class="sidebar" id="sidebarMenu"></aside>
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<section class="hero">
+    <div class="hero-badge">* * * Pixel Enhancer * * *</div>
+    <h1>AJ Pixel Enhancer</h1>
+    <p>AI Powered Image Enhancer</p>
+</section>
+
+<section class="demo-compare">
+    <div class="demo-compare-inner">
+        <div class="demo-compare-copy">
+            <div class="section-kicker">Demo preview</div>
+            <h2>Before and after slider for the sample image.</h2>
+            <p>This is only for display. Your edit flow below stays exactly the same as before.</p>
+        </div>
+
+        <div class="demo-compare-card">
+            <div class="demo-stage" id="demoCompareStage">
+                <img class="demo-image demo-before" id="demoBeforeImage" src="Aj Pixel Cut/website/Image/before.webp" alt="Before example image">
+                <div class="demo-after-wrap" id="demoAfterWrap">
+                    <img class="demo-image demo-after" id="demoAfterImage" src="Aj Pixel Cut/website/Image/after.webp" alt="After example image">
+                </div>
+                <div class="demo-label demo-label-before">Before</div>
+                <div class="demo-label demo-label-after">After</div>
+                <div class="demo-divider" id="demoDivider" aria-hidden="true">
+                    <span class="demo-handle">
+                        <i class="fa-solid fa-left-right"></i>
+                    </span>
+                </div>
+                <input type="range" id="demoCompareSlider" class="demo-slider" min="0" max="100" value="50" aria-label="Demo before and after comparison slider">
             </div>
-            <div class="tool-placeholder-actions">
-                <a class="tool-placeholder-btn" href="./dashboard">Back to Dashboard</a>
+        </div>
+    </div>
+</section>
+
+<section class="tool">
+
+    <div class="card">
+
+        <!-- UPLOAD -->
+        <div class="upload" id="uploadBox">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <p>Drag & Drop Image or Click</p>
+            <input type="file" id="fileInput">
+        </div>
+
+        <div class="card-topbar">
+            <button type="button" class="reupload-btn" id="reuploadBtn">
+                <i class="fa-solid fa-upload"></i>
+                Upload Image
+            </button>
+        </div>
+
+        <p class="pixel-cut-status" id="ajPixelCutStatus" aria-live="polite" hidden></p>
+        <div class="pixel-cut-upgrade" id="ajPixelCutUpgrade" hidden>
+            <div class="pixel-cut-upgrade-copy">
+                <span class="pixel-cut-upgrade-kicker">Premium limit reached</span>
+                <strong id="ajPixelCutUpgradeTitle">You have used your 5 free enhancements</strong>
+                <p id="ajPixelCutUpgradeText">Upgrade to Premium to keep using the enhancer without the free limit.</p>
             </div>
-        </section>
-    </main>
+            <a class="pixel-cut-upgrade-btn" href="/premium" id="ajPixelCutUpgradeBtn">Upgrade to Premium</a>
+        </div>
+
+        <!-- RESULT -->
+        <div class="result" id="resultWrapper">
+
+            <!-- BEFORE -->
+            <div class="img-card">
+                <div class="img-card-header">
+                    <span>Before</span>
+                    <span class="size-badge" id="beforeSizeBadge">--</span>
+                </div>
+                <div class="preview-stage" id="beforeStage">
+                    <canvas id="beforeCanvas" class="preview-media"></canvas>
+                </div>
+            </div>
+
+            <!-- AFTER -->
+            <div class="img-card">
+                <div class="img-card-header">
+                    <span>After</span>
+                    <span class="size-badge" id="afterSizeBadge">--</span>
+                </div>
+                <div class="preview-stage img-wrap" id="afterStage">
+                    <canvas id="afterCanvas" class="preview-media"></canvas>
+                    <div class="crop-overlay" id="cropOverlay" style="display:none;">
+                        <div class="crop-box" id="cropBox">
+                            <span class="crop-label">Crop</span>
+                            <div class="crop-handle crop-handle-nw" data-handle="nw"></div>
+                            <div class="crop-handle crop-handle-n" data-handle="n"></div>
+                            <div class="crop-handle crop-handle-ne" data-handle="ne"></div>
+                            <div class="crop-handle crop-handle-e" data-handle="e"></div>
+                            <div class="crop-handle crop-handle-se" data-handle="se"></div>
+                            <div class="crop-handle crop-handle-s" data-handle="s"></div>
+                            <div class="crop-handle crop-handle-sw" data-handle="sw"></div>
+                            <div class="crop-handle crop-handle-w" data-handle="w"></div>
+                        </div>
+                    </div>
+                    <div class="brush-preview" id="brushPreview"></div>
+                    <div class="scan" id="scan"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="action-row">
+            <a id="downloadBtn">Download Image</a>
+
+            <div class="history-tools" aria-label="History controls">
+                <button class="tool-icon" id="historyUndoBtn" type="button" title="Undo">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button class="tool-icon" id="historyRedoBtn" type="button" title="Redo">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <div class="color-tools" aria-label="Background color options">
+                <div class="color-circle no-fill-circle" data-color="transparent" title="No Fill"></div>
+                <div class="color-circle" data-color="#ffffff" style="background:#ffffff;" title="White"></div>
+                <div class="color-circle" data-color="#ff0000" style="background:#ff0000;" title="Red"></div>
+                <div class="color-circle" data-color="#ffff00" style="background:#ffff00;" title="Yellow"></div>
+                <div class="color-circle" data-color="#0000ff" style="background:#0000ff;" title="Blue"></div>
+                <input type="color" id="colorPicker" title="Custom color">
+                <button class="color-circle gradient-circle" id="gradientPreset" type="button" title="Gradient"></button>
+            </div>
+
+            <div class="tool-icons" aria-label="Editing tools">
+                <button class="tool-icon" id="refineBtn" type="button" title="Refine Brush">
+                    <i class="fa-solid fa-paintbrush"></i>
+                </button>
+                <button class="tool-icon" id="resizeBtn" type="button" title="Crop / Resize">
+                    <i class="fa-solid fa-crop-simple"></i>
+                </button>
+                <button class="tool-icon" id="textBtn" type="button" title="Add Text">
+                    <i class="fa-solid fa-font"></i>
+                </button>
+                <button class="tool-icon" id="outlineBtn" type="button" title="Outline / Shadow">
+                    <i class="fa-solid fa-border-all"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="control-panels">
+            <div class="control-panel" id="refinePanel">
+                <label>Mode</label>
+                <div class="mode-row">
+                    <button type="button" class="mode-btn active" id="eraseModeBtn">Erase</button>
+                    <button type="button" class="mode-btn" id="restoreModeBtn">Restore</button>
+                    <button type="button" class="mode-btn active" id="restoreRemovedBtn">Enhanced BG</button>
+                    <button type="button" class="mode-btn" id="restoreOriginalBtn">Original Image</button>
+                </div>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Brush size</label>
+                        <input type="range" id="brushSize" min="6" max="80" value="24">
+                    </div>
+                    <div class="slider-group">
+                        <label>Brush hardness</label>
+                        <input type="range" id="brushHardness" min="0" max="100" value="65">
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Feather</label>
+                        <input type="range" id="brushFeather" min="0" max="100" value="20">
+                    </div>
+                </div>
+                <button type="button" class="panel-close" data-panel="refinePanel">Done</button>
+            </div>
+
+            <div class="control-panel" id="resizePanel">
+                <label>Crop</label>
+                <p class="panel-help">Drag the box on the image to crop it. Use the handles to resize.</p>
+                <label>Export scale</label>
+                <input type="range" id="resizeScale" min="60" max="140" value="100">
+                <label>Corner radius</label>
+                <input type="range" id="cropRadius" min="0" max="160" value="0">
+                <button type="button" class="panel-close" data-panel="resizePanel">Done</button>
+            </div>
+
+            <div class="control-panel" id="textPanel">
+                <label>Text</label>
+                <textarea id="textInput" placeholder="Type your caption here..."></textarea>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Text size</label>
+                        <input type="range" id="textSize" min="16" max="180" value="64">
+                    </div>
+                    <div class="slider-group">
+                        <label>Text color</label>
+                        <input type="color" id="textColor" value="#ffffff">
+                    </div>
+                </div>
+                <div class="slider-row">
+                    <div class="slider-group">
+                        <label>Position X</label>
+                        <input type="range" id="textPosX" min="0" max="100" value="50">
+                    </div>
+                    <div class="slider-group">
+                        <label>Position Y</label>
+                        <input type="range" id="textPosY" min="0" max="100" value="50">
+                    </div>
+                </div>
+                <div class="mode-row">
+                    <button type="button" class="mode-btn active" id="textBoldBtn">Bold</button>
+                    <button type="button" class="mode-btn" id="textItalicBtn">Italic</button>
+                    <button type="button" class="mode-btn" id="textUnderlineBtn">Underline</button>
+                </div>
+                <button type="button" class="panel-close" data-panel="textPanel">Done</button>
+            </div>
+
+            <div class="control-panel" id="outlinePanel">
+                <label>Outline mode</label>
+                <div class="segmented-toggle" role="tablist" aria-label="Outline mode">
+                    <button type="button" class="mode-btn active" id="outlineShadowBtn">Shadow</button>
+                    <button type="button" class="mode-btn" id="outlineHardBtn">Hard outline</button>
+                </div>
+                <label>Outline size</label>
+                <input type="range" id="outlineSize" min="0" max="24" value="8">
+                <label>Outline color</label>
+                <input type="color" id="outlineColor" value="#ffffff">
+                <button type="button" class="panel-close" data-panel="outlinePanel">Done</button>
+            </div>
+
+            <div class="control-panel" id="gradientPanel">
+                <label>Gradient start</label>
+                <input type="color" id="gradientStart" value="#ffffff">
+                <label>Gradient end</label>
+                <input type="color" id="gradientEnd" value="#14b8a6">
+                <label>Angle</label>
+                <input type="range" id="gradientAngle" min="0" max="360" value="135">
+                <button type="button" class="panel-close" data-panel="gradientPanel">Done</button>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<section class="intro-grid">
+    <div class="intro-copy">
+        <div class="section-kicker">Premium image enhancement</div>
+        <h2>Vivid images. Professional results. Faster edits.</h2>
+        <p>
+            Enhance images, refine edges, add text, outline your subject, and export a polished image
+            in one smooth workflow made for creators, brands, and fast social media work.
+        </p>
+        <div class="feature-chips" aria-label="Key features">
+            <span>One-click enhance</span>
+            <span>Soft edge refine</span>
+            <span>Text + outline tools</span>
+            <span>Crop and export</span>
+        </div>
+    </div>
+
+    <div class="steps-card">
+        <div class="steps-card-header">
+            <div>
+                <span class="section-kicker">How to use</span>
+                <h3>3 simple steps</h3>
+            </div>
+            <div class="steps-badge">Beginner friendly</div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div>
+                    <h4>Upload your image</h4>
+                    <p>Drag and drop a photo or click upload to start enhancement.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div>
+                    <h4>Edit the result</h4>
+                    <p>Use crop, restore, text, and outline tools to fine-tune the image.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div>
+                    <h4>Download the image</h4>
+                    <p>Pick your finish style, then save the final premium-looking PNG.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="ad-section">
+
+    <div class="ad-card">
+
+        <div class="ad-text">
+            <h2>Clean Enhancements. Professional Results.</h2>
+            <p>Create stunning visuals for your brand, portfolio, or business in seconds.</p>
+        </div>
+
+        <img src="Images/aj pixel enhancer.webp" class="ad-image" alt="AJ Pixel Enhancer preview">
+
+    </div>
+
+</section>
+
+<div class="page-spacer"></div>
+
+<div id="site-footer"></div>
+
+<script src="../js/script.js"></script>
+<script src="Aj Pixel Cut/website/aj-pixel-cut.js"></script>
+
 </body>
 </html>

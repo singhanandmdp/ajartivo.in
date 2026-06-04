@@ -884,15 +884,34 @@
         setBusy(false);
     }
 
-    function downloadOutput(itemId) {
-        const item = state.items.find(function (entry) {
-            return entry.id === itemId;
-        });
+    async function downloadOutput(itemId) {
+        try {
+            const item = state.items.find(function (entry) {
+                return entry.id === itemId;
+            });
 
-        if (!item || !item.outputUrl) {
-            return;
+            if (!item || !item.outputUrl) {
+                return;
+            }
+
+            if (window.AjArtivoDownloadAuth && typeof window.AjArtivoDownloadAuth.withDownloadAuth === "function") {
+                await window.AjArtivoDownloadAuth.withDownloadAuth(function () {
+                    triggerDownloadOutput(item);
+                }, {
+                    reason: "download",
+                    nextPath: `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`
+                });
+                return;
+            }
+
+            triggerDownloadOutput(item);
+        } catch (error) {
+            console.error("Image converter download failed:", error);
+            alert("Unable to start the download right now.");
         }
+    }
 
+    function triggerDownloadOutput(item) {
         const anchor = document.createElement("a");
         anchor.href = item.outputUrl;
         anchor.download = item.outputName || getOutputFileName(item.file.name, state.outputFormat);
@@ -963,7 +982,7 @@
                     <span class="converter-status-pill is-done">Ready to download</span>
                 </div>
                 <div class="converter-result-actions">
-                    <a class="converter-mini-btn is-primary" href="${item.outputUrl}" download="${escapeHtml(item.outputName || getOutputFileName(item.file.name, outputFormat))}">Download</a>
+                    <a class="converter-mini-btn is-primary" href="#" data-action="download" data-item-id="${item.id}" data-download-name="${escapeHtml(item.outputName || getOutputFileName(item.file.name, outputFormat))}">Download</a>
                     <button type="button" class="converter-mini-btn" data-action="reconvert" data-item-id="${item.id}">Reconvert</button>
                     <button type="button" class="converter-mini-btn" data-action="remove" data-item-id="${item.id}">Delete</button>
                 </div>
@@ -1060,6 +1079,18 @@
         if (pickBtn) {
             pickBtn.addEventListener("click", function () {
                 fileInput.click();
+            });
+        }
+
+        if (resultsEl) {
+            resultsEl.addEventListener("click", function (event) {
+                const trigger = event && event.target ? event.target.closest('[data-action="download"]') : null;
+                if (!trigger) {
+                    return;
+                }
+
+                event.preventDefault();
+                downloadOutput(cleanText(trigger.getAttribute("data-item-id")));
             });
         }
 

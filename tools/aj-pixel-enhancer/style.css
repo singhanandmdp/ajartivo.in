@@ -1,0 +1,186 @@
+@import url("../Aj Pixel Cut/style.css");
+
+body.aj-pixel-cut-page{
+    background:
+        radial-gradient(circle at top left, rgba(20,184,166,0.30), transparent 30%),
+        radial-gradient(circle at 80% 0%, rgba(14,165,233,0.22), transparent 24%),
+        radial-gradient(circle at 50% 95%, rgba(245,158,11,0.14), transparent 22%),
+        radial-gradient(circle at bottom right, rgba(168,85,247,0.18), transparent 32%),
+        #08101a !important;
+}
+
+body.aj-pixel-cut-page::before{
+    background:rgba(20,184,166,0.28) !important;
+}
+
+body.aj-pixel-cut-page::after{
+    background:rgba(245,158,11,0.16) !important;
+}
+
+body.aj-pixel-cut-page .hero-badge{
+    border-color:rgba(255,255,255,0.18);
+    background:linear-gradient(135deg, rgba(20,184,166,0.92), rgba(14,165,233,0.86), rgba(245,158,11,0.76));
+    color:#f8fffe;
+    box-shadow:0 14px 34px rgba(14,165,233,0.28), 0 0 0 1px rgba(255,255,255,0.08) inset;
+    text-shadow:0 1px 0 rgba(0,0,0,0.28);
+}
+
+body.aj-pixel-cut-page .section-kicker{
+    display:inline-flex;
+    align-items:center;
+    padding:7px 14px;
+    border-radius:999px;
+    background:linear-gradient(135deg, rgba(20,184,166,0.92), rgba(14,165,233,0.82));
+    color:#f8fffe;
+    box-shadow:0 12px 28px rgba(14,165,233,0.22);
+    text-shadow:0 1px 0 rgba(0,0,0,0.22);
+}
+
+body.aj-pixel-cut-page .hero-meta span,
+body.aj-pixel-cut-page .feature-chips span,
+body.aj-pixel-cut-page .steps-badge{
+    background:linear-gradient(135deg, rgba(16,24,40,0.96), rgba(15,29,48,0.92));
+    color:#dffcf8;
+    border-color:rgba(20,184,166,0.20);
+    box-shadow:0 10px 24px rgba(0,0,0,0.22), 0 0 0 1px rgba(20,184,166,0.05) inset;
+}
+
+body.aj-pixel-cut-page .step-number{
+    background:linear-gradient(135deg, #14b8a6, #0ea5e9 56%, #f59e0b);
+    box-shadow:0 14px 28px rgba(14,165,233,0.30);
+}
+
+body.aj-pixel-cut-page .upload:hover{
+    border-color:#14b8a6;
+}
+
+body.aj-pixel-cut-page .upload i{
+    color:#14b8a6;
+}
+
+body.aj-pixel-cut-page .reupload-btn{
+    background:linear-gradient(135deg, #102033, #172a46);
+}
+
+body.aj-pixel-cut-page .reupload-btn:hover{
+    background:linear-gradient(135deg, #163049, #20395b);
+}
+
+body.aj-pixel-cut-page .reupload-btn i{
+    color:#5eead4;
+}
+
+body.aj-pixel-cut-page #downloadBtn,
+body.aj-pixel-cut-page .pixel-cut-upgrade-btn{
+    background:linear-gradient(135deg, #14b8a6 0%, #0ea5e9 55%, #8b5cf6 100%);
+    box-shadow:0 16px 28px rgba(14,165,233,0.25), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+
+body.aj-pixel-cut-page #downloadBtn:hover,
+body.aj-pixel-cut-page .pixel-cut-upgrade-btn:hover{
+    box-shadow:0 18px 34px rgba(14,165,233,0.30), 0 0 32px rgba(20,184,166,0.12);
+}
+
+body.aj-pixel-cut-page .color-circle.active{
+    box-shadow:0 0 0 2px #14b8a6, 0 0 0 1px rgba(0,0,0,0.35);
+}
+
+body.aj-pixel-cut-page .no-fill-circle{
+    border-color:#14b8a6;
+    box-shadow:0 8px 18px rgba(20,184,166,0.20), 0 0 0 1px rgba(255,255,255,0.06) inset;
+}
+
+body.aj-pixel-cut-page .gradient-circle{
+    background:linear-gradient(135deg, #f8fafc, #14b8a6 35%, #0ea5e9 72%, #f59e0b);
+    box-shadow:0 10px 22px rgba(14,165,233,0.22);
+}
+
+body.aj-pixel-cut-page .tool-icon.active{
+    background:linear-gradient(135deg, #14b8a6, #0ea5e9 60%, #8b5cf6);
+}
+
+body.aj-pixel-cut-page .tool-icon:hover{
+    box-shadow:0 12px 22px rgba(14,165,233,0.18), 0 0 24px rgba(20,184,166,0.08);
+}
+
+body.aj-pixel-cut-page .mode-btn.active{
+    background:linear-gradient(135deg, #14b8a6, #0ea5e9 62%, #8b5cf6);
+    box-shadow:0 8px 18px rgba(14,165,233,0.28), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+
+body.aj-pixel-cut-page .panel-close{
+    background:linear-gradient(135deg, #14b8a6, #0ea5e9 60%, #8b5cf6);
+}
+
+body.aj-pixel-cut-page .pixel-cut-upgrade{
+    border-color:rgba(20,184,166,0.28);
+    background:linear-gradient(135deg, rgba(16,24,40,0.97), rgba(19,30,53,0.97));
+    box-shadow:0 20px 46px rgba(0,0,0,0.24), 0 0 0 1px rgba(20,184,166,0.04) inset;
+}
+
+body.aj-pixel-cut-page .demo-compare-copy,
+body.aj-pixel-cut-page .card,
+body.aj-pixel-cut-page .intro-copy,
+body.aj-pixel-cut-page .steps-card,
+body.aj-pixel-cut-page .ad-card{
+    border-color:rgba(20,184,166,0.18);
+    background:
+        linear-gradient(180deg, rgba(7,14,25,0.98), rgba(12,22,38,0.96)),
+        linear-gradient(135deg, rgba(20,184,166,0.10), rgba(14,165,233,0.08), rgba(245,158,11,0.04));
+    box-shadow:
+        0 28px 80px rgba(0,0,0,0.42),
+        0 0 0 1px rgba(255,255,255,0.03) inset,
+        0 0 42px rgba(20,184,166,0.07);
+}
+
+body.aj-pixel-cut-page .demo-stage{
+    border-color:rgba(20,184,166,0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.04),
+        0 0 0 1px rgba(20,184,166,0.06),
+        0 20px 50px rgba(0,0,0,0.30);
+}
+
+body.aj-pixel-cut-page .demo-after-wrap{
+    background:
+        linear-gradient(45deg, rgba(20,184,166,0.22) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(14,165,233,0.20) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(245,158,11,0.16) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(20,184,166,0.20) 75%),
+        #dbeafe;
+    background-size:18px 18px;
+}
+
+body.aj-pixel-cut-page .demo-label{
+    background:linear-gradient(135deg, rgba(16,24,40,0.94), rgba(23,35,58,0.92));
+    border-color:rgba(20,184,166,0.20);
+    color:#ecfffd;
+}
+
+body.aj-pixel-cut-page .demo-divider::before{
+    background:linear-gradient(180deg, rgba(20,184,166,0.04), rgba(255,255,255,0.92), rgba(245,158,11,0.10));
+    box-shadow:0 0 0 1px rgba(14,165,233,0.12);
+}
+
+body.aj-pixel-cut-page .demo-handle{
+    background:linear-gradient(135deg, rgba(248,250,252,0.98), rgba(224,242,254,0.96));
+    color:#0f172a;
+    box-shadow:0 16px 30px rgba(0,0,0,0.30), 0 0 0 1px rgba(20,184,166,0.10);
+}
+
+body.aj-pixel-cut-page .ad-text h2{
+    color:#f8fafc;
+}
+
+body.aj-pixel-cut-page .ad-text p{
+    color:#d1d5db;
+}
+
+
+body.aj-pixel-cut-page .pixel-cut-status[data-state="success"]{
+    color:#6ee7b7;
+}
+
+body.aj-pixel-cut-page .pixel-cut-status[data-state="info"]{
+    color:#5eead4;
+}

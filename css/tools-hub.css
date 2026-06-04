@@ -25,7 +25,7 @@
     min-height: 100vh;
     padding-top: 74px;
     position: relative;
-    overflow-x: hidden;
+    overflow-x: clip;
     background:
         radial-gradient(circle at top left, rgba(59, 130, 246, 0.13), transparent 34%),
         radial-gradient(circle at top right, rgba(124, 58, 237, 0.1), transparent 28%),
@@ -63,6 +63,7 @@
     padding: 40px 24px 88px;
     position: relative;
     z-index: 1;
+    min-width: 0;
 }
 
 .tools-hub-hero {
@@ -458,7 +459,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 11px 16px;
+    min-height: 34px;
+    padding: 0 14px;
     min-width: 130px;
     border-radius: 14px;
     background: linear-gradient(135deg, var(--tools-blue) 0%, var(--tools-blue-deep) 100%);
@@ -628,11 +630,12 @@
     }
 
     .tool-hub-card-footer {
-        align-items: stretch;
+        align-items: flex-start;
     }
 
     .tool-hub-btn {
-        width: 100%;
+        width: fit-content;
+        min-height: 32px;
     }
 
     .tools-hub-page .tool-placeholder-shell {

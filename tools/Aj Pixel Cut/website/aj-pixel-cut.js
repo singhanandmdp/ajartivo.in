@@ -156,6 +156,26 @@ function getPixelCutSession() {
     return services.getSession();
 }
 
+async function requireDownloadSession() {
+    const session = getPixelCutSession();
+    if (session) {
+        return session;
+    }
+
+    if (window.AjArtivoDownloadAuth && typeof window.AjArtivoDownloadAuth.ensureDownloadSession === "function") {
+        return window.AjArtivoDownloadAuth.ensureDownloadSession({
+            reason: "download",
+            nextPath: `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`
+        });
+    }
+
+    if (window.AjArtivoResolveUrl) {
+        window.location.href = `${window.AjArtivoResolveUrl("/login")}?next=${encodeURIComponent(`${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}`)}`;
+    }
+
+    return null;
+}
+
 function isPremiumPixelCutUser() {
     const session = getPixelCutSession();
     return Boolean(session && (session.premiumActive === true || session.isPremium === true));
@@ -1630,7 +1650,12 @@ async function handleFile(file){
     }
 }
 
-function downloadWithBackground(){
+async function downloadWithBackground(){
+    const session = await requireDownloadSession();
+    if (!session) {
+        return;
+    }
+
     if(!baseCanvas.width || !baseCanvas.height){
         return;
     }
@@ -2102,9 +2127,9 @@ afterCanvas.addEventListener("pointercancel", ()=>{
     finalizeBrushStroke();
 });
 
-downloadBtn.addEventListener("click", (e)=>{
+downloadBtn.addEventListener("click", async (e)=>{
     e.preventDefault();
-    downloadWithBackground();
+    await downloadWithBackground();
 });
 
 if(demoCompareSlider){
