@@ -48,7 +48,7 @@ const pixelCutRemoveBgUrl = `${pixelCutApiBase}/smart-remove-bg`;
 const pixelCutBaseRemoveBgUrl = `${pixelCutApiBase}/remove-bg`;
 const FREE_PIXELCUT_LIMIT = 5;
 const PREMIUM_UPGRADE_URL = "/premium";
-const USAGE_KEY = "ajpc_usage_v1";
+const USAGE_KEY_PREFIX = "ajpc_usage_v1";
 const premiumUpgradeCard = document.getElementById("ajPixelCutUpgrade");
 const premiumUpgradeTitle = document.getElementById("ajPixelCutUpgradeTitle");
 const premiumUpgradeText = document.getElementById("ajPixelCutUpgradeText");
@@ -171,7 +171,7 @@ function isLocalRuntime() {
 
 function readUsage() {
     try {
-        const raw = window.localStorage.getItem(USAGE_KEY);
+        const raw = window.localStorage.getItem(resolvePixelCutUsageKey());
         if (!raw) {
             return { count: 0, bytes: 0 };
         }
@@ -188,13 +188,14 @@ function readUsage() {
 
 function bumpUsage(file) {
     const usage = readUsage();
+    const usageKey = resolvePixelCutUsageKey();
     const next = {
         count: usage.count + 1,
         bytes: usage.bytes + Math.max(0, Number(file && file.size || 0))
     };
 
     try {
-        window.localStorage.setItem(USAGE_KEY, JSON.stringify(next));
+        window.localStorage.setItem(usageKey, JSON.stringify(next));
     } catch (_error) {
         // ignore localStorage write errors
     }
@@ -209,6 +210,16 @@ function getPixelCutSession() {
     }
 
     return services.getSession();
+}
+
+function resolvePixelCutUsageKey() {
+    const session = getPixelCutSession();
+    const userKey = cleanText(session && (session.id || session.email));
+    if (!userKey) {
+        return `${USAGE_KEY_PREFIX}:guest`;
+    }
+
+    return `${USAGE_KEY_PREFIX}:${encodeURIComponent(userKey.toLowerCase())}`;
 }
 
 async function requireDownloadSession() {
