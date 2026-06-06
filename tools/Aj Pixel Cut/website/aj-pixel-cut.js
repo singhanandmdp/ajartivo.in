@@ -377,9 +377,6 @@ let restoreSource = "original";
 let restoreMaskDirty = false;
 let renderFrameId = 0;
 const minCropSize = 24;
-const subjectCornerRadius = 18;
-const subjectCornerFeather = 2;
-const subjectEdgeFeather = 2;
 
 function setButtonActive(button, active){
     button.classList.toggle("active", active);
@@ -1665,12 +1662,10 @@ async function handleFile(file){
         sourceImage.src = currentImageUrl;
         await sourceImage.decode();
 
-        const softenedCanvas = applySoftCornersToCanvas(sourceImage, subjectCornerRadius, subjectCornerFeather);
-        const edgeFeatheredCanvas = applySubjectEdgeFeatherToCanvas(softenedCanvas, subjectEdgeFeather);
-        baseCanvas.width = softenedCanvas.width;
-        baseCanvas.height = softenedCanvas.height;
+        baseCanvas.width = sourceImage.naturalWidth;
+        baseCanvas.height = sourceImage.naturalHeight;
         baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
-        baseCtx.drawImage(edgeFeatheredCanvas, 0, 0);
+        baseCtx.drawImage(sourceImage, 0, 0);
         initMask();
         initRestoreMask();
         resetCropRect();
