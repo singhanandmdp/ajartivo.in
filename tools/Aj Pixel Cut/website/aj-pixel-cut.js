@@ -378,8 +378,8 @@ let restoreMaskDirty = false;
 let renderFrameId = 0;
 const minCropSize = 24;
 const subjectCornerRadius = 18;
-const subjectCornerFeather = 8;
-const subjectEdgeFeather = 12;
+const subjectCornerFeather = 2;
+const subjectEdgeFeather = 2;
 
 function setButtonActive(button, active){
     button.classList.toggle("active", active);
