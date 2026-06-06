@@ -100,13 +100,68 @@ function buildPixelCutCandidateUrls() {
 
     if (isLocalRuntime()) {
         urls.push(
+            `${localBackendApiBase}/api/remove-bg`,
             `${localBackendApiBase}/smart-remove-bg`,
             `${localBackendApiBase}/remove-bg`
         );
     }
 
-    urls.push(pixelCutRemoveBgUrl, pixelCutBaseRemoveBgUrl);
+    urls.push(
+        `${pixelCutApiBase}/api/remove-bg`,
+        pixelCutRemoveBgUrl,
+        pixelCutBaseRemoveBgUrl
+    );
     return urls;
+}
+
+function isJsonContentType(value) {
+    return /json/i.test(cleanText(value));
+}
+
+function revokeObjectUrlIfNeeded(value) {
+    if (typeof value === "string" && value.startsWith("blob:")) {
+        try {
+            URL.revokeObjectURL(value);
+        } catch (_error) {
+            // ignore revoke failures
+        }
+    }
+}
+
+async function resolveProcessedImageSource(response) {
+    const contentType = cleanText(response && response.headers && response.headers.get && response.headers.get("content-type"));
+
+    if (isJsonContentType(contentType)) {
+        const payload = await response.json();
+        if (payload && payload.success === false) {
+            throw new Error(cleanText(payload.error || payload.message) || "Image processing failed.");
+        }
+
+        const output = payload && payload.output ? payload.output : payload;
+        const imageDataUrl = cleanText(output && (output.imageDataUrl || output.dataUrl || output.image_data_url));
+        if (imageDataUrl) {
+            return imageDataUrl;
+        }
+
+        const imageUrl = cleanText(output && (output.imageUrl || output.url));
+        if (imageUrl) {
+            const remoteResponse = await fetch(imageUrl, {
+                signal: activeUploadController.signal
+            });
+
+            if (!remoteResponse.ok) {
+                throw new Error("The processed image could not be loaded.");
+            }
+
+            const remoteBlob = await remoteResponse.blob();
+            return URL.createObjectURL(remoteBlob);
+        }
+
+        throw new Error(cleanText(payload && payload.error) || "Processed image data is missing.");
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
 }
 
 function isLocalRuntime() {
@@ -1508,11 +1563,11 @@ async function handleFile(file){
     }
 
     if(currentOriginalUrl){
-        URL.revokeObjectURL(currentOriginalUrl);
+        revokeObjectUrlIfNeeded(currentOriginalUrl);
         currentOriginalUrl = "";
     }
     if(currentImageUrl){
-        URL.revokeObjectURL(currentImageUrl);
+        revokeObjectUrlIfNeeded(currentImageUrl);
         currentImageUrl = "";
     }
 
@@ -1593,8 +1648,7 @@ async function handleFile(file){
             return;
         }
 
-        const blob = await res.blob();
-        currentImageUrl = URL.createObjectURL(blob);
+        currentImageUrl = await resolveProcessedImageSource(res);
 
         const sourceImage = new Image();
         sourceImage.src = currentImageUrl;
