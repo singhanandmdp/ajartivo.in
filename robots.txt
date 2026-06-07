@@ -1,11 +1,31 @@
 User-agent: Googlebot-Image
-Disallow: /images/
 Disallow: /icons/
-Allow: /images/anand.jpg
-Allow: /images/Hero/hero-bg.jpg
+Disallow: /login
+Disallow: /signup
+Disallow: /dashboard
+Disallow: /pages/profile
+Disallow: /Profile
+Disallow: /pages/header
+Disallow: /pages/footer
+Disallow: /pages/sidebar
+Disallow: /images/default-user.png
+Disallow: /images/logo.webp
+Disallow: /images/watermark.png
+Disallow: /images/Hero/
 
 User-agent: *
-Disallow: /images/
 Disallow: /icons/
-Allow: /images/anand.jpg
-Allow: /images/Hero/hero-bg.jpg
+Disallow: /login
+Disallow: /signup
+Disallow: /dashboard
+Disallow: /pages/profile
+Disallow: /Profile
+Disallow: /pages/header
+Disallow: /pages/footer
+Disallow: /pages/sidebar
+Disallow: /images/default-user.png
+Disallow: /images/logo.webp
+Disallow: /images/watermark.png
+Disallow: /images/Hero/
+
+Sitemap: https://ajartivo.in/sitemap.xml

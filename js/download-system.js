@@ -64,8 +64,8 @@
                     pathname: window.location.pathname,
                     search: window.location.search
                 });
-                setText("productTitle", "Design not found");
-                setText("productDescription", "Design link is missing or invalid.");
+                currentDesign = services.normalizeDesign(buildFallbackDesign("ajartivo-product"));
+                renderDesign(currentDesign);
                 bindActionButton(null, createAccessState());
                 return;
             }
@@ -96,6 +96,10 @@
 
             currentDesign = services.normalizeDesign(currentDesign);
             renderDesign(currentDesign);
+            if (currentDesign && currentDesign.is_placeholder === true) {
+                bindActionButton(null, createAccessState());
+                return;
+            }
             trackDesignView(currentDesign);
 
             const asyncTasks = [
@@ -209,30 +213,40 @@
     }
 
     function renderDesign(product) {
-        const title = product.title || "Untitled Design";
-        const type = String(product.category || "OTHER").toUpperCase();
+        const isPlaceholder = product && product.is_placeholder === true;
+        const seoBaseTitle = getProductSeoBaseTitle(product);
+        const title = isPlaceholder ? "Product Not Found" : seoBaseTitle;
+        const seoTitle = `${title} - AJartivo`;
+        const description = isPlaceholder
+            ? "The requested product could not be found on AJartivo."
+            : getProductSeoDescription(product, title);
+        const type = isPlaceholder ? "Unavailable" : String(product.category || "OTHER").toUpperCase();
         const price = Number(product.price || 0);
-        const amount = isFreeDesign(product) ? "Free" : `Rs. ${price}`;
+        const amount = isPlaceholder ? "Unavailable" : (isFreeDesign(product) ? "Free" : `Rs. ${price}`);
         const seoImage = getSeoImageUrl(product, title);
         const productUrl = getProductUrl(product);
+
+        console.log("SEO Product Loaded:", product);
 
         if (productUrl && stripUrlHash(window.location.href) !== stripUrlHash(productUrl)) {
             window.history.replaceState({}, "", productUrl);
         }
 
-        document.title = `${title} - AJartivo`;
+        document.title = seoTitle;
         setText("productTitle", title);
-        setText("productDescription", product.description || "Creative design ready for instant access.");
+        setText("productDescription", description);
         setText("productTypeChip", type);
         setText("productPrice", amount);
+        setText("productPriceNote", isPlaceholder ? "The requested product could not be found on AJartivo." : "Checking price and access details.");
         setText("galleryFormat", type);
+        setText("galleryAccess", isPlaceholder ? "Unavailable" : "...");
         setText("galleryViews", String(Number(product.views || 0)));
         setText("galleryDownloads", String(Number(product.downloads || 0)));
 
         try {
             updateProductSeo(product, {
-                title: title,
-                description: product.description || "Creative design ready for instant access.",
+                title: seoTitle,
+                description: description,
                 image: seoImage
             });
         } catch (error) {
@@ -679,12 +693,12 @@
     }
 
     function updateProductSeo(product, overrides) {
-        const title = cleanText(overrides && overrides.title) || cleanText(product && product.title) || "AJartivo Product";
-        const description = cleanText(overrides && overrides.description) || cleanText(product && product.description) || "AJartivo design product.";
-        const image = cleanText(overrides && overrides.image) || getSeoImageUrl(product, title);
+        const seoBaseTitle = getProductSeoBaseTitle(product);
+        const seoTitle = cleanText(overrides && overrides.title) || `${seoBaseTitle} - AJartivo`;
+        const description = cleanText(overrides && overrides.description) || getProductSeoDescription(product, seoBaseTitle);
+        const image = cleanText(overrides && overrides.image) || getSeoImageUrl(product, seoBaseTitle);
         const absoluteImage = toAbsoluteUrl(image);
         const absoluteUrl = stripUrlHash(window.location.href);
-        const seoTitle = `${title} - AJartivo`;
 
         document.title = seoTitle;
         setMetaTag("name", "description", description);
@@ -692,28 +706,34 @@
         setMetaTag("property", "og:title", seoTitle);
         setMetaTag("property", "og:description", description);
         setMetaTag("property", "og:image", absoluteImage);
-        setMetaTag("property", "og:image:alt", title);
+        setMetaTag("property", "og:image:alt", seoBaseTitle);
         setMetaTag("property", "og:url", absoluteUrl);
         setMetaTag("property", "og:site_name", "AJartivo");
         setMetaTag("name", "twitter:card", "summary_large_image");
         setMetaTag("name", "twitter:title", seoTitle);
         setMetaTag("name", "twitter:description", description);
         setMetaTag("name", "twitter:image", absoluteImage);
-        setMetaTag("name", "twitter:image:alt", title);
+        setMetaTag("name", "twitter:image:alt", seoBaseTitle);
         updateCanonicalLink(absoluteUrl);
         updateProductJsonLd(product, {
-            title: title,
+            title: seoBaseTitle,
             description: description,
             image: absoluteImage,
             url: absoluteUrl
         });
+
+        if (product && product.is_placeholder === true) {
+            setMetaTag("name", "robots", "noindex, follow");
+        } else {
+            setMetaTag("name", "robots", "index, follow");
+        }
     }
 
     function updateProductJsonLd(product, data) {
         const script = document.getElementById("productJsonLd");
         if (!script) return;
 
-        const title = cleanText(data && data.title) || cleanText(product && product.title) || "AJartivo Product";
+        const title = cleanText(data && data.title) || getProductSeoBaseTitle(product) || "AJartivo Product";
         const description = cleanText(data && data.description) || cleanText(product && product.description) || "";
         const image = cleanText(data && data.image) || toAbsoluteUrl(getSeoImageUrl(product, title));
         const url = cleanText(data && data.url) || stripUrlHash(window.location.href);
@@ -781,6 +801,132 @@
         }
 
         link.href = url;
+    }
+
+    function getProductSeoBaseTitle(product) {
+        if (product && product.is_placeholder === true) {
+            return "Product Not Found";
+        }
+
+        const directTitle = pickBestProductTitle(product);
+        const categoryLabel = getProductSeoCategoryLabel(product);
+        const tagLabel = pickBestProductTag(product);
+        let baseTitle = cleanText(directTitle);
+
+        if (!baseTitle) {
+            baseTitle = cleanText(tagLabel) || cleanText(categoryLabel) || "AJartivo Product";
+        }
+
+        if (categoryLabel && !containsInsensitive(baseTitle, categoryLabel)) {
+            baseTitle = `${baseTitle} ${categoryLabel}`.trim();
+        } else if (!baseTitle && tagLabel) {
+            baseTitle = `${tagLabel}${categoryLabel ? ` ${categoryLabel}` : ""}`.trim();
+        }
+
+        return baseTitle.replace(/\s+/g, " ").trim() || "AJartivo Product";
+    }
+
+    function getProductSeoDescription(product, seoBaseTitle) {
+        const explicitDescription = cleanText(product && product.description);
+        if (explicitDescription) {
+            return explicitDescription;
+        }
+
+        const title = cleanText(seoBaseTitle) || getProductSeoBaseTitle(product);
+        const categoryLabel = getProductSeoCategoryLabel(product);
+        const tags = getProductSeoTags(product).slice(0, 3);
+        const parts = [`Download ${title} from AJartivo.`];
+
+        if (categoryLabel) {
+            parts.push(`Category: ${categoryLabel}.`);
+        }
+
+        if (tags.length) {
+            parts.push(`Tags: ${tags.join(", ")}.`);
+        }
+
+        return parts.join(" ");
+    }
+
+    function getProductSeoCategoryLabel(product) {
+        const category = cleanText(product && (product.category || product.type || product.format || product.fileType));
+        if (!category) {
+            return "";
+        }
+
+        const normalized = category.toUpperCase();
+        if (normalized.includes("PSD")) return "PSD Design";
+        if (normalized.includes("CDR")) return "CDR Template";
+        if (normalized.includes("AI")) return "AI Design";
+        if (normalized.includes("EPS")) return "EPS Vector";
+        if (normalized.includes("PDF")) return "PDF Template";
+        if (normalized.includes("PNG") || normalized.includes("JPG") || normalized.includes("JPEG") || normalized.includes("WEBP")) {
+            return "Image Asset";
+        }
+
+        if (/(design|template|mockup|banner|card|poster|flyer|logo)/i.test(normalized)) {
+            return category;
+        }
+
+        return `${category} Design`;
+    }
+
+    function getProductSeoTags(product) {
+        const rawTags = product && product.tags;
+        const values = Array.isArray(rawTags)
+            ? rawTags
+            : typeof rawTags === "string"
+                ? rawTags.split(",")
+                : [];
+
+        return Array.from(new Set(values.map(cleanText).filter(Boolean)));
+    }
+
+    function pickBestProductTitle(product) {
+        const candidates = [
+            product && product.title,
+            product && product.name,
+            product && product.product_name
+        ].map(cleanText).filter(Boolean);
+
+        return candidates.find(function (value) {
+            return !isGenericProductTitle(value);
+        }) || "";
+    }
+
+    function pickBestProductTag(product) {
+        const tags = getProductSeoTags(product);
+        return tags.find(function (tag) {
+            return !isGenericProductTag(tag);
+        }) || tags[0] || "";
+    }
+
+    function isGenericProductTitle(value) {
+        const text = cleanText(value).toLowerCase();
+        if (!text) return true;
+        return [
+            "ajartivo",
+            "product details",
+            "product",
+            "untitled design",
+            "design",
+            "loading product details..."
+        ].includes(text);
+    }
+
+    function isGenericProductTag(value) {
+        const text = cleanText(value).toLowerCase();
+        if (!text) return true;
+        return [
+            "ajartivo",
+            "product",
+            "design",
+            "loading"
+        ].includes(text);
+    }
+
+    function containsInsensitive(value, search) {
+        return cleanText(value).toLowerCase().includes(cleanText(search).toLowerCase());
     }
 
     function getSeoImageUrl(product, fallbackTitle) {
@@ -964,23 +1110,16 @@
     }
 
     function buildFallbackDesign(slug) {
-        const rawSlug = cleanText(slug) || "ajartivo-product";
-        const title = rawSlug
-            .replace(/[-_]+/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .replace(/\b\w/g, function (letter) {
-                return letter.toUpperCase();
-            }) || "AJartivo Product";
-
         return {
-            id: rawSlug,
-            slug: rawSlug,
-            title: title,
-            description: "This design is temporarily unavailable. Please try again in a moment.",
+            id: cleanText(slug) || "ajartivo-product",
+            slug: cleanText(slug) || "ajartivo-product",
+            title: "Product Not Found",
+            name: "Product Not Found",
+            description: "The requested product could not be found on AJartivo.",
             category: "PSD",
             price: 0,
             is_free: true,
+            is_placeholder: true,
             image_url: "/images/Hero/hero-bg.jpg",
             previewImages: [
                 "/images/Hero/hero-bg.jpg"
