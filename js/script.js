@@ -616,7 +616,7 @@ function loadSidebar() {
     if (!sidebar) return;
     if (sidebar.dataset.partialLoaded === "true") return;
 
-    ensureStylesheet("/css/sidebar.css");
+    ensureStylesheet(`/css/style.css?v=${encodeURIComponent(AJARTIVO_PARTIAL_CACHE_VERSION)}`);
 
     fetchCachedPartial("/pages/sidebar.html", "sidebar", "sidebar")
         .then((data) => {

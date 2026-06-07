@@ -1,0 +1,11 @@
+User-agent: Googlebot-Image
+Disallow: /images/
+Disallow: /icons/
+Allow: /images/anand.jpg
+Allow: /images/Hero/hero-bg.jpg
+
+User-agent: *
+Disallow: /images/
+Disallow: /icons/
+Allow: /images/anand.jpg
+Allow: /images/Hero/hero-bg.jpg
