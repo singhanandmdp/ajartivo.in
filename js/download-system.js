@@ -953,15 +953,10 @@
         }
 
         const slug = getDesignSlug(product);
-        const id = cleanText(product && product.id);
 
         if (slug) {
-            const productPath = `/product/${encodeURIComponent(slug)}${id ? `?id=${encodeURIComponent(id)}` : ""}`;
+            const productPath = `/product/${encodeURIComponent(slug)}`;
             return resolveUrl(productPath);
-        }
-
-        if (id) {
-            return resolveUrl(`/product.html?id=${encodeURIComponent(id)}`);
         }
 
         return resolveUrl("/product");
@@ -978,8 +973,7 @@
         }
 
         return slugify(
-            cleanText(product && (product.title || product.name || product.product_name || product.id)),
-            cleanText(product && (product.id || product.created_at || product.createdAt))
+            cleanText(product && (product.title || product.name || product.product_name || product.category || product.type || product.format || product.fileType))
         );
     }
 

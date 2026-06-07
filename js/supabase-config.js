@@ -289,7 +289,7 @@
             const fallbackDesigns = await fetchDesigns();
             const fallback = Array.isArray(fallbackDesigns)
                 ? fallbackDesigns.find(function (item) {
-                    return getDesignSlug(item) === designSlug;
+                    return matchesDesignSlug(item, designSlug);
                 })
                 : null;
 
@@ -305,7 +305,7 @@
         const fallbackDesigns = await fetchDesigns();
         const fallback = Array.isArray(fallbackDesigns)
             ? fallbackDesigns.find(function (item) {
-                return getDesignSlug(item) === designSlug;
+                return matchesDesignSlug(item, designSlug);
             })
             : null;
 
@@ -355,7 +355,7 @@
 
         const designs = await fetchDesignsFromBackend({ limit: 1000 });
         const match = designs.find(function (design) {
-            return getDesignSlug(design) === designSlug;
+            return matchesDesignSlug(design, designSlug);
         });
         return match || null;
     }
@@ -479,7 +479,7 @@
         }
 
         const match = designsCache.find(function (design) {
-            return getDesignSlug(design) === designSlug;
+            return matchesDesignSlug(design, designSlug);
         });
 
         return match ? normalizeDesign(match) : null;
@@ -1459,6 +1459,29 @@
         const titleSource = cleanText(value && (value.title || value.name || value.product_name || value.id));
         const uniqueSource = cleanText(value && (value.id || value.created_at || value.createdAt || titleSource));
         return slugify(titleSource, uniqueSource);
+    }
+
+    function getPublicDesignSlug(value) {
+        if (typeof value === "string") {
+            return slugify(value);
+        }
+
+        const explicitSlug = cleanText(value && value.slug);
+        if (explicitSlug) {
+            return slugify(explicitSlug);
+        }
+
+        const titleSource = cleanText(value && (value.title || value.name || value.product_name || value.category || value.type || value.format || value.fileType));
+        return slugify(titleSource || "ajartivo-product");
+    }
+
+    function matchesDesignSlug(design, requestedSlug) {
+        const normalizedRequestedSlug = cleanText(requestedSlug);
+        if (!normalizedRequestedSlug) {
+            return false;
+        }
+
+        return getDesignSlug(design) === normalizedRequestedSlug || getPublicDesignSlug(design) === normalizedRequestedSlug;
     }
 
     function readDesignListPayload(payload) {

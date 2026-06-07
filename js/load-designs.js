@@ -707,15 +707,10 @@
         }
 
         const slug = getDesignSlug(design);
-        const id = cleanText(design && design.id);
 
         if (slug) {
-            const productPath = `/product/${encodeURIComponent(slug)}${id ? `?id=${encodeURIComponent(id)}` : ""}`;
+            const productPath = `/product/${encodeURIComponent(slug)}`;
             return resolveUrl(productPath);
-        }
-
-        if (id) {
-            return resolveUrl(`/product.html?id=${encodeURIComponent(id)}`);
         }
 
         return resolveUrl("/product");
@@ -728,9 +723,8 @@
             return slugify(explicitSlug);
         }
 
-        const titleSource = cleanText(item.title || item.name || item.product_name || item.id);
-        const uniqueSource = cleanText(item.id || item.created_at || item.createdAt || titleSource);
-        return slugify(titleSource, uniqueSource);
+        const titleSource = cleanText(item.title || item.name || item.product_name || item.category || item.type || item.format || item.fileType);
+        return slugify(titleSource || "ajartivo-product");
     }
 
     function slugify(value, uniqueKey) {

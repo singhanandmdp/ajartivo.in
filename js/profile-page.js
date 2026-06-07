@@ -466,18 +466,12 @@
         const slug = explicitSlug
             ? slugify(explicitSlug)
             : slugify(
-                cleanText(design && (design.title || design.name || design.product_name || design.id)),
-                cleanText(design && (design.id || design.created_at || design.createdAt))
+                cleanText(design && (design.title || design.name || design.product_name || design.category || design.type || design.format || design.fileType))
             );
-        const id = cleanText(design && design.id);
 
         if (slug) {
-            const productPath = `/product/${encodeURIComponent(slug)}${id ? `?id=${encodeURIComponent(id)}` : ""}`;
+            const productPath = `/product/${encodeURIComponent(slug)}`;
             return resolveUrl(productPath);
-        }
-
-        if (id) {
-            return resolveUrl(`/product.html?id=${encodeURIComponent(id)}`);
         }
 
         return resolveUrl("/product");
