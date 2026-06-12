@@ -934,17 +934,21 @@ function renderSearchDesignCards(container, designs) {
 
     const fragment = document.createDocumentFragment();
     designs.forEach((design) => {
-        const title = escapeText(design.title || design.name || "Untitled Design");
+        const rawTitle = design.title || design.name || "Untitled Design";
+        const title = escapeText(rawTitle);
         const badge = getDesignBadge(design);
         const image = escapeText(design.image_url || design.image || resolveSiteUrl("/images/preview1.jpg"));
         const productUrl = buildProductUrl(design);
         const article = document.createElement("article");
         article.className = "design-card homepage-design-card";
         article.innerHTML = `
-            <a href="${productUrl}" class="card-link homepage-card-link">
+            <a href="${productUrl}" class="card-link homepage-card-link" title="${title}" aria-label="Open product: ${title}">
                 <div class="homepage-card-media">
-                    <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
+                    <img src="${image}" alt="${title}" title="${title}" class="homepage-card-image" loading="lazy" decoding="async">
                     <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
+                    <div class="homepage-card-overlay" aria-hidden="true">
+                        <h3 class="homepage-card-title">${title}</h3>
+                    </div>
                 </div>
             </a>
         `;

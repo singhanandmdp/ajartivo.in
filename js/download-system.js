@@ -584,17 +584,21 @@
             }
 
             relatedGrid.innerHTML = designs.map(function (design) {
-                const title = escapeHtml(design.title);
+                const rawTitle = design.title || design.name || "Untitled Design";
+                const title = escapeHtml(rawTitle);
                 const image = escapeHtml(design.image_url || design.image || resolveUrl("/images/preview1.jpg"));
                 const badge = getDesignBadge(design);
                 const designUrl = getProductUrl(design);
 
                 return `
                     <article class="design-card homepage-design-card">
-                        <a href="${designUrl}" class="card-link homepage-card-link">
+                        <a href="${designUrl}" class="card-link homepage-card-link" title="${title}" aria-label="Open product: ${title}">
                             <div class="homepage-card-media">
-                                <img src="${image}" alt="${title}" class="homepage-card-image" loading="lazy" decoding="async">
+                                <img src="${image}" alt="${title}" title="${title}" class="homepage-card-image" loading="lazy" decoding="async">
                                 <span class="homepage-type-chip file-type ${badge.className}"${badge.styleAttr}>${badge.label}</span>
+                                <div class="homepage-card-overlay" aria-hidden="true">
+                                    <h3 class="homepage-card-title">${title}</h3>
+                                </div>
                             </div>
                         </a>
                     </article>

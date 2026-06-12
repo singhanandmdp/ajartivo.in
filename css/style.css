@@ -2485,6 +2485,8 @@ textarea {
 .homepage-card-link {
     display: block;
     position: relative;
+    text-decoration: none;
+    color: inherit;
 }
 
 .homepage-card-media {
@@ -2506,6 +2508,39 @@ textarea {
     transition: transform 0.35s ease;
 }
 
+.homepage-card-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px 16px 46px;
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.08) 28%, rgba(15, 23, 42, 0.9) 100%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.34), rgba(59, 130, 246, 0.12));
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    pointer-events: none;
+}
+
+.homepage-card-title {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .homepage-card-meta {
     display: flex;
     align-items: center;
@@ -2522,12 +2557,6 @@ textarea {
 
 .homepage-card-actions {
     padding: 0 16px 16px;
-}
-
-.homepage-card-title {
-    margin: 0 0 8px;
-    font-size: 17px;
-    color: #0f172a;
 }
 
 .homepage-download-btn {
@@ -2572,28 +2601,9 @@ textarea {
     z-index: 2;
 }
 
-.homepage-card-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.84) 100%);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 14px;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-    pointer-events: none;
-}
-
-.homepage-card-overlay h3 {
-    color: #f8fafc;
-    margin: 0;
-    font-size: 16px;
-}
-
 .homepage-design-card:hover .homepage-card-overlay {
     opacity: 1;
+    transform: translateY(0);
 }
 
 .homepage-design-card:hover .homepage-card-image {
@@ -2602,6 +2612,34 @@ textarea {
 
 .homepage-design-card:hover .homepage-type-chip {
     opacity: 0;
+}
+
+.homepage-card-link:focus-visible .homepage-card-overlay {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.homepage-card-link:focus-visible .homepage-card-image {
+    transform: scale(1.02);
+}
+
+@media (hover: none), (pointer: coarse) {
+    .homepage-card-overlay {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .homepage-card-media {
+        height: clamp(160px, 44vw, 200px);
+    }
+
+    .homepage-card-overlay {
+        padding: 12px 12px 42px;
+    }
+
+    .homepage-card-title {
+        font-size: 13px;
+    }
 }
 
 .product-img {
@@ -4264,6 +4302,24 @@ textarea {
     .product-lightbox-close {
         top: 16px;
         right: 16px;
+    }
+
+    .product-grid,
+    .trending-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .homepage-card-media {
+        height: clamp(150px, 42vw, 190px);
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .product-grid,
+    .trending-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
     }
 }
 
