@@ -1,5 +1,6 @@
 User-agent: Googlebot-Image
 Disallow: /icons/
+Disallow: /tools/icons/
 Disallow: /login
 Disallow: /signup
 Disallow: /dashboard
@@ -15,6 +16,7 @@ Disallow: /images/Hero/
 
 User-agent: *
 Disallow: /icons/
+Disallow: /tools/icons/
 Disallow: /login
 Disallow: /signup
 Disallow: /dashboard

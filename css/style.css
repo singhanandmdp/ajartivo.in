@@ -5611,3 +5611,52 @@ body.sidebar-open {
         font-size: 20px;
     }
 }
+
+/* ===============================
+   SHARE TOAST
+================================ */
+
+.ajartivo-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 2500;
+    transform: translateX(-50%) translateY(18px);
+    min-width: min(92vw, 360px);
+    max-width: min(92vw, 420px);
+    padding: 12px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.94)),
+        linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(249, 115, 22, 0.16));
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-align: center;
+    box-shadow:
+        0 20px 40px rgba(15, 23, 42, 0.28),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    backdrop-filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        transform 0.24s ease,
+        opacity 0.24s ease;
+}
+
+.ajartivo-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 640px) {
+    .ajartivo-toast {
+        bottom: 16px;
+        width: calc(100vw - 24px);
+        min-width: 0;
+        max-width: none;
+        border-radius: 18px;
+    }
+}

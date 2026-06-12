@@ -46,6 +46,7 @@
     let currentAccessState = createAccessState();
     let actionSequence = 0;
     let actionFeedbackTimerId = 0;
+    let shareToastTimerId = 0;
     let trackedViewDesignId = "";
 
     initPage();
@@ -227,6 +228,10 @@
         const productUrl = getProductUrl(product);
 
         console.log("SEO Product Loaded:", product);
+
+        window.AjArtivoCurrentProduct = product || null;
+        window.AjArtivoCurrentProductUrl = productUrl || window.location.href;
+        window.AjArtivoCurrentProductTitle = title;
 
         if (productUrl && stripUrlHash(window.location.href) !== stripUrlHash(productUrl)) {
             window.history.replaceState({}, "", productUrl);
@@ -1583,13 +1588,14 @@
         if (!button) return;
 
         button.addEventListener("click", async function () {
+            const shareContext = getShareContext();
             const shareData = {
-                title: document.getElementById("productTitle")?.textContent || "AJartivo Design",
-                text: "Check out this design on AJartivo.",
-                url: window.location.href
+                title: shareContext.title,
+                text: shareContext.text,
+                url: shareContext.url
             };
 
-            if (navigator.share) {
+            if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
                 try {
                     await navigator.share(shareData);
                     return;
@@ -1598,14 +1604,99 @@
                 }
             }
 
-            try {
-                await navigator.clipboard.writeText(window.location.href);
-                alert("Design link copied.");
-            } catch (error) {
-                console.error("Share failed:", error);
-                alert("Unable to share right now.");
+            const copied = await copyProductLink(shareContext.url);
+            if (copied) {
+                showShareToast("Product link copied successfully");
             }
         });
+    }
+
+    function getShareContext() {
+        const product = window.AjArtivoCurrentProduct || currentDesign || {};
+        const title = cleanText(window.AjArtivoCurrentProductTitle)
+            || cleanText(product.title || product.name || product.product_name)
+            || cleanText(document.getElementById("productTitle")?.textContent)
+            || "AJartivo Design";
+        const name = cleanText(product.name || product.product_name);
+        const url = cleanText(window.AjArtivoCurrentProductUrl) || stripUrlHash(window.location.href);
+
+        return {
+            title: title,
+            text: name && name !== title ? `${title} - ${name} on AJartivo` : `${title} on AJartivo`,
+            url: url
+        };
+    }
+
+    async function copyProductLink(text) {
+        const payload = String(text || "").trim();
+        if (!payload) {
+            return false;
+        }
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            try {
+                await navigator.clipboard.writeText(payload);
+                return true;
+            } catch (_error) {}
+        }
+
+        const fallbackTextarea = document.createElement("textarea");
+        fallbackTextarea.value = payload;
+        fallbackTextarea.setAttribute("readonly", "readonly");
+        fallbackTextarea.style.position = "fixed";
+        fallbackTextarea.style.opacity = "0";
+        fallbackTextarea.style.left = "-9999px";
+        document.body.appendChild(fallbackTextarea);
+        fallbackTextarea.select();
+        fallbackTextarea.setSelectionRange(0, fallbackTextarea.value.length);
+
+        let copied = false;
+        try {
+            copied = document.execCommand("copy");
+        } catch (_error) {
+            copied = false;
+        }
+
+        fallbackTextarea.remove();
+        return copied;
+    }
+
+    function showShareToast(message) {
+        const text = cleanText(message) || "Product link copied successfully";
+        const existingToast = document.getElementById("ajartivoShareToast");
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        if (shareToastTimerId) {
+            window.clearTimeout(shareToastTimerId);
+            shareToastTimerId = 0;
+        }
+
+        const toast = document.createElement("div");
+        toast.id = "ajartivoShareToast";
+        toast.className = "ajartivo-toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        toast.textContent = text;
+        document.body.appendChild(toast);
+
+        window.requestAnimationFrame(function () {
+            toast.classList.add("is-visible");
+        });
+
+        shareToastTimerId = window.setTimeout(function () {
+            toast.classList.remove("is-visible");
+            shareToastTimerId = window.setTimeout(function () {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+                if (shareToastTimerId) {
+                    window.clearTimeout(shareToastTimerId);
+                    shareToastTimerId = 0;
+                }
+            }, 220);
+        }, 2200);
     }
 
     function syncPreviewHint() {
