@@ -580,7 +580,7 @@
 
             relatedGrid.innerHTML = designs.map(function (design) {
                 const title = escapeHtml(design.title);
-                const image = escapeHtml(design.image || design.image_url || design.preview_url || resolveUrl("/images/preview1.jpg"));
+                const image = escapeHtml(design.image_url || design.image || resolveUrl("/images/preview1.jpg"));
                 const badge = getDesignBadge(design);
                 const designUrl = getProductUrl(design);
 
@@ -933,7 +933,6 @@
         const candidate = cleanText(
             product && (
                 product.image_url ||
-                product.preview_url ||
                 product.image ||
                 (Array.isArray(product.gallery) && product.gallery[0]) ||
                 (Array.isArray(product.previewImages) && product.previewImages[0])
