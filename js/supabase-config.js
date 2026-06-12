@@ -1457,8 +1457,7 @@
         }
 
         const titleSource = cleanText(value && (value.title || value.name || value.product_name || value.id));
-        const uniqueSource = cleanText(value && (value.id || value.created_at || value.createdAt || titleSource));
-        return slugify(titleSource, uniqueSource);
+        return slugify(titleSource);
     }
 
     function getPublicDesignSlug(value) {
@@ -1523,9 +1522,9 @@
             .toLowerCase()
             .replace(/['"]/g, "")
             .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "ajartivo-product";
-        const suffix = uniqueKey ? `-${hashText(uniqueKey).slice(0, 8)}` : "";
-        return `${base}${suffix}`;
+            .replace(/^-+|-+$/g, "")
+            .replace(/(?:-[a-f0-9]{8})$/i, "") || "ajartivo-product";
+        return base;
     }
 
     function hashText(value) {

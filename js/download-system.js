@@ -981,9 +981,9 @@
             .toLowerCase()
             .replace(/['"]/g, "")
             .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "ajartivo-product";
-        const suffix = uniqueKey ? `-${hashText(uniqueKey).slice(0, 8)}` : "";
-        return `${base}${suffix}`;
+            .replace(/^-+|-+$/g, "")
+            .replace(/(?:-[a-f0-9]{8})$/i, "") || "ajartivo-product";
+        return base;
     }
 
     function hashText(value) {
