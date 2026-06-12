@@ -2514,19 +2514,23 @@ textarea {
     z-index: 1;
     display: flex;
     align-items: flex-end;
-    padding: 16px 16px 46px;
-    background:
-        linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.08) 28%, rgba(15, 23, 42, 0.9) 100%),
-        linear-gradient(135deg, rgba(15, 23, 42, 0.34), rgba(59, 130, 246, 0.12));
+    justify-content: flex-start;
+    padding: 14px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.04) 52%, rgba(15, 23, 42, 0.34) 100%);
     backdrop-filter: blur(12px);
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(10px);
     transition: opacity 0.28s ease, transform 0.28s ease;
     pointer-events: none;
 }
 
 .homepage-card-title {
     margin: 0;
+    padding: 9px 11px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.58);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
     color: #f8fafc;
     font-size: 15px;
     font-weight: 800;
@@ -2634,11 +2638,12 @@ textarea {
     }
 
     .homepage-card-overlay {
-        padding: 12px 12px 42px;
+        padding: 10px;
     }
 
     .homepage-card-title {
         font-size: 13px;
+        padding: 8px 10px;
     }
 }
 

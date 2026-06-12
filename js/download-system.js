@@ -826,10 +826,12 @@
             baseTitle = cleanText(tagLabel) || cleanText(categoryLabel) || "AJartivo Product";
         }
 
-        if (categoryLabel && !containsInsensitive(baseTitle, categoryLabel)) {
-            baseTitle = `${baseTitle} ${categoryLabel}`.trim();
-        } else if (!baseTitle && tagLabel) {
-            baseTitle = `${tagLabel}${categoryLabel ? ` ${categoryLabel}` : ""}`.trim();
+        if (baseTitle && categoryLabel && endsWithInsensitive(baseTitle, categoryLabel)) {
+            baseTitle = baseTitle.slice(0, baseTitle.length - categoryLabel.length).trim();
+        }
+
+        if (!baseTitle && tagLabel) {
+            baseTitle = `${tagLabel}`.trim();
         }
 
         return baseTitle.replace(/\s+/g, " ").trim() || "AJartivo Product";
@@ -936,6 +938,12 @@
 
     function containsInsensitive(value, search) {
         return cleanText(value).toLowerCase().includes(cleanText(search).toLowerCase());
+    }
+
+    function endsWithInsensitive(value, suffix) {
+        const text = cleanText(value).toLowerCase();
+        const needle = cleanText(suffix).toLowerCase();
+        return Boolean(text && needle && text.endsWith(needle));
     }
 
     function getSeoImageUrl(product, fallbackTitle) {
