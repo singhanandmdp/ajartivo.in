@@ -294,10 +294,11 @@ function writeCachedPartial(cacheKey, html) {
 
 function fetchCachedPartial(path, cacheName, source) {
     const targetPath = String(path || "");
+    const targetParts = splitPathSuffix(targetPath);
     // These are direct file loads, so keep the .html suffix intact instead of
     // routing them through the clean-URL mapper.
-    const resolvedPath = /\/pages\/(?:header|footer|sidebar)\.html$/i.test(targetPath)
-        ? joinBasePathWithTarget(getSiteBasePath(), targetPath)
+    const resolvedPath = /\/pages\/(?:header|footer|sidebar)\.html$/i.test(targetParts.pathname)
+        ? joinBasePathWithTarget(getSiteBasePath(), targetParts.pathname) + targetParts.suffix
         : resolveSiteUrl(targetPath);
     const cacheKey = getPartialCacheKey(cacheName);
     const cached = readCachedPartial(cacheKey);
