@@ -2510,27 +2510,29 @@ textarea {
 
 .homepage-card-overlay {
     position: absolute;
-    inset: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1;
     display: flex;
     align-items: flex-end;
     justify-content: flex-start;
-    padding: 14px;
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.04) 52%, rgba(15, 23, 42, 0.34) 100%);
-    backdrop-filter: blur(12px);
+    min-height: 88px;
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.16) 28%, rgba(15, 23, 42, 0.84) 100%);
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
     transition: opacity 0.28s ease, transform 0.28s ease;
     pointer-events: none;
 }
 
 .homepage-card-title {
     margin: 0;
-    padding: 9px 11px;
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.58);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
     color: #f8fafc;
     font-size: 15px;
     font-weight: 800;
