@@ -12,7 +12,7 @@
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,preview_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
     const DESIGNS_CACHE_TTL_MS = 5 * 60 * 1000;
     const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
     const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v2";
@@ -513,7 +513,7 @@
         const normalizedId = String(design.id || "").trim();
         const title = cleanText(design.title || design.name || design.product_name) || "Untitled Design";
         const slug = getDesignSlug(design);
-        const image = cleanText(design.image || design.image_url || design.preview_url || design.previewUrl) || resolveSiteAssetUrl("/images/preview1.jpg");
+        const image = cleanText(design.image_url || design.image) || resolveSiteAssetUrl("/images/preview1.jpg");
         const category = cleanText(design.category || design.type || design.format || design.fileType).toUpperCase();
         const createdAt = cleanText(design.created_at) || new Date(0).toISOString();
         const rawPrice = design.price;
@@ -542,7 +542,6 @@
             slug: slug,
             image: image,
             image_url: cleanText(design.image_url || image),
-            preview_url: cleanText(design.preview_url || design.image_url || image),
             category: category,
             type: category,
             format: category,
@@ -979,6 +978,7 @@
         return {
             id: normalized.id,
             title: normalized.title,
+            image_url: normalized.image_url || normalized.image,
             image: normalized.image,
             price: normalized.price,
             category: normalized.category,

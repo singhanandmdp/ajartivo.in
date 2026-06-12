@@ -27,8 +27,7 @@ create table if not exists public.designs (
     is_free boolean not null default true,
     is_premium boolean not null default false,
     category text,
-    image text,
-    preview_url text,
+    image_url text,
     download_link text,
     downloads integer not null default 0,
     created_at timestamptz not null default timezone('utc', now())

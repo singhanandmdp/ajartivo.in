@@ -935,7 +935,7 @@ function renderSearchDesignCards(container, designs) {
     designs.forEach((design) => {
         const title = escapeText(design.title || design.name || "Untitled Design");
         const badge = getDesignBadge(design);
-        const image = escapeText(design.image || design.image_url || design.preview_url || resolveSiteUrl("/images/preview1.jpg"));
+        const image = escapeText(design.image_url || design.image || resolveSiteUrl("/images/preview1.jpg"));
         const productUrl = buildProductUrl(design);
         const article = document.createElement("article");
         article.className = "design-card homepage-design-card";

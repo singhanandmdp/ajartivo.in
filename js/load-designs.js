@@ -331,7 +331,7 @@
         const fragment = document.createDocumentFragment();
         designs.forEach(function (design) {
             const title = escapeHtml(design.title || design.name || "Untitled Design");
-            const image = escapeHtml(design.image || design.image_url || design.preview_url || resolveUrl("/images/preview1.jpg"));
+            const image = escapeHtml(design.image_url || design.image || resolveUrl("/images/preview1.jpg"));
             const designUrl = buildProductUrl(design);
             const badge = getDesignBadge(design);
             const article = document.createElement("article");
