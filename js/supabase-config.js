@@ -12,7 +12,7 @@
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,description,price,is_free,is_premium,is_paid,category,image,image_url,download_link,file_url,download_url,downloads,views,created_at,extra_images,gallery,tags";
+    const DESIGNS_SELECT_FIELDS = "id,title,description,price,image_url,download_link,tags,category,downloads,is_free,is_paid,is_premium,created_at";
     const DESIGNS_CACHE_TTL_MS = 5 * 60 * 1000;
     const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
     const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v2";
@@ -172,14 +172,7 @@
 
             try {
                 const limit = Number(requestOptions.limit) > 0 ? Number(requestOptions.limit) : null;
-                let result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
-
-                if (result.error || !Array.isArray(result.data) || !result.data.length) {
-                    const fallback = await supabase.from("designs").select("*");
-                    if (!fallback.error && Array.isArray(fallback.data) && fallback.data.length) {
-                        result = fallback;
-                    }
-                }
+                const result = await supabase.from("designs").select(DESIGNS_SELECT_FIELDS);
 
                 if (result.error) {
                     throw result.error;
@@ -193,13 +186,6 @@
                     setDesignsCache(normalizedDesigns, source);
                     logPerf(DESIGN_FETCH_LOG_PREFIX, "fetch-success", source, normalizedDesigns.length, `${Date.now() - startedAt}ms`);
                     return normalizedDesigns;
-                }
-
-                const backendDesigns = await fetchDesignsFromBackend(requestOptions);
-                if (backendDesigns.length) {
-                    setDesignsCache(backendDesigns, source);
-                    logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fallback", source, backendDesigns.length, `${Date.now() - startedAt}ms`);
-                    return backendDesigns;
                 }
 
                 if (cachedDesigns.length) {
@@ -271,45 +257,40 @@
         }
 
         const cachedDesign = getCachedDesignBySlug(designSlug);
-        const result = await readSingleDesign("designs", "slug", designSlug);
-
-        if (result.error) {
-            console.error("Supabase design slug fetch failed:", result.error);
-            if (cachedDesign) {
-                preloadDesigns();
-                return cachedDesign;
-            }
-
-            const backendDesign = await fetchBackendDesignBySlug(designSlug);
-            if (backendDesign) {
-                upsertDesignCache(backendDesign);
-                return backendDesign;
-            }
-
-            const fallbackDesigns = await fetchDesigns();
-            const fallback = Array.isArray(fallbackDesigns)
-                ? fallbackDesigns.find(function (item) {
-                    return matchesDesignSlug(item, designSlug);
-                })
-                : null;
-
-            return fallback || null;
+        if (cachedDesign) {
+            preloadDesigns();
+            return cachedDesign;
         }
 
-        const normalizedDesign = result.data ? normalizeDesign(result.data) : null;
-        if (normalizedDesign) {
-            upsertDesignCache(normalizedDesign);
-            return normalizedDesign;
-        }
-
-        const fallbackDesigns = await fetchDesigns();
-        const fallback = Array.isArray(fallbackDesigns)
-            ? fallbackDesigns.find(function (item) {
+        const designs = await fetchDesigns({
+            source: `slug-lookup:${designSlug}`,
+            preferCache: true,
+            cacheTtlMs: DESIGNS_CACHE_TTL_MS
+        });
+        const matchedDesign = Array.isArray(designs)
+            ? designs.find(function (item) {
                 return matchesDesignSlug(item, designSlug);
             })
             : null;
 
-        return fallback || cachedDesign || null;
+        if (matchedDesign) {
+            upsertDesignCache(matchedDesign);
+            return matchedDesign;
+        }
+
+        const backendDesigns = await fetchDesignsFromBackend({ limit: 1000 });
+        const backendMatch = Array.isArray(backendDesigns)
+            ? backendDesigns.find(function (item) {
+                return matchesDesignSlug(item, designSlug);
+            })
+            : null;
+
+        if (backendMatch) {
+            upsertDesignCache(backendMatch);
+            return backendMatch;
+        }
+
+        return null;
     }
 
     async function fetchDesignsFromBackend(options) {
@@ -343,19 +324,6 @@
         const designs = await fetchDesignsFromBackend({ limit: 1000 });
         const match = designs.find(function (design) {
             return String(design.id) === String(id);
-        });
-        return match || null;
-    }
-
-    async function fetchBackendDesignBySlug(slug) {
-        const designSlug = getDesignSlug(slug);
-        if (!designSlug) {
-            return null;
-        }
-
-        const designs = await fetchDesignsFromBackend({ limit: 1000 });
-        const match = designs.find(function (design) {
-            return matchesDesignSlug(design, designSlug);
         });
         return match || null;
     }
