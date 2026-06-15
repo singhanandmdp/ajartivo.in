@@ -30,7 +30,7 @@
                 </div>
                 <div class="print-layout-actions" style="margin-top: 0;">
                     <a href="./index.html" class="print-layout-btn secondary">Back to Hub</a>
-                    <a href="./studio.html?tool=business-card" class="print-layout-btn primary">Visiting Card</a>
+                    <a href="./studio.html?tool=invitation-small" class="print-layout-btn primary">Invitation Card</a>
                 </div>
             </div>
 
@@ -105,8 +105,8 @@
                             <div class="print-layout-business-panel" id="businessCardPanel">
                                 <div class="print-layout-business-panel-head">
                                     <div>
-                                        <h4>Visiting Card Layout</h4>
-                                        <p>Default 25-up grid with exact sizing and auto-adjusting spacing pinned to the border.</p>
+                                        <h4>Invitation Layout</h4>
+                                        <p>Default invitation grid with fixed sizing and clean spacing for 12x18 sheets.</p>
                                     </div>
                                     <button type="button" class="print-layout-ghost-btn" id="resetBusinessCardButton">Reset Defaults</button>
                                 </div>
@@ -123,11 +123,11 @@
                                 <div class="print-layout-helper-grid">
                                     <div class="print-layout-control">
                                         <label for="businessCardWidth">Card width <small>inch</small></label>
-                                        <input id="businessCardWidth" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="2.15">
+                                        <input id="businessCardWidth" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="6.8">
                                     </div>
                                     <div class="print-layout-control">
                                         <label for="businessCardHeight">Card height <small>inch</small></label>
-                                        <input id="businessCardHeight" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="3.3">
+                                        <input id="businessCardHeight" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="4.5">
                                     </div>
                                     <div class="print-layout-control">
                                         <label for="businessGapX">Horizontal gap <small>inch</small></label>
@@ -135,7 +135,7 @@
                                     </div>
                                     <div class="print-layout-control">
                                         <label for="businessGapY">Vertical gap <small>inch</small></label>
-                                        <input id="businessGapY" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="0.313">
+                                        <input id="businessGapY" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="0.25">
                                     </div>
                                     <div class="print-layout-control">
                                         <label for="businessBorderMargin">Border margin <small>inch</small></label>
@@ -145,7 +145,7 @@
                                         <label for="businessCardRotation">Sheet rotation <small>portrait / landscape</small></label>
                                         <select id="businessCardRotation">
                                             <option value="0">Portrait</option>
-                                            <option value="90">Landscape</option>
+                                            <option value="90" selected>Landscape</option>
                                         </select>
                                     </div>
                                     <div class="print-layout-checkbox-row">
@@ -242,7 +242,7 @@
                         <div class="print-layout-preview-head">
                             <div>
                                 <h3>Sheet Preview</h3>
-                                <p>Watch the grid, crop marks, and invitation smart-fill area update live.</p>
+                                <p>Watch the grid, crop marks, and invitation sheet layout update live.</p>
                             </div>
                             <div class="print-layout-preview-actions">
                                 <span class="print-layout-zoom-hint" id="sheetPreviewZoomHint" aria-hidden="true">Drag to zoom - 100%</span>
@@ -257,13 +257,13 @@
                         <div class="print-layout-status-row">
                             <div>
                                 <h3>Live Studio Status</h3>
-                                <p id="studioStatusText">Visiting Card is ready.</p>
+                                <p id="studioStatusText">Invitation Card is ready.</p>
                             </div>
                         </div>
                         <div class="print-layout-summary-grid">
                             <div class="print-layout-summary-card">
                                 <span>Pieces</span>
-                                <strong id="layoutCount">25</strong>
+                                <strong id="layoutCount">4</strong>
                             </div>
                             <div class="print-layout-summary-card">
                                 <span>Sheet</span>
@@ -271,7 +271,7 @@
                             </div>
                             <div class="print-layout-summary-card">
                                 <span>Preview</span>
-                                <strong id="livePreviewLabel">Visiting Card</strong>
+                                <strong id="livePreviewLabel">Invitation Small Size</strong>
                             </div>
                             <div class="print-layout-summary-card">
                                 <span>Mode</span>

@@ -34,7 +34,27 @@
         },
         "id-card": { label: "ID Card", count: 25, cols: 5, rows: 5, sheet: "12x18", fit: "contain", orientation: "portrait", margin: 36, spacing: 16, bleed: 8, zoom: 100 },
         certificate: { label: "Certificate", count: 2, cols: 1, rows: 2, sheet: "A4", fit: "contain", orientation: "portrait", margin: 50, spacing: 22, bleed: 8, zoom: 100 },
-        "invitation-small": { label: "Invitation Card", count: 5, cols: 5, rows: 1, sheet: "12x18", fit: "cover", orientation: "portrait", smartFill: "business-card", margin: 44, spacing: 18, bleed: 10, zoom: 100 },
+        "invitation-small": {
+            label: "Invitation Small Size",
+            count: 4,
+            cols: 2,
+            rows: 2,
+            sheet: "12x18",
+            fit: "contain",
+            orientation: "landscape",
+            smartFill: "keep-blank",
+            margin: 44,
+            spacing: 18,
+            bleed: 10,
+            zoom: 100,
+            cardWidth: 6.8,
+            cardHeight: 4.5,
+            gapX: 0.25,
+            gapY: 0.25,
+            borderMargin: 0.125,
+            businessFitToCard: false,
+            businessCutMarks: true
+        },
         "invitation-large": { label: "Large Invitation", count: 4, cols: 2, rows: 2, sheet: "12x18", fit: "cover", orientation: "portrait", margin: 42, spacing: 18, bleed: 10, zoom: 100 },
         sticker: { label: "Sticker", count: 24, cols: 6, rows: 4, sheet: "A4", fit: "cover", orientation: "portrait", margin: 34, spacing: 14, bleed: 8, zoom: 100 },
         labels: { label: "Labels", count: 18, cols: 6, rows: 3, sheet: "A4", fit: "contain", orientation: "portrait", margin: 34, spacing: 14, bleed: 8, zoom: 100 },
@@ -53,11 +73,11 @@
     };
 
     const state = {
-        toolId: "business-card",
+        toolId: "invitation-small",
         activeSide: "front",
         sheetSize: "12x18",
-        orientation: "portrait",
-        smartFill: "business-card",
+        orientation: "landscape",
+        smartFill: "keep-blank",
         cropMarks: true,
         margin: 42,
         spacing: 18,
@@ -65,10 +85,10 @@
         zoom: 100,
         customWidth: 12,
         customHeight: 18,
-        businessCardWidth: 2.15,
-        businessCardHeight: 3.3,
+        businessCardWidth: 6.8,
+        businessCardHeight: 4.5,
         businessGapX: 0.25,
-        businessGapY: 0.313,
+        businessGapY: 0.25,
         businessBorderMargin: 0.125,
         businessCardRotation: 0,
         businessFitToCard: false,
@@ -272,7 +292,11 @@
 
         if (dom.resetBusinessCardButton) {
             dom.resetBusinessCardButton.addEventListener("click", function () {
-                resetBusinessCardDefaults();
+                if (state.toolId === "invitation-small") {
+                    resetInvitationDefaults();
+                } else {
+                    resetBusinessCardDefaults();
+                }
                 syncUi();
                 scheduleRender();
             });
@@ -501,13 +525,36 @@
         state.sheetSize = preset.sheet || "12x18";
         setSheetOrientation(preset.orientation || "portrait");
         state.businessFitToCard = preset.businessFitToCard != null ? Boolean(preset.businessFitToCard) : state.businessFitToCard;
-        state.smartFill = preset.smartFill || (state.toolId === "invitation-small" ? "business-card" : "business-card");
+        state.smartFill = preset.smartFill || "keep-blank";
         state.margin = Number(preset.margin != null ? preset.margin : state.margin);
         state.spacing = Number(preset.spacing != null ? preset.spacing : state.spacing);
         state.bleed = Number(preset.bleed != null ? preset.bleed : state.bleed);
         state.zoom = Number(preset.zoom != null ? preset.zoom : state.zoom);
+        if (state.toolId === "invitation-small") {
+            resetInvitationDefaults(false);
+        } else if (state.toolId === "business-card") {
+            resetBusinessCardDefaults(false);
+        }
         if (preset.customWidth != null) state.customWidth = preset.customWidth;
         if (preset.customHeight != null) state.customHeight = preset.customHeight;
+    }
+
+    function resetInvitationDefaults(shouldSync) {
+        state.businessCardWidth = 6.8;
+        state.businessCardHeight = 4.5;
+        state.businessGapX = 0.25;
+        state.businessGapY = 0.25;
+        state.businessBorderMargin = 0.125;
+        setSheetOrientation("landscape");
+        state.businessFitToCard = false;
+        state.previewBackgroundMode = "white";
+        state.previewBackgroundColor = "#ffffff";
+        state.businessCutLeft = 2.402;
+        state.businessCutTop = 3.585;
+        state.businessCutMarks = true;
+        if (shouldSync !== false) {
+            syncUi();
+        }
     }
 
     function resetBusinessCardDefaults(shouldSync) {
@@ -563,12 +610,51 @@
             if (state.toolId === "business-card") {
                 const businessLayout = getBusinessCardLayout(getSheetDimensions());
                 dom.layoutMeta.textContent = (businessLayout.isLandscapeCard ? "Landscape" : "Portrait") + " card " + roundTo(businessLayout.cardWIn, 2) + " x " + roundTo(businessLayout.cardHIn, 2) + " in";
+            } else if (state.toolId === "invitation-small") {
+                const invitationLayout = getInvitationCardLayout(getSheetDimensions());
+                dom.layoutMeta.textContent = (invitationLayout.isLandscapeCard ? "Landscape" : "Portrait") + " invitation " + roundTo(invitationLayout.cardWIn, 2) + " x " + roundTo(invitationLayout.cardHIn, 2) + " in";
             } else {
                 dom.layoutMeta.textContent = tool.sheet === "Custom" ? "Custom sheet layout active." : "Default sheet: " + tool.sheet;
             }
         }
         if (dom.livePreviewLabel) dom.livePreviewLabel.textContent = tool.label;
         if (dom.statusText) dom.statusText.textContent = tool.label + " is ready.";
+        if (dom.businessCardPanel) {
+            const panelTitle = dom.businessCardPanel.querySelector(".print-layout-business-panel-head h4");
+            const panelLead = dom.businessCardPanel.querySelector(".print-layout-business-panel-head p");
+            const resetButton = dom.businessCardPanel.querySelector("#resetBusinessCardButton");
+            const sideTitle = dom.businessCardPanel.querySelector(".print-layout-business-side-row strong");
+            const sideText = dom.businessSideLabel;
+            const widthLabel = dom.businessCardWidth && dom.businessCardWidth.closest(".print-layout-control") && dom.businessCardWidth.closest(".print-layout-control").querySelector("label");
+            const heightLabel = dom.businessCardHeight && dom.businessCardHeight.closest(".print-layout-control") && dom.businessCardHeight.closest(".print-layout-control").querySelector("label");
+            const gapXLabel = dom.businessGapX && dom.businessGapX.closest(".print-layout-control") && dom.businessGapX.closest(".print-layout-control").querySelector("label");
+            const gapYLabel = dom.businessGapY && dom.businessGapY.closest(".print-layout-control") && dom.businessGapY.closest(".print-layout-control").querySelector("label");
+            const borderLabel = dom.businessBorderMargin && dom.businessBorderMargin.closest(".print-layout-control") && dom.businessBorderMargin.closest(".print-layout-control").querySelector("label");
+
+            if (state.toolId === "invitation-small") {
+                if (panelTitle) panelTitle.textContent = "Invitation Layout";
+                if (panelLead) panelLead.textContent = "Default 4-up grid with exact sizing for the invitation sheet.";
+                if (resetButton) resetButton.textContent = "Reset Defaults";
+                if (sideTitle) sideTitle.textContent = "Back-to-back editing";
+                if (sideText) sideText.textContent = state.activeSide === "back" ? "Editing back side." : "Editing front side.";
+                if (widthLabel) widthLabel.childNodes[0].nodeValue = "Invitation width ";
+                if (heightLabel) heightLabel.childNodes[0].nodeValue = "Invitation height ";
+                if (gapXLabel) gapXLabel.childNodes[0].nodeValue = "Horizontal gap ";
+                if (gapYLabel) gapYLabel.childNodes[0].nodeValue = "Vertical gap ";
+                if (borderLabel) borderLabel.childNodes[0].nodeValue = "Border margin ";
+            } else {
+                if (panelTitle) panelTitle.textContent = "Visiting Card Layout";
+                if (panelLead) panelLead.textContent = "Default 25-up grid with exact sizing and auto-adjusting spacing pinned to the border.";
+                if (resetButton) resetButton.textContent = "Reset Defaults";
+                if (sideTitle) sideTitle.textContent = "Back-to-back editing";
+                if (sideText) sideText.textContent = state.activeSide === "back" ? "Editing back side." : "Editing front side.";
+                if (widthLabel) widthLabel.childNodes[0].nodeValue = "Card width ";
+                if (heightLabel) heightLabel.childNodes[0].nodeValue = "Card height ";
+                if (gapXLabel) gapXLabel.childNodes[0].nodeValue = "Horizontal gap ";
+                if (gapYLabel) gapYLabel.childNodes[0].nodeValue = "Vertical gap ";
+                if (borderLabel) borderLabel.childNodes[0].nodeValue = "Border margin ";
+            }
+        }
 
         updateSideButtons();
         updateSmartFillButtons();
@@ -579,10 +665,10 @@
     function updateControlVisibility() {
         const isInvitation = state.toolId === "invitation-small";
         if (dom.smartFillPanel) {
-            dom.smartFillPanel.classList.toggle("is-visible", isInvitation);
+            dom.smartFillPanel.classList.toggle("is-visible", false);
         }
         if (dom.businessCardPanel) {
-            dom.businessCardPanel.classList.toggle("print-layout-hide", state.toolId !== "business-card");
+            dom.businessCardPanel.classList.toggle("print-layout-hide", !(state.toolId === "business-card" || isInvitation));
         }
         const bgGroup = dom.previewBackgroundColor && dom.previewBackgroundColor.closest(".print-layout-control");
         if (bgGroup) {
@@ -590,11 +676,11 @@
         }
         const marginGroup = dom.margin && dom.margin.closest(".print-layout-control");
         if (marginGroup) {
-            marginGroup.classList.toggle("print-layout-hide", state.toolId === "business-card");
+            marginGroup.classList.toggle("print-layout-hide", state.toolId === "business-card" || state.toolId === "invitation-small");
         }
         const spacingGroup = dom.spacing && dom.spacing.closest(".print-layout-control");
         if (spacingGroup) {
-            spacingGroup.classList.toggle("print-layout-hide", state.toolId === "business-card");
+            spacingGroup.classList.toggle("print-layout-hide", state.toolId === "business-card" || state.toolId === "invitation-small");
         }
         const customGroup = dom.customWidth && dom.customWidth.closest(".print-layout-control");
         if (customGroup) {
@@ -657,14 +743,42 @@
     }
 
     function getBusinessCardLayout(dimensions) {
-        const cols = 5;
-        const rows = 5;
-        const isLandscapeCard = isBusinessCardLandscape();
-        const cardWIn = isLandscapeCard ? clamp(state.businessCardHeight, 1, 6) : clamp(state.businessCardWidth, 1, 6);
-        const cardHIn = isLandscapeCard ? clamp(state.businessCardWidth, 1, 6) : clamp(state.businessCardHeight, 1, 6);
-        const gapMinXIn = isLandscapeCard ? clamp(state.businessGapY, 0, 1) : clamp(state.businessGapX, 0, 1);
-        const gapMinYIn = isLandscapeCard ? clamp(state.businessGapX, 0, 1) : clamp(state.businessGapY, 0, 1);
-        const marginIn = clamp(state.businessBorderMargin, 0, 1);
+        return getFixedCardLayout(dimensions, {
+            cols: 5,
+            rows: 5,
+            cardWidth: 2.15,
+            cardHeight: 3.3,
+            margin: clamp(state.businessBorderMargin, 0, 1),
+            gapX: clamp(state.businessGapX, 0, 1),
+            gapY: clamp(state.businessGapY, 0, 1),
+            isLandscapeCard: isBusinessCardLandscape(),
+            fitToCard: state.businessFitToCard
+        });
+    }
+
+    function getInvitationCardLayout(dimensions) {
+        return getFixedCardLayout(dimensions, {
+            cols: 2,
+            rows: 2,
+            cardWidth: 6.8,
+            cardHeight: 4.5,
+            margin: clamp(state.businessBorderMargin, 0, 1),
+            gapX: clamp(state.businessGapX, 0, 1),
+            gapY: clamp(state.businessGapY, 0, 1),
+            isLandscapeCard: state.orientation === "landscape",
+            fitToCard: state.businessFitToCard
+        });
+    }
+
+    function getFixedCardLayout(dimensions, config) {
+        const cols = Math.max(1, Number(config && config.cols) || 1);
+        const rows = Math.max(1, Number(config && config.rows) || 1);
+        const isLandscapeCard = Boolean(config && config.isLandscapeCard);
+        const cardWIn = isLandscapeCard ? clamp(config.cardWidth || 1, 1, 10) : clamp(config.cardHeight || 1, 1, 10);
+        const cardHIn = isLandscapeCard ? clamp(config.cardHeight || 1, 1, 10) : clamp(config.cardWidth || 1, 1, 10);
+        const gapMinXIn = clamp(config && config.gapX, 0, 1);
+        const gapMinYIn = clamp(config && config.gapY, 0, 1);
+        const marginIn = clamp(config && config.margin, 0, 1);
         const usableWIn = Math.max(0, dimensions.width - marginIn * 2);
         const usableHIn = Math.max(0, dimensions.height - marginIn * 2);
         const minTotalWIn = cols * cardWIn + (cols - 1) * gapMinXIn;
@@ -1483,55 +1597,38 @@
     }
 
     function buildInvitationPage(side, asset, sheet) {
-        const spacingIn = toInches(state.spacing);
-        const marginIn = toInches(state.margin);
-        const contentWidthIn = Math.max(0, sheet.width - marginIn * 2);
-        const contentHeightIn = Math.max(0, sheet.height - marginIn * 2);
-        const blankHeightIn = contentHeightIn * 0.32;
-        const topHeightIn = Math.max(0.1, contentHeightIn - blankHeightIn - spacingIn);
-        const cardWidthIn = Math.max(0.1, (contentWidthIn - spacingIn * 4) / 5);
-        const cardHeightIn = Math.max(0.1, Math.min(topHeightIn, cardWidthIn / 1.7));
-        const topPlacement = buildGridPlacement({
+        const invitationLayout = getInvitationCardLayout(sheet);
+        const placement = buildGridPlacement({
             sheet: sheet,
             boundsIn: {
-                x: marginIn,
-                y: marginIn,
-                width: contentWidthIn,
-                height: topHeightIn
+                x: invitationLayout.marginIn,
+                y: invitationLayout.marginIn,
+                width: Math.max(0, sheet.width - invitationLayout.marginIn * 2),
+                height: Math.max(0, sheet.height - invitationLayout.marginIn * 2)
             },
-            cols: 5,
-            rows: 1,
-            itemCount: 5,
-            itemWidthIn: cardWidthIn,
-            itemHeightIn: cardHeightIn,
-            spacingXIn: spacingIn,
-            spacingYIn: 0,
-            fit: "cover",
+            cols: invitationLayout.cols,
+            rows: invitationLayout.rows,
+            itemCount: invitationLayout.cols * invitationLayout.rows,
+            itemWidthIn: invitationLayout.cardWIn,
+            itemHeightIn: invitationLayout.cardHIn,
+            spacingXIn: invitationLayout.gapXIn,
+            spacingYIn: invitationLayout.gapYIn,
+            fit: state.businessFitToCard ? "stretch" : "contain",
             sourceKey: side,
             sourceRotation: Number(asset.rotation) || 0,
-            includeMarks: false,
-            itemKind: "invitation-top"
+            includeMarks: state.businessCutMarks,
+            itemInsetIn: state.businessFitToCard ? 0 : Math.max(0.02, Math.min(invitationLayout.cardWIn, invitationLayout.cardHIn) * 0.06),
+            itemKind: "invitation-card"
         });
-
-        const blankYIn = marginIn + contentHeightIn - blankHeightIn;
-        const smartFill = buildInvitationSmartFillPage(side, asset, sheet, {
-            x: marginIn,
-            y: blankYIn,
-            width: contentWidthIn,
-            height: blankHeightIn
-        }, spacingIn);
 
         return {
             side: side,
             sourceKey: side,
             sourceRotation: Number(asset.rotation) || 0,
             background: state.previewBackgroundMode === "color" ? state.previewBackgroundColor : "#ffffff",
-            items: topPlacement.items.concat(smartFill.items),
-            marks: topPlacement.marks.concat(smartFill.marks),
-            grid: {
-                top: topPlacement.grid,
-                smartFill: smartFill.grid
-            }
+            items: placement.items,
+            marks: placement.marks,
+            grid: placement.grid
         };
     }
 
@@ -1557,6 +1654,10 @@
             cols = 5;
             rows = 2;
             fit = "contain";
+        } else if (smartFill === "business-card") {
+            cols = 5;
+            rows = 1;
+            fit = "contain";
         }
 
         const fillPadIn = Math.max(0.12, spacingIn * 0.8);
@@ -1579,7 +1680,7 @@
             sourceKey: side,
             sourceRotation: Number(asset.rotation) || 0,
             includeMarks: state.cropMarks,
-            itemKind: "invitation-fill"
+            itemKind: smartFill === "business-card" ? "business-card-fill" : "invitation-fill"
         });
 
         return fillPlacement;
