@@ -2526,6 +2526,11 @@ textarea {
     pointer-events: none;
 }
 
+.homepage-card-caption {
+    display: none;
+    padding: 12px 2px 2px;
+}
+
 .homepage-card-title {
     margin: 0;
     padding: 8px 10px;
@@ -2631,21 +2636,26 @@ textarea {
 
 @media (hover: none), (pointer: coarse) {
     .homepage-card-overlay {
-        opacity: 1;
-        transform: translateY(0);
+        display: none;
     }
 
     .homepage-card-media {
         height: clamp(160px, 44vw, 200px);
     }
 
-    .homepage-card-overlay {
-        padding: 10px;
+    .homepage-card-caption {
+        display: block;
+        padding: 10px 2px 2px;
     }
 
     .homepage-card-title {
         font-size: 13px;
-        padding: 8px 10px;
+        padding: 0;
+        color: #0f172a;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        -webkit-line-clamp: 2;
     }
 }
 

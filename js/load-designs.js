@@ -348,6 +348,9 @@
                             <h3 class="homepage-card-title">${title}</h3>
                         </div>
                     </div>
+                    <div class="homepage-card-caption" aria-hidden="true">
+                        <h3 class="homepage-card-title">${title}</h3>
+                    </div>
                 </a>
             `;
             fragment.appendChild(article);
