@@ -41,16 +41,16 @@
             rows: 2,
             sheet: "12x18",
             fit: "contain",
-            orientation: "landscape",
+            orientation: "portrait",
             smartFill: "keep-blank",
             margin: 44,
             spacing: 18,
             bleed: 10,
             zoom: 100,
-            cardWidth: 6.8,
-            cardHeight: 4.5,
-            gapX: 0.25,
-            gapY: 0.25,
+            cardWidth: 4.5,
+            cardHeight: 6.8,
+            gapX: 0.45,
+            gapY: 0.3,
             borderMargin: 0.125,
             businessFitToCard: false,
             businessCutMarks: true
@@ -76,7 +76,7 @@
         toolId: "invitation-small",
         activeSide: "front",
         sheetSize: "12x18",
-        orientation: "landscape",
+        orientation: "portrait",
         smartFill: "keep-blank",
         cropMarks: true,
         margin: 42,
@@ -85,10 +85,10 @@
         zoom: 100,
         customWidth: 12,
         customHeight: 18,
-        businessCardWidth: 6.8,
-        businessCardHeight: 4.5,
-        businessGapX: 0.25,
-        businessGapY: 0.25,
+        businessCardWidth: 4.5,
+        businessCardHeight: 6.8,
+        businessGapX: 0.45,
+        businessGapY: 0.3,
         businessBorderMargin: 0.125,
         businessCardRotation: 0,
         businessFitToCard: false,
@@ -540,12 +540,12 @@
     }
 
     function resetInvitationDefaults(shouldSync) {
-        state.businessCardWidth = 6.8;
-        state.businessCardHeight = 4.5;
-        state.businessGapX = 0.25;
-        state.businessGapY = 0.25;
+        state.businessCardWidth = 4.5;
+        state.businessCardHeight = 6.8;
+        state.businessGapX = 0.45;
+        state.businessGapY = 0.3;
         state.businessBorderMargin = 0.125;
-        setSheetOrientation("landscape");
+        setSheetOrientation("portrait");
         state.businessFitToCard = false;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
@@ -774,8 +774,8 @@
         const cols = Math.max(1, Number(config && config.cols) || 1);
         const rows = Math.max(1, Number(config && config.rows) || 1);
         const isLandscapeCard = Boolean(config && config.isLandscapeCard);
-        const cardWIn = isLandscapeCard ? clamp(config.cardWidth || 1, 1, 10) : clamp(config.cardHeight || 1, 1, 10);
-        const cardHIn = isLandscapeCard ? clamp(config.cardHeight || 1, 1, 10) : clamp(config.cardWidth || 1, 1, 10);
+        const cardWIn = isLandscapeCard ? clamp(config.cardHeight || 1, 1, 10) : clamp(config.cardWidth || 1, 1, 10);
+        const cardHIn = isLandscapeCard ? clamp(config.cardWidth || 1, 1, 10) : clamp(config.cardHeight || 1, 1, 10);
         const gapMinXIn = clamp(config && config.gapX, 0, 1);
         const gapMinYIn = clamp(config && config.gapY, 0, 1);
         const marginIn = clamp(config && config.margin, 0, 1);
