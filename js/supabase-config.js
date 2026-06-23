@@ -1350,11 +1350,7 @@
     }
 
     function collectDesignImages(design, primaryImage) {
-        const extraImages = Array.isArray(design && design.extra_images)
-            ? design.extra_images
-            : Array.isArray(design && design.extraImages)
-            ? design.extraImages
-            : Array.isArray(design && design.gallery)
+        const supplementalImages = Array.isArray(design && design.gallery)
             ? design.gallery
             : Array.isArray(design && design.previewImages)
             ? design.previewImages
@@ -1364,7 +1360,7 @@
             .concat(cleanText(design && design.preview1))
             .concat(cleanText(design && design.preview2))
             .concat(cleanText(design && design.preview3))
-            .concat(extraImages)
+            .concat(supplementalImages)
             .map(cleanText)
             .filter(Boolean)
             .filter(function (image, index, list) {
