@@ -52,8 +52,8 @@
             gapX: 0.45,
             gapY: 0.3,
             borderMargin: 0.125,
-            businessFitToCard: false,
-            businessCutMarks: true
+            businessFitToCard: true,
+            businessCutMarks: false
         },
         "invitation-large": { label: "Large Invitation", count: 4, cols: 2, rows: 2, sheet: "12x18", fit: "cover", orientation: "portrait", margin: 42, spacing: 18, bleed: 10, zoom: 100 },
         sticker: { label: "Sticker", count: 24, cols: 6, rows: 4, sheet: "A4", fit: "cover", orientation: "portrait", margin: 34, spacing: 14, bleed: 8, zoom: 100 },
@@ -91,14 +91,17 @@
         businessGapY: 0.3,
         businessBorderMargin: 0.125,
         businessCardRotation: 0,
-        businessFitToCard: false,
+        businessFitToCard: true,
         previewBackgroundMode: "white",
         previewBackgroundColor: "#ffffff",
         businessCutLeft: 2.402,
         businessCutTop: 3.585,
-        businessCutMarks: true,
+        businessCutMarks: false,
+        previewPanX: 0,
+        previewPanY: 0,
         frontAsset: null,
         backAsset: null,
+        visitingCardAsset: null,
         previewExportRect: null,
         isExporting: false
     };
@@ -120,11 +123,13 @@
         dismissRequested: false
     };
 
-    const previewZoomDragState = {
+    const previewPanState = {
         active: false,
         pointerId: null,
+        startX: 0,
         startY: 0,
-        startZoom: 100
+        originX: 0,
+        originY: 0
     };
 
     document.addEventListener("DOMContentLoaded", init);
@@ -158,6 +163,14 @@
         dom.customWidth = document.getElementById("customWidth");
         dom.customHeight = document.getElementById("customHeight");
         dom.businessCardPanel = document.getElementById("businessCardPanel");
+        dom.visitingCardUploadPanel = document.getElementById("visitingCardUploadPanel");
+        dom.visitingCardDropzone = document.getElementById("visitingCardDropzone");
+        dom.visitingCardFileInput = document.getElementById("visitingCardFileInput");
+        dom.visitingCardBrowseButton = document.getElementById("visitingCardBrowseButton");
+        dom.visitingCardClearButton = document.getElementById("visitingCardClearButton");
+        dom.visitingCardUploadButton = document.getElementById("visitingCardUploadButton");
+        dom.visitingCardThumb = document.getElementById("visitingCardThumb");
+        dom.visitingCardName = document.getElementById("visitingCardName");
         dom.businessCardWidth = document.getElementById("businessCardWidth");
         dom.businessCardHeight = document.getElementById("businessCardHeight");
         dom.businessGapX = document.getElementById("businessGapX");
@@ -170,15 +183,15 @@
         dom.businessCutMarksToggle = document.getElementById("businessCutMarksToggle");
         dom.businessSideLabel = document.getElementById("businessSideLabel");
         dom.resetBusinessCardButton = document.getElementById("resetBusinessCardButton");
-        dom.margin = document.getElementById("marginRange");
-        dom.spacing = document.getElementById("spacingRange");
-        dom.bleed = document.getElementById("bleedRange");
-        dom.zoom = document.getElementById("zoomRange");
-        dom.marginValue = document.getElementById("marginValue");
-        dom.spacingValue = document.getElementById("spacingValue");
-        dom.bleedValue = document.getElementById("bleedValue");
-        dom.zoomValue = document.getElementById("zoomValue");
-        dom.cropMarks = document.getElementById("cropMarksToggle");
+        dom.margin = null;
+        dom.spacing = null;
+        dom.bleed = null;
+        dom.zoom = null;
+        dom.marginValue = null;
+        dom.spacingValue = null;
+        dom.bleedValue = null;
+        dom.zoomValue = null;
+        dom.cropMarks = null;
         dom.sideButtons = Array.from(document.querySelectorAll("[data-side-toggle]"));
         dom.dropzone = document.getElementById("printLayoutDropzone");
         dom.fileInput = document.getElementById("printLayoutFileInput");
@@ -306,6 +319,7 @@
             dom.smartFillSelect.addEventListener("change", function (event) {
                 state.smartFill = event.target.value;
                 updateSmartFillButtons();
+                updateControlVisibility();
                 scheduleRender();
             });
         }
@@ -324,29 +338,7 @@
             });
         }
 
-        if (dom.cropMarks) {
-            dom.cropMarks.addEventListener("change", function (event) {
-                state.cropMarks = Boolean(event.target.checked);
-                scheduleRender();
-            });
-        }
-
-        bindRange(dom.margin, dom.marginValue, function (value) {
-            state.margin = value;
-            scheduleRender();
-        });
-        bindRange(dom.spacing, dom.spacingValue, function (value) {
-            state.spacing = value;
-            scheduleRender();
-        });
-        bindRange(dom.bleed, dom.bleedValue, function (value) {
-            state.bleed = value;
-            scheduleRender();
-        });
-        bindRange(dom.zoom, dom.zoomValue, function (value) {
-            state.zoom = value;
-            scheduleRender();
-        });
+        // Bottom invitation controls removed; these settings are fixed for invitation preview.
 
         dom.sideButtons.forEach(function (button) {
             button.addEventListener("click", function () {
@@ -362,6 +354,7 @@
                 state.smartFill = button.getAttribute("data-smart-fill") || "keep-blank";
                 if (dom.smartFillSelect) dom.smartFillSelect.value = state.smartFill;
                 updateSmartFillButtons();
+                updateControlVisibility();
                 scheduleRender();
             });
         });
@@ -413,6 +406,60 @@
                 updateThumbs();
                 setStatus("Uploads cleared.");
                 scheduleRender();
+            });
+        }
+
+        if (dom.visitingCardDropzone) {
+            dom.visitingCardDropzone.addEventListener("click", function (event) {
+                if (event.target.closest("button, input")) return;
+                if (dom.visitingCardFileInput) dom.visitingCardFileInput.click();
+            });
+            ["dragenter", "dragover"].forEach(function (type) {
+                dom.visitingCardDropzone.addEventListener(type, function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dom.visitingCardDropzone.classList.add("is-dragover");
+                });
+            });
+            ["dragleave", "drop"].forEach(function (type) {
+                dom.visitingCardDropzone.addEventListener(type, function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dom.visitingCardDropzone.classList.remove("is-dragover");
+                });
+            });
+            dom.visitingCardDropzone.addEventListener("drop", function (event) {
+                const files = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+                if (files.length) handleVisitingCardUpload(files[0]);
+            });
+        }
+
+        if (dom.visitingCardFileInput) {
+            dom.visitingCardFileInput.addEventListener("change", function (event) {
+                const file = event.target.files && event.target.files[0];
+                if (file) handleVisitingCardUpload(file);
+            });
+        }
+
+        if (dom.visitingCardBrowseButton) {
+            dom.visitingCardBrowseButton.addEventListener("click", function () {
+                if (dom.visitingCardFileInput) dom.visitingCardFileInput.click();
+            });
+        }
+
+        if (dom.visitingCardClearButton) {
+            dom.visitingCardClearButton.addEventListener("click", function () {
+                releaseAssetPreview(state.visitingCardAsset);
+                state.visitingCardAsset = null;
+                updateThumbs();
+                setStatus("Visiting card upload cleared.");
+                scheduleRender();
+            });
+        }
+
+        if (dom.visitingCardUploadButton) {
+            dom.visitingCardUploadButton.addEventListener("click", function () {
+                if (dom.visitingCardFileInput) dom.visitingCardFileInput.click();
             });
         }
 
@@ -546,12 +593,12 @@
         state.businessGapY = 0.3;
         state.businessBorderMargin = 0.125;
         setSheetOrientation("portrait");
-        state.businessFitToCard = false;
+        state.businessFitToCard = true;
         state.previewBackgroundMode = "white";
         state.previewBackgroundColor = "#ffffff";
         state.businessCutLeft = 2.402;
         state.businessCutTop = 3.585;
-        state.businessCutMarks = true;
+        state.businessCutMarks = false;
         if (shouldSync !== false) {
             syncUi();
         }
@@ -592,11 +639,6 @@
         if (dom.previewBackgroundMode) dom.previewBackgroundMode.value = state.previewBackgroundMode;
         if (dom.previewBackgroundColor) dom.previewBackgroundColor.value = state.previewBackgroundColor;
         if (dom.businessCutMarksToggle) dom.businessCutMarksToggle.checked = state.businessCutMarks;
-        if (dom.cropMarks) dom.cropMarks.checked = state.cropMarks;
-        if (dom.margin) dom.margin.value = state.margin;
-        if (dom.spacing) dom.spacing.value = state.spacing;
-        if (dom.bleed) dom.bleed.value = state.bleed;
-        if (dom.zoom) dom.zoom.value = state.zoom;
         if (dom.businessSideLabel) {
             dom.businessSideLabel.textContent = state.activeSide === "back"
                 ? "Editing back side."
@@ -670,17 +712,13 @@
         if (dom.businessCardPanel) {
             dom.businessCardPanel.classList.toggle("print-layout-hide", !(state.toolId === "business-card" || isInvitation));
         }
+        if (dom.visitingCardUploadPanel) {
+            const isInvitation = state.toolId === "invitation-small";
+            dom.visitingCardUploadPanel.classList.toggle("print-layout-hide", !(isInvitation && state.smartFill === "business-card"));
+        }
         const bgGroup = dom.previewBackgroundColor && dom.previewBackgroundColor.closest(".print-layout-control");
         if (bgGroup) {
             bgGroup.classList.toggle("print-layout-hide", state.previewBackgroundMode !== "color");
-        }
-        const marginGroup = dom.margin && dom.margin.closest(".print-layout-control");
-        if (marginGroup) {
-            marginGroup.classList.toggle("print-layout-hide", state.toolId === "business-card" || state.toolId === "invitation-small");
-        }
-        const spacingGroup = dom.spacing && dom.spacing.closest(".print-layout-control");
-        if (spacingGroup) {
-            spacingGroup.classList.toggle("print-layout-hide", state.toolId === "business-card" || state.toolId === "invitation-small");
         }
         const customGroup = dom.customWidth && dom.customWidth.closest(".print-layout-control");
         if (customGroup) {
@@ -709,8 +747,10 @@
     function updateThumbs() {
         if (dom.frontName) dom.frontName.textContent = state.frontAsset ? state.frontAsset.name : "Front Side";
         if (dom.backName) dom.backName.textContent = state.backAsset ? state.backAsset.name : "Back Side";
+        if (dom.visitingCardName) dom.visitingCardName.textContent = state.visitingCardAsset ? state.visitingCardAsset.name : "Visiting Card";
         if (dom.frontThumb) setThumb(dom.frontThumb, state.frontAsset);
         if (dom.backThumb) setThumb(dom.backThumb, state.backAsset);
+        if (dom.visitingCardThumb) setThumb(dom.visitingCardThumb, state.visitingCardAsset);
         if (dom.thumbRotateButtons) {
             dom.thumbRotateButtons.forEach(function (button) {
                 const side = button.getAttribute("data-thumb-rotate") === "back" ? "back" : "front";
@@ -845,6 +885,41 @@
         }
     }
 
+    async function handleVisitingCardUpload(file) {
+        if (!isSupportedFile(file)) {
+            setStatus("Please upload JPG, PNG, WEBP, TIFF, or PDF files.");
+            return;
+        }
+
+        try {
+            const assetPreview = await loadAssetPreview(file);
+            const asset = {
+                file: file,
+                name: file.name,
+                preview: assetPreview.preview,
+                previewUrl: assetPreview.previewUrl,
+                exportBlob: assetPreview.exportBlob,
+                sourceKind: assetPreview.sourceKind,
+                image: assetPreview.image || await loadImage(assetPreview.preview),
+                rotation: 90,
+                isRotating: false
+            };
+
+            releaseAssetPreview(state.visitingCardAsset);
+            state.visitingCardAsset = asset;
+            state.businessFitToCard = true;
+
+            updateThumbs();
+            setStatus("Loaded visiting card design: " + file.name + ".");
+            scheduleRender();
+        } catch (error) {
+            console.error(error);
+            setStatus("Visiting card upload failed. Please try another file.");
+        } finally {
+            if (dom.visitingCardFileInput) dom.visitingCardFileInput.value = "";
+        }
+    }
+
     function initCanvas() {
         if (!window.Konva || !dom.previewMount) {
             return;
@@ -857,6 +932,52 @@
         });
         canvas.previewLayer = new Konva.Layer();
         canvas.previewStage.add(canvas.previewLayer);
+
+        dom.previewMount.addEventListener("wheel", function (event) {
+            event.preventDefault();
+            if (!event.deltaY) return;
+
+            const delta = Math.sign(event.deltaY) * 5;
+            state.zoom = clamp(state.zoom - delta, 20, 300);
+            scheduleRender();
+        }, { passive: false });
+
+        dom.previewMount.addEventListener("pointerdown", function (event) {
+            if (event.button !== 0) return;
+            previewPanState.active = true;
+            previewPanState.pointerId = event.pointerId;
+            previewPanState.startX = event.clientX;
+            previewPanState.startY = event.clientY;
+            previewPanState.originX = state.previewPanX;
+            previewPanState.originY = state.previewPanY;
+            dom.previewMount.setPointerCapture(event.pointerId);
+            dom.previewMount.style.cursor = "grabbing";
+        });
+
+        dom.previewMount.addEventListener("pointermove", function (event) {
+            if (!previewPanState.active || previewPanState.pointerId !== event.pointerId) return;
+            const dx = event.clientX - previewPanState.startX;
+            const dy = event.clientY - previewPanState.startY;
+            state.previewPanX = previewPanState.originX + dx;
+            state.previewPanY = previewPanState.originY + dy;
+            scheduleRender();
+        });
+
+        dom.previewMount.addEventListener("pointerup", function (event) {
+            if (!previewPanState.active || previewPanState.pointerId !== event.pointerId) return;
+            previewPanState.active = false;
+            previewPanState.pointerId = null;
+            dom.previewMount.releasePointerCapture(event.pointerId);
+            dom.previewMount.style.cursor = "default";
+        });
+
+        dom.previewMount.addEventListener("pointercancel", function (event) {
+            if (!previewPanState.active || previewPanState.pointerId !== event.pointerId) return;
+            previewPanState.active = false;
+            previewPanState.pointerId = null;
+            dom.previewMount.releasePointerCapture(event.pointerId);
+            dom.previewMount.style.cursor = "default";
+        });
 
         resizeStages();
     }
@@ -930,8 +1051,8 @@
             : Math.max(320, Math.min(width - 24, height * ratio - 24));
         const previewWidth = baseWidth * zoom;
         const previewHeight = previewWidth / ratio;
-        const x = Math.max(0, (width - previewWidth) / 2);
-        const y = Math.max(0, (height - previewHeight) / 2);
+        const x = Math.max(0, (width - previewWidth) / 2) + state.previewPanX;
+        const y = Math.max(0, (height - previewHeight) / 2) + state.previewPanY;
         state.previewExportRect = { x: x, y: y, width: previewWidth, height: previewHeight };
         const previewScale = Math.max(1, previewWidth / Math.max(1, dimensions.width));
         const pad = Math.max(10, (isBusiness ? state.businessBorderMargin : toInches(state.margin)) * previewScale);
@@ -939,7 +1060,7 @@
         const asset = activeAsset();
         const image = asset && asset.image ? asset.image : null;
 
-        const outerGlow = isBusiness ? 0 : 4;
+        const outerGlow = (isBusiness || state.toolId === "invitation-small") ? 0 : 4;
         if (outerGlow > 0) {
             layer.add(new Konva.Rect({
                 x: x - outerGlow, y: y - outerGlow, width: previewWidth + outerGlow * 2, height: previewHeight + outerGlow * 2,
@@ -949,7 +1070,7 @@
                 fillLinearGradientColorStops: [0, "rgba(255,255,255,0.96)", 0.5, "rgba(239,246,255,0.96)", 1, "rgba(226,232,240,0.96)"]
             }));
         }
-        if (!isBusiness) {
+        if (!isBusiness && state.toolId !== "invitation-small") {
         layer.add(new Konva.Rect({
             x: x, y: y, width: previewWidth, height: previewHeight,
             cornerRadius: 22,
@@ -972,15 +1093,21 @@
         }));
         }
 
-        const contentX = isBusiness ? x : x + pad;
-        const contentY = isBusiness ? y + 6 : y + pad + 12;
-        const contentW = isBusiness ? previewWidth : previewWidth - pad * 2;
-        const contentH = isBusiness ? previewHeight - 8 : previewHeight - pad * 2 - 24;
+        const contentX = isBusiness ? x : state.toolId === "invitation-small" ? x : x + pad;
+        const contentY = isBusiness ? y + 6 : state.toolId === "invitation-small" ? y : y + pad + 12;
+        const contentW = isBusiness ? previewWidth : state.toolId === "invitation-small" ? previewWidth : previewWidth - pad * 2;
+        const contentH = isBusiness ? previewHeight - 8 : state.toolId === "invitation-small" ? previewHeight : previewHeight - pad * 2 - 24;
 
         if (state.toolId === "business-card") {
             renderBusinessCardPreview(layer, { x: contentX, y: contentY, width: contentW, height: contentH }, image, zoom, dimensions, backgroundColor);
         } else if (state.toolId === "invitation-small") {
-            renderInvitationPreview(layer, { x: contentX, y: contentY, width: contentW, height: contentH }, image, spacing);
+            try {
+                renderInvitationPreview(layer, { x: contentX, y: contentY, width: contentW, height: contentH }, image, spacing);
+            } catch (err) {
+                console.error(err);
+                setStatus("Preview error: " + (err && err.message ? err.message : String(err)));
+                layer.add(new Konva.Rect({ x: contentX, y: contentY, width: Math.max(100, contentW), height: Math.max(100, contentH), fill: "#fff1f2", stroke: "#fca5a5", strokeWidth: 2 }));
+            }
         } else {
             const cols = tool.cols;
             const rows = tool.rows;
@@ -1127,59 +1254,173 @@
     }
 
     function renderInvitationPreview(layer, box, image, spacing) {
-        const blankHeight = box.height * 0.32;
-        const topHeight = box.height - blankHeight - spacing;
-        const cardW = (box.width - spacing * 4) / 5;
-        const cardH = Math.min(topHeight, cardW / 1.7);
+        const dimensions = getSheetDimensions();
+        const sheetScale = Math.min((box.width - 8) / Math.max(1, dimensions.width), (box.height - 8) / Math.max(1, dimensions.height));
+        const sheetW = dimensions.width * sheetScale;
+        const sheetH = dimensions.height * sheetScale;
+        const sheetX = box.x + Math.max(0, (box.width - sheetW) / 2);
+        const sheetY = box.y + Math.max(0, (box.height - sheetH) / 2);
+        const marginIn = clamp(state.businessBorderMargin, 0, 1);
+        const smartFill = state.smartFill || "keep-blank";
+        // Left column: three landscape invitations using current state dimensions
+        const leftCardWIn = clamp(state.businessCardHeight, 0.1, 20);
+        const leftCardHIn = clamp(state.businessCardWidth, 0.1, 20);
+        // Right column: two portrait invitations using current state dimensions
+        const rightCardWIn = clamp(state.businessCardWidth, 0.1, 20);
+        const rightCardHIn = clamp(state.businessCardHeight, 0.1, 20);
+        const topGapIn = clamp(state.businessGapX, 0, 5);
+        const rowGapIn = clamp(state.businessGapY, 0, 5);
+        const businessCardWIn = 2.15;
+        const businessCardHIn = 3.3;
+        const businessGapIn = clamp(state.businessGapX, 0, 5);
+        const marginPx = marginIn * sheetScale;
+        const leftCardW = leftCardWIn * sheetScale;
+        const leftCardH = leftCardHIn * sheetScale;
+        const rightCardW = rightCardWIn * sheetScale;
+        const rightCardH = rightCardHIn * sheetScale;
+        const topGap = topGapIn * sheetScale;
+        const rowGap = rowGapIn * sheetScale;
+        const businessCardW = businessCardWIn * sheetScale;
+        const businessCardH = businessCardHIn * sheetScale;
+        const businessGap = businessGapIn * sheetScale;
+        // Positions
+        const leftX = sheetX + marginPx;
+        const leftStartY = sheetY + marginPx;
+        const rightX = leftX + leftCardW + topGap;
+        const rightStartY = sheetY + marginPx;
+        const businessY = sheetY + sheetH - marginPx - businessCardH;
+        const businessX = sheetX + marginPx + Math.max(0, (sheetW - marginPx * 2 - (businessCardW * 5 + businessGap * 4)) / 2);
+        const middleX = leftX + leftCardW + topGap;
+        const middleY = leftStartY + leftCardH + rowGap;
+        const middleW = Math.max(0, sheetX + sheetW - marginPx - (rightX) - topGap);
+        const middleH = Math.max(0, businessY - middleY - rowGap);
 
-        for (let i = 0; i < 5; i += 1) {
-            const x = box.x + i * (cardW + spacing);
-            layer.add(makeCell({ x: x, y: box.y, width: cardW, height: cardH, image: image, fit: "cover", index: i + 1 }));
+        layer.add(new Konva.Rect({
+            x: sheetX,
+            y: sheetY,
+            width: sheetW,
+            height: sheetH,
+            fill: "#f8fafc",
+            stroke: "rgba(15,23,42,0.18)",
+            strokeWidth: 2,
+            cornerRadius: 6
+        }));
+
+        state.previewExportRect = {
+            x: sheetX,
+            y: sheetY,
+            width: sheetW,
+            height: sheetH
+        };
+
+        // Left column: 3 landscape cards stacked vertically
+        for (let i = 0; i < 3; i += 1) {
+            const cardY = leftStartY + i * (leftCardH + rowGap);
+            layer.add(makeInvitationCard({
+                x: leftX,
+                y: cardY,
+                width: leftCardW,
+                height: leftCardH,
+                title: "Invitation Small Size",
+                widthLabel: leftCardWIn + '"',
+                heightLabel: leftCardHIn + '"',
+                verticalTitle: false,
+                image: image,
+                index: i + 1
+            }));
         }
 
-        const blankY = box.y + box.height - blankHeight;
-        layer.add(new Konva.Rect({
-            x: box.x,
-            y: blankY,
-            width: box.width,
-            height: blankHeight,
-            cornerRadius: 18,
-            fill: "rgba(96,165,250,0.06)",
-            stroke: "rgba(96,165,250,0.22)",
-            dash: [10, 10],
-            strokeWidth: 1.2
-        }));
+        // Right column: 2 portrait cards stacked vertically
+        for (let i = 0; i < 2; i += 1) {
+            const cardY = rightStartY + i * (rightCardH + rowGap);
+            layer.add(makeInvitationCard({
+                x: rightX,
+                y: cardY,
+                width: rightCardW,
+                height: rightCardH,
+                title: "Invitation Small Size",
+                widthLabel: rightCardWIn + '"',
+                heightLabel: rightCardHIn + '"',
+                verticalTitle: false,
+                image: image,
+                index: 3 + i + 1
+            }));
+        }
 
-        const fillMode = state.smartFill || "keep-blank";
-        layer.add(new Konva.Label({
-            x: box.x + 16,
-            y: blankY + 10,
-            children: [
-                new Konva.Tag({ fill: "rgba(5,10,22,0.84)", cornerRadius: 999 }),
-                new Konva.Text({
-                    text: fillMode === "keep-blank" ? "Keep Blank" : "Smart Space Fill: " + smartFillLabel(fillMode),
-                    padding: 8,
-                    fill: "#eff6ff",
-                    fontSize: 12,
-                    fontStyle: "bold"
-                })
-            ]
-        }));
-
-        if (fillMode === "business-card") {
-            const fillCols = 4;
-            const fillRows = 2;
-            const fillPad = 12;
-            const fillW = (box.width - fillPad * 2 - spacing * (fillCols - 1)) / fillCols;
-            const fillH = (blankHeight - 34 - spacing * (fillRows - 1) - fillPad) / fillRows;
-            for (let r = 0; r < fillRows; r += 1) {
-                for (let c = 0; c < fillCols; c += 1) {
-                    const x = box.x + fillPad + c * (fillW + spacing);
-                    const y = blankY + 30 + r * (fillH + spacing);
-                    layer.add(makeCell({ x: x, y: y, width: fillW, height: fillH, image: image, fit: "cover", index: r * fillCols + c + 1, tint: true }));
-                }
+        if (smartFill === "business-card") {
+            for (let i = 0; i < 5; i += 1) {
+                const cardX = businessX + i * (businessCardW + businessGap);
+                layer.add(makeBusinessPreviewCard({
+                    x: cardX,
+                    y: businessY,
+                    width: businessCardW,
+                    height: businessCardH,
+                    image: state.visitingCardAsset ? state.visitingCardAsset.image : null,
+                    index: 21 + i
+                }));
             }
         }
+    }
+
+    function makeInvitationCard(opts) {
+        const group = new Konva.Group({ x: opts.x, y: opts.y });
+        group.add(new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: opts.width,
+            height: opts.height,
+            cornerRadius: 0,
+            fillLinearGradientStartPoint: { x: 0, y: 0 },
+            fillLinearGradientEndPoint: { x: opts.width, y: opts.height },
+            fillLinearGradientColorStops: [0, "#fde68a", 0.55, "#fcd34d", 1, "#fb923c"],
+            stroke: "rgba(255,255,255,0.9)",
+            strokeWidth: 1
+        }));
+
+        if (opts.image) {
+            const fit = fitToBox(opts.image, opts.width, opts.height, "cover");
+            group.add(new Konva.Image({
+                image: opts.image,
+                x: fit.x,
+                y: fit.y,
+                width: fit.width,
+                height: fit.height,
+                crop: fit.crop,
+                opacity: 0.2
+            }));
+        }
+
+        return group;
+    }
+
+    function makeBusinessPreviewCard(opts) {
+        const group = new Konva.Group({ x: opts.x, y: opts.y });
+        group.add(new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: opts.width,
+            height: opts.height,
+            cornerRadius: 0,
+            fillLinearGradientStartPoint: { x: 0, y: 0 },
+            fillLinearGradientEndPoint: { x: opts.width, y: opts.height },
+            fillLinearGradientColorStops: [0, "#9f7aea", 1, "#ec4899"],
+            stroke: "rgba(15,23,42,0.9)",
+            strokeWidth: 1
+        }));
+
+        if (opts.image) {
+            const fit = fitToBox(opts.image, opts.width, opts.height, "cover");
+            group.add(new Konva.Image({
+                image: opts.image,
+                x: fit.x,
+                y: fit.y,
+                width: fit.width,
+                height: fit.height,
+                crop: fit.crop
+            }));
+        }
+
+        return group;
     }
 
     function makeCell(opts) {
@@ -1268,15 +1509,6 @@
                 fillLinearGradientStartPoint: { x: 0, y: 0 },
                 fillLinearGradientEndPoint: { x: opts.width, y: opts.height },
                 fillLinearGradientColorStops: [0, "rgba(99,102,241,0.85)", 1, "rgba(244,63,94,0.85)"]
-            }));
-            group.add(new Konva.Text({
-                x: 0, y: 0, width: opts.width, height: opts.height,
-                text: "Business " + opts.index,
-                align: "center",
-                verticalAlign: "middle",
-                fill: "#ffffff",
-                fontSize: Math.max(10, Math.min(opts.width, opts.height) * 0.16),
-                fontStyle: "bold"
             }));
         }
 
@@ -1426,7 +1658,8 @@
         const pages = buildExportPages(sheet, format);
         const sources = {
             front: buildSourceDescriptor(state.frontAsset, "front"),
-            back: buildSourceDescriptor(state.backAsset, "back")
+            back: buildSourceDescriptor(state.backAsset, "back"),
+            visitingCard: buildSourceDescriptor(state.visitingCardAsset, "visiting-card")
         };
         const layout = {
             version: 2,
@@ -1597,38 +1830,106 @@
     }
 
     function buildInvitationPage(side, asset, sheet) {
-        const invitationLayout = getInvitationCardLayout(sheet);
-        const placement = buildGridPlacement({
+        const marginIn = clamp(state.businessBorderMargin, 0, 1);
+        // Left column: three landscape cards 6.8 x 4.5
+        const leftCardWIn = 6.8;
+        const leftCardHIn = 4.5;
+        const leftGapIn = 0.3;
+        // Right column: two portrait cards 4.5 x 6.8
+        const rightCardWIn = 4.5;
+        const rightCardHIn = 6.8;
+        const rightGapIn = 0.3;
+        // Bottom business cards
+        const bottomCardWIn = 2.15;
+        const bottomCardHIn = 3.3;
+        const bottomGapIn = 0.25;
+
+        // Left placement: single column, three rows
+        const leftPlacement = buildGridPlacement({
             sheet: sheet,
             boundsIn: {
-                x: invitationLayout.marginIn,
-                y: invitationLayout.marginIn,
-                width: Math.max(0, sheet.width - invitationLayout.marginIn * 2),
-                height: Math.max(0, sheet.height - invitationLayout.marginIn * 2)
+                x: marginIn,
+                y: marginIn,
+                width: leftCardWIn,
+                height: Math.max(0, leftCardHIn * 3 + leftGapIn * 2)
             },
-            cols: invitationLayout.cols,
-            rows: invitationLayout.rows,
-            itemCount: invitationLayout.cols * invitationLayout.rows,
-            itemWidthIn: invitationLayout.cardWIn,
-            itemHeightIn: invitationLayout.cardHIn,
-            spacingXIn: invitationLayout.gapXIn,
-            spacingYIn: invitationLayout.gapYIn,
+            cols: 1,
+            rows: 3,
+            itemCount: 3,
+            itemWidthIn: leftCardWIn,
+            itemHeightIn: leftCardHIn,
+            spacingXIn: 0,
+            spacingYIn: leftGapIn,
             fit: state.businessFitToCard ? "stretch" : "contain",
             sourceKey: side,
             sourceRotation: Number(asset.rotation) || 0,
-            includeMarks: state.businessCutMarks,
-            itemInsetIn: state.businessFitToCard ? 0 : Math.max(0.02, Math.min(invitationLayout.cardWIn, invitationLayout.cardHIn) * 0.06),
+            includeMarks: false,
+            itemInsetIn: state.businessFitToCard ? 0 : 0.04,
             itemKind: "invitation-card"
         });
+
+        // Right placement: single column, two rows, anchored to right margin
+        const rightPlacement = buildGridPlacement({
+            sheet: sheet,
+            boundsIn: {
+                x: Math.max(0, sheet.width - marginIn - rightCardWIn),
+                y: marginIn,
+                width: rightCardWIn,
+                height: Math.max(0, rightCardHIn * 2 + rightGapIn)
+            },
+            cols: 1,
+            rows: 2,
+            itemCount: 2,
+            itemWidthIn: rightCardWIn,
+            itemHeightIn: rightCardHIn,
+            spacingXIn: 0,
+            spacingYIn: rightGapIn,
+            fit: state.businessFitToCard ? "stretch" : "contain",
+            sourceKey: side,
+            sourceRotation: Number(asset.rotation) || 0,
+            includeMarks: false,
+            itemInsetIn: state.businessFitToCard ? 0 : 0.04,
+            itemKind: "invitation-card"
+        });
+
+        // Bottom business cards are only added when smart fill is enabled.
+        const bottomPlacement = state.smartFill === "business-card"
+            ? buildGridPlacement({
+                sheet: sheet,
+                boundsIn: {
+                    x: marginIn,
+                    y: Math.max(marginIn + leftCardHIn * 3 + leftGapIn * 2 + 0.6, sheet.height - marginIn - bottomCardHIn),
+                    width: Math.max(0, sheet.width - marginIn * 2),
+                    height: bottomCardHIn
+                },
+                cols: 5,
+                rows: 1,
+                itemCount: 5,
+                itemWidthIn: bottomCardWIn,
+                itemHeightIn: bottomCardHIn,
+                spacingXIn: bottomGapIn,
+                spacingYIn: 0.25,
+                fit: "contain",
+                sourceKey: "visiting-card",
+                sourceRotation: 0,
+                includeMarks: false,
+                itemInsetIn: 0,
+                itemKind: "business-card"
+            })
+            : { items: [], marks: [], grid: null };
 
         return {
             side: side,
             sourceKey: side,
             sourceRotation: Number(asset.rotation) || 0,
             background: state.previewBackgroundMode === "color" ? state.previewBackgroundColor : "#ffffff",
-            items: placement.items,
-            marks: placement.marks,
-            grid: placement.grid
+            items: leftPlacement.items.concat(rightPlacement.items).concat(bottomPlacement.items),
+            marks: [],
+            grid: {
+                left: leftPlacement.grid,
+                right: rightPlacement.grid,
+                bottom: bottomPlacement.grid
+            }
         };
     }
 
@@ -1646,7 +1947,11 @@
         let rows = 2;
         let fit = "cover";
 
-        if (smartFill === "labels") {
+        if (smartFill === "sticker") {
+            cols = 6;
+            rows = 4;
+            fit = "contain";
+        } else if (smartFill === "labels") {
             cols = 6;
             rows = 2;
             fit = "contain";
@@ -2595,6 +2900,7 @@
 
     function smartFillLabel(value) {
         if (value === "business-card") return "Visiting Card";
+        if (value === "sticker") return "Sticker";
         if (value === "labels") return "Labels";
         if (value === "mini-tags") return "Mini Tags";
         return "Keep Blank";

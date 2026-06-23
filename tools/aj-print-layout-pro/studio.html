@@ -36,7 +36,7 @@
 
             <div class="print-layout-studio-grid">
                 <aside class="print-layout-studio-sidebar">
-                    <article class="print-layout-control-card">
+                    <article id="uploadPanel" class="print-layout-control-card">
                         <div class="print-layout-control-head">
                             <div>
                                 <h3>Upload and Side Control</h3>
@@ -178,8 +178,7 @@
                                 <label for="smartFillSelect">Smart space fill <small>Invitation only</small></label>
                                 <select id="smartFillSelect">
                                     <option value="business-card">Add Visiting Card</option>
-                                    <option value="labels">Add Labels</option>
-                                    <option value="mini-tags">Add Mini Tags</option>
+                                    <option value="sticker">Add Sticker</option>
                                     <option value="keep-blank">Keep Blank</option>
                                 </select>
                             </div>
@@ -189,35 +188,38 @@
                                 <p>When extra empty space is available, the preview can suggest a useful fill mode.</p>
                                 <div class="print-layout-smartfill-options">
                                     <button type="button" data-smart-fill="business-card" class="is-active">Add Visiting Card</button>
-                                    <button type="button" data-smart-fill="labels">Add Labels</button>
-                                    <button type="button" data-smart-fill="mini-tags">Add Mini Tags</button>
+                                    <button type="button" data-smart-fill="sticker">Add Sticker</button>
                                     <button type="button" data-smart-fill="keep-blank">Keep Blank</button>
                                 </div>
                             </div>
 
-                            <div class="print-layout-control">
-                                <label for="marginRange">Margin <small id="marginValue">42</small></label>
-                                <input id="marginRange" type="range" min="12" max="80" value="42">
-                            </div>
-                            <div class="print-layout-control">
-                                <label for="spacingRange">Spacing <small id="spacingValue">18</small></label>
-                                <input id="spacingRange" type="range" min="6" max="40" value="18">
-                            </div>
-                            <div class="print-layout-control">
-                                <label for="bleedRange">Bleed <small id="bleedValue">10</small></label>
-                                <input id="bleedRange" type="range" min="0" max="30" value="10">
-                            </div>
-                            <div class="print-layout-control">
-                                <label for="zoomRange">Preview zoom <small id="zoomValue">100</small></label>
-                                <input id="zoomRange" type="range" min="80" max="140" value="100">
-                            </div>
+                            <article id="visitingCardUploadPanel" class="print-layout-control-card print-layout-hide">
+                                <div class="print-layout-control-head">
+                                    <div>
+                                        <h3>Visiting Card Upload</h3>
+                                        <p>Upload the visiting card design used for the bottom 5 cards.</p>
+                                    </div>
+                                </div>
+                                <div class="print-layout-dropzone" id="visitingCardDropzone" role="button" tabindex="0" aria-label="Drop visiting card file here or browse">
+                                    <input id="visitingCardFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.pdf,image/jpeg,image/png,image/webp,image/tiff,image/x-tiff,image/tif,application/pdf">
+                                    <div>
+                                        <span class="print-layout-tool-chip">Visiting card</span>
+                                        <h4>Drop a visiting card design</h4>
+                                        <p>This design fills the five visiting cards at the bottom of the sheet.</p>
+                                    </div>
+                                    <div class="print-layout-dropzone-actions">
+                                        <button type="button" class="print-layout-secondary-btn" id="visitingCardBrowseButton">Browse Files</button>
+                                        <button type="button" class="print-layout-secondary-btn" id="visitingCardClearButton">Clear Upload</button>
+                                    </div>
+                                </div>
+                                <div class="print-layout-preview-grid" style="margin-top: 14px;">
+                                    <article class="print-layout-upload-thumb">
+                                        <img id="visitingCardThumb" alt="">
+                                        <button type="button" class="print-layout-thumb-upload" id="visitingCardUploadButton" aria-label="Upload visiting card design">+</button>
+                                    </article>
+                                </div>
+                            </article>
 
-                            <div class="print-layout-checkbox-row">
-                                <label>
-                                    <input type="checkbox" id="cropMarksToggle" checked>
-                                    Crop marks
-                                </label>
-                            </div>
                         </div>
                     </article>
 
