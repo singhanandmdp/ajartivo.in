@@ -658,3 +658,374 @@
         scroll-behavior: auto !important;
     }
 }
+
+/* Dashboard refresh: premium calm edition */
+.tools-dashboard-page {
+    --tools-bg: #f4f6fb;
+    --tools-surface: rgba(255, 255, 255, 0.74);
+    --tools-surface-strong: rgba(255, 255, 255, 0.9);
+    --tools-surface-soft: rgba(247, 249, 254, 0.96);
+    --tools-border: rgba(15, 23, 42, 0.08);
+    --tools-border-strong: rgba(37, 99, 235, 0.18);
+    --tools-text: #24324a;
+    --tools-muted: #64748b;
+    --tools-title: #0f172a;
+    --tools-blue: #3b82f6;
+    --tools-blue-deep: #1d4ed8;
+    --tools-accent: #8b5cf6;
+    --tools-warm: #f59e0b;
+    --tools-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+    --tools-shadow-soft: 0 14px 32px rgba(15, 23, 42, 0.05);
+}
+
+.tools-dashboard-page.tools-hub-page {
+    background:
+        radial-gradient(circle at 14% 12%, rgba(59, 130, 246, 0.12), transparent 26%),
+        radial-gradient(circle at 88% 16%, rgba(139, 92, 246, 0.1), transparent 24%),
+        linear-gradient(180deg, #fcfdff 0%, #f4f6fb 100%);
+}
+
+.tools-dashboard-page .tools-hub-backdrop {
+    opacity: 0.32;
+    background-size: 56px 56px;
+}
+
+.tools-dashboard-page .tools-hub-shell {
+    max-width: 1260px;
+    padding-top: 34px;
+    padding-bottom: 84px;
+}
+
+.tools-dashboard-page .tools-hub-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 34px;
+    border-radius: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 255, 0.78)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(244, 247, 252, 0.62));
+    box-shadow: var(--tools-shadow);
+}
+
+.tools-dashboard-page .tools-hub-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -18% -34% auto;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0.04) 45%, transparent 70%);
+    pointer-events: none;
+}
+
+.tools-dashboard-page .tools-hub-hero-copy {
+    position: relative;
+    z-index: 1;
+}
+
+.tools-dashboard-page .tools-hub-hero h1 {
+    max-width: 11ch;
+    font-weight: 700;
+}
+
+.tools-dashboard-page .tools-hub-hero p {
+    max-width: 56ch;
+    color: var(--tools-muted);
+}
+
+.tools-dashboard-page .tools-hub-dashboard-frame {
+    position: relative;
+    padding: 12px;
+    border-radius: 32px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 255, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.84);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+.tools-dashboard-page .tools-hub-dashboard-frame::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 26px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 36%),
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.12), transparent 30%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.tools-dashboard-page .tools-hub-dashboard-image {
+    position: relative;
+    z-index: 1;
+    border-radius: 22px;
+    min-height: 248px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tools-dashboard-page .tools-hub-grid {
+    gap: 16px;
+    margin-top: 18px;
+    margin-bottom: 22px;
+}
+
+.tools-dashboard-page .tool-hub-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 228px;
+    padding: 24px 24px 22px;
+    border-radius: 28px;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 251, 255, 0.88));
+    box-shadow: var(--tools-shadow-soft);
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.tools-dashboard-page .tool-hub-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.92), rgba(139, 92, 246, 0.82));
+    opacity: 0.55;
+}
+
+.tools-dashboard-page .tool-hub-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -18px -18px auto;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.tools-dashboard-page .tool-hub-card:hover,
+.tools-dashboard-page .tool-hub-card:focus-within {
+    transform: translateY(-4px);
+    border-color: rgba(59, 130, 246, 0.16);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+.tools-dashboard-page .tool-hub-card-primary {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.9));
+}
+
+.tools-dashboard-page .tool-hub-card-topline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.tools-dashboard-page .tool-hub-card-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.04);
+    color: var(--tools-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.tools-dashboard-page .tool-hub-card-kicker {
+    display: inline-flex;
+    align-items: center;
+    color: var(--tools-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.tools-dashboard-page .tool-hub-copy h2 {
+    font-size: 1.4rem;
+    letter-spacing: -0.03em;
+}
+
+.tools-dashboard-page .tool-hub-copy p {
+    max-width: 54ch;
+    line-height: 1.68;
+}
+
+.tools-dashboard-page .tool-hub-card-footer {
+    margin-top: 18px;
+}
+
+.tools-dashboard-page .tool-hub-badge {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.12);
+    color: var(--tools-blue-deep);
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+}
+
+.tools-dashboard-page .tool-hub-btn {
+    min-height: 44px;
+    padding: 0 18px 0 20px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+    font-size: 0.88rem;
+    letter-spacing: 0.01em;
+}
+
+.tools-dashboard-page .tool-hub-btn::after {
+    content: "→";
+    margin-left: 8px;
+    transition: transform 180ms ease;
+}
+
+.tools-dashboard-page .tool-hub-btn:hover,
+.tools-dashboard-page .tool-hub-btn:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
+}
+
+.tools-dashboard-page .tool-hub-btn:hover::after,
+.tools-dashboard-page .tool-hub-btn:focus-visible::after {
+    transform: translateX(2px);
+}
+
+.tools-dashboard-page .tools-hub-feature,
+.tools-dashboard-page .tools-hub-slider-section,
+.tools-dashboard-page .tools-hub-stat {
+    border-color: rgba(15, 23, 42, 0.07);
+    box-shadow: var(--tools-shadow-soft);
+}
+
+.tools-dashboard-page .tools-hub-feature {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 255, 0.72));
+}
+
+.tools-dashboard-page .tools-hub-feature h2,
+.tools-dashboard-page .tools-hub-section-head h2,
+.tools-dashboard-page .tools-hub-stat strong {
+    letter-spacing: -0.03em;
+}
+
+.tools-dashboard-page .tools-hub-stat strong {
+    font-size: 1.2rem;
+}
+
+.tools-dashboard-page .tools-hub-slider-section {
+    max-width: 1100px;
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.tools-dashboard-page .tools-hub-slider {
+    min-height: 360px;
+    border-radius: 26px;
+}
+
+.tools-dashboard-page .tools-hub-slider::after {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(15, 23, 42, 0.18)),
+        linear-gradient(135deg, rgba(59, 130, 246, 0.08), transparent 42%, rgba(139, 92, 246, 0.08));
+}
+
+.tools-dashboard-page .tools-hub-slider-meta {
+    bottom: 16px;
+}
+
+.tools-dashboard-page .tools-hub-slider-progress {
+    height: 3px;
+}
+
+.tools-dashboard-page .tools-hub-slider-dot {
+    background: rgba(255, 255, 255, 0.36);
+}
+
+.tools-dashboard-page .tools-hub-slider-dot.is-active {
+    width: 30px;
+}
+
+@media (max-width: 980px) {
+    .tools-dashboard-page .tools-hub-hero {
+        padding: 24px;
+    }
+
+    .tools-dashboard-page .tools-hub-hero h1 {
+        max-width: 14ch;
+    }
+
+    .tools-dashboard-page .tools-hub-dashboard-image {
+        min-height: 220px;
+    }
+
+    .tools-dashboard-page .tools-hub-slider {
+        min-height: 320px;
+    }
+}
+
+@media (max-width: 720px) {
+    .tools-dashboard-page .tools-hub-shell {
+        padding-top: 22px;
+    }
+
+    .tools-dashboard-page .tools-hub-hero,
+    .tools-dashboard-page .tools-hub-feature,
+    .tools-dashboard-page .tools-hub-slider-section {
+        border-radius: 24px;
+    }
+
+    .tools-dashboard-page .tool-hub-card {
+        padding: 22px 20px 20px;
+        min-height: 0;
+    }
+
+    .tools-dashboard-page .tool-hub-card-footer {
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .tools-dashboard-page .tool-hub-btn {
+        width: fit-content;
+    }
+}
+
+/* Premium dashboard overrides */
+.tools-dashboard-page .tool-hub-btn::after {
+    content: "\2192";
+    margin-left: 8px;
+    transition: transform 180ms ease;
+}
+
+.tools-dashboard-page .tool-hub-btn {
+    min-height: 44px;
+    padding: 0 18px 0 20px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #111827 0%, #0b1120 100%);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+}
+
+.tools-dashboard-page .tool-hub-card {
+    min-height: 232px;
+    border-radius: 30px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(247, 249, 253, 0.66));
+}
+
+.tools-dashboard-page .tools-hub-hero h1 {
+    max-width: 12ch;
+}
+
+.tools-dashboard-page .tools-hub-feature p,
+.tools-dashboard-page .tools-hub-section-head p,
+.tools-dashboard-page .tool-hub-copy p {
+    color: #5f6c86;
+}

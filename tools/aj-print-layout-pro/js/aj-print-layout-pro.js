@@ -1705,6 +1705,7 @@
             },
             frontFile: buildFilePayload(state.frontAsset, "front"),
             backFile: buildFilePayload(state.backAsset, "back"),
+            visitingCardFile: buildFilePayload(state.visitingCardAsset, "visiting-card"),
             hasBackSide: Boolean(state.backAsset)
         };
     }
@@ -2397,6 +2398,9 @@
         if (payload.backFile) {
             formData.append("backFile", payload.backFile.file, payload.backFile.name);
         }
+        if (payload.visitingCardFile) {
+            formData.append("visitingCardFile", payload.visitingCardFile.file, payload.visitingCardFile.name);
+        }
 
         setStatus("Preparing the layout payload for backend export...");
         await waitForPaint();
@@ -2941,3 +2945,7 @@
         };
     }
 })();
+
+
+
+
