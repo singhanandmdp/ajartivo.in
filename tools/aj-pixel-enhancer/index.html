@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AJ Pixel Cut</title>
+<title>AJ Pixel Enhancer</title>
 
 <meta name="aj-pixel-cut-api" content="https://ajartivo-backend.onrender.com">
-<link rel="stylesheet" href="../../css/tools.css">
+<link rel="stylesheet" href="../css/tools.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
 <div class="menu-overlay" id="menuOverlay"></div>
 
 <section class="hero">
-    <div class="hero-badge">* * * Background Remover * * *</div>
-    <h1>AJ Pixel Cut</h1>
-    <p>AI Powered Background Remover</p>
+    <div class="hero-badge">* * * Pixel Enhancer * * *</div>
+    <h1>AJ Pixel Enhancer</h1>
+    <p>AI Powered Image Enhancer</p>
 </section>
 
 <section class="demo-compare">
@@ -29,14 +29,14 @@
         <div class="demo-compare-copy">
             <div class="section-kicker">Demo preview</div>
             <h2>Before and after slider for the sample image.</h2>
-            <p>This is only for display. Your upload flow below stays exactly the same as before.</p>
+            <p>This is only for display. Your edit flow below stays exactly the same as before.</p>
         </div>
 
         <div class="demo-compare-card">
             <div class="demo-stage" id="demoCompareStage">
-                <img class="demo-image demo-before" id="demoBeforeImage" src="Image/before.webp" alt="Before example image">
+                <img class="demo-image demo-before" id="demoBeforeImage" src="Aj Pixel Cut/website/Image/before.webp" alt="Before example image">
                 <div class="demo-after-wrap" id="demoAfterWrap">
-                    <img class="demo-image demo-after" id="demoAfterImage" src="Image/after.webp" alt="After example image">
+                    <img class="demo-image demo-after" id="demoAfterImage" src="Aj Pixel Cut/website/Image/after.webp" alt="After example image">
                 </div>
                 <div class="demo-label demo-label-before">Before</div>
                 <div class="demo-label demo-label-after">After</div>
@@ -73,8 +73,8 @@
         <div class="pixel-cut-upgrade" id="ajPixelCutUpgrade" hidden>
             <div class="pixel-cut-upgrade-copy">
                 <span class="pixel-cut-upgrade-kicker">Premium limit reached</span>
-                <strong id="ajPixelCutUpgradeTitle">You have used your 5 free removals</strong>
-                <p id="ajPixelCutUpgradeText">Upgrade to Premium to keep sending images without the free limit.</p>
+                <strong id="ajPixelCutUpgradeTitle">You have used your 5 free enhancements</strong>
+                <p id="ajPixelCutUpgradeText">Upgrade to Premium to keep using the enhancer without the free limit.</p>
             </div>
             <a class="pixel-cut-upgrade-btn" href="/premium" id="ajPixelCutUpgradeBtn">Upgrade to Premium</a>
         </div>
@@ -165,7 +165,7 @@
                 <div class="mode-row">
                     <button type="button" class="mode-btn active" id="eraseModeBtn">Erase</button>
                     <button type="button" class="mode-btn" id="restoreModeBtn">Restore</button>
-                    <button type="button" class="mode-btn active" id="restoreRemovedBtn">Removed BG</button>
+                    <button type="button" class="mode-btn active" id="restoreRemovedBtn">Enhanced BG</button>
                     <button type="button" class="mode-btn" id="restoreOriginalBtn">Original Image</button>
                 </div>
                 <div class="slider-row">
@@ -245,7 +245,7 @@
                 <label>Gradient start</label>
                 <input type="color" id="gradientStart" value="#ffffff">
                 <label>Gradient end</label>
-                <input type="color" id="gradientEnd" value="#7c3aed">
+                <input type="color" id="gradientEnd" value="#14b8a6">
                 <label>Angle</label>
                 <input type="range" id="gradientAngle" min="0" max="360" value="135">
                 <button type="button" class="panel-close" data-panel="gradientPanel">Done</button>
@@ -257,14 +257,14 @@
 
 <section class="intro-grid">
     <div class="intro-copy">
-        <div class="section-kicker">Premium background removal</div>
-        <h2>Clean backgrounds. Professional results. Faster edits.</h2>
+        <div class="section-kicker">Premium image enhancement</div>
+        <h2>Vivid images. Professional results. Faster edits.</h2>
         <p>
-            Remove backgrounds, refine edges, add text, outline your subject, and export a polished image
+            Enhance images, refine edges, add text, outline your subject, and export a polished image
             in one smooth workflow made for creators, brands, and fast social media work.
         </p>
         <div class="feature-chips" aria-label="Key features">
-            <span>One-click remove</span>
+            <span>One-click enhance</span>
             <span>Soft edge refine</span>
             <span>Text + outline tools</span>
             <span>Crop and export</span>
@@ -285,21 +285,21 @@
                 <div class="step-number">1</div>
                 <div>
                     <h4>Upload your image</h4>
-                    <p>Drag and drop a photo or click upload to start background removal.</p>
+                    <p>Drag and drop a photo or click upload to start enhancement.</p>
                 </div>
             </div>
             <div class="step-item">
                 <div class="step-number">2</div>
                 <div>
-                    <h4>Edit the cutout</h4>
-                    <p>Use crop, restore, text, and outline tools to fine-tune the result.</p>
+                    <h4>Edit the result</h4>
+                    <p>Use crop, restore, text, and outline tools to fine-tune the image.</p>
                 </div>
             </div>
             <div class="step-item">
                 <div class="step-number">3</div>
                 <div>
                     <h4>Download the image</h4>
-                    <p>Pick your background style, then save the final premium-looking PNG.</p>
+                    <p>Pick your finish style, then save the final premium-looking PNG.</p>
                 </div>
             </div>
         </div>
@@ -311,11 +311,11 @@
     <div class="ad-card">
 
         <div class="ad-text">
-            <h2>Clean Backgrounds. Professional Results.</h2>
+            <h2>Clean Enhancements. Professional Results.</h2>
             <p>Create stunning visuals for your brand, portfolio, or business in seconds.</p>
         </div>
 
-        <img src="../icon/background_pixel.jpg" class="ad-image">
+        <img src="Images/aj pixel enhancer.webp" class="ad-image" alt="AJ Pixel Enhancer preview">
 
     </div>
 
@@ -325,9 +325,8 @@
 
 <div id="site-footer"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../../js/tools.js"></script>
-<script src="../../js/aj-pixel-cut.js"></script>
+<script src="../js/tools.js"></script>
+<script src="../js/aj-pixel-enhancer.js"></script>
 
 </body>
 </html>
