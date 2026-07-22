@@ -1,4 +1,4 @@
-User-agent: Googlebot-Image
+﻿User-agent: Googlebot-Image
 Disallow: /icons/
 Disallow: /tools/icons/
 Disallow: /login
@@ -30,4 +30,5 @@ Disallow: /images/logo.webp
 Disallow: /images/watermark.png
 Disallow: /images/Hero/
 
-Sitemap: https://ajartivo.in/sitemap.xml
+Sitemap: https://www.ajartivo.in/sitemap.xml
+Sitemap: https://www.ajartivo.in/image-sitemap.xml

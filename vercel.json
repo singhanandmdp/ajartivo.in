@@ -1,4 +1,4 @@
-{
+﻿{
   "headers": [
     {
       "source": "/icons",
@@ -41,6 +41,14 @@
     {
       "source": "/product/:path*",
       "destination": "/product.html"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://ajartivo-backend.onrender.com/sitemap.xml"
+    },
+    {
+      "source": "/image-sitemap.xml",
+      "destination": "https://ajartivo-backend.onrender.com/image-sitemap.xml"
     }
   ]
 }

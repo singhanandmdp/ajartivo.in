@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const services = window.AjArtivoSupabase;
     const resolveUrl = typeof window.AjArtivoResolveUrl === "function"
         ? window.AjArtivoResolveUrl
@@ -710,7 +710,7 @@
         const description = cleanText(overrides && overrides.description) || getProductSeoDescription(product, seoBaseTitle);
         const image = cleanText(overrides && overrides.image) || getSeoImageUrl(product, seoBaseTitle);
         const absoluteImage = toAbsoluteUrl(image);
-        const absoluteUrl = stripUrlHash(window.location.href);
+        const canonicalUrl = cleanText(window.AjArtivoCurrentProductUrl) || stripUrlHash(window.location.href);
 
         document.title = seoTitle;
         setMetaTag("name", "description", description);
@@ -719,25 +719,25 @@
         setMetaTag("property", "og:description", description);
         setMetaTag("property", "og:image", absoluteImage);
         setMetaTag("property", "og:image:alt", seoBaseTitle);
-        setMetaTag("property", "og:url", absoluteUrl);
+        setMetaTag("property", "og:url", canonicalUrl);
         setMetaTag("property", "og:site_name", "AJartivo");
         setMetaTag("name", "twitter:card", "summary_large_image");
         setMetaTag("name", "twitter:title", seoTitle);
         setMetaTag("name", "twitter:description", description);
         setMetaTag("name", "twitter:image", absoluteImage);
         setMetaTag("name", "twitter:image:alt", seoBaseTitle);
-        updateCanonicalLink(absoluteUrl);
+        updateCanonicalLink(canonicalUrl);
         updateProductJsonLd(product, {
             title: seoBaseTitle,
             description: description,
             image: absoluteImage,
-            url: absoluteUrl
+            url: canonicalUrl
         });
 
         if (product && product.is_placeholder === true) {
-            setMetaTag("name", "robots", "noindex, follow");
+            setMetaTag("name", "robots", "noindex,follow");
         } else {
-            setMetaTag("name", "robots", "index, follow");
+            setMetaTag("name", "robots", "index,follow");
         }
     }
 
@@ -748,7 +748,7 @@
         const title = cleanText(data && data.title) || getProductSeoBaseTitle(product) || "AJartivo Product";
         const description = cleanText(data && data.description) || cleanText(product && product.description) || "";
         const image = cleanText(data && data.image) || toAbsoluteUrl(getSeoImageUrl(product, title));
-        const url = cleanText(data && data.url) || stripUrlHash(window.location.href);
+        const url = cleanText(data && data.url) || cleanText(window.AjArtivoCurrentProductUrl) || stripUrlHash(window.location.href);
         const price = Number(product && product.price || 0);
         const offer = {
             "@type": "Offer",
@@ -762,6 +762,7 @@
             "@context": "https://schema.org/",
             "@type": "Product",
             "productID": cleanText(product && product.id) || undefined,
+            "sku": cleanText(product && product.slug) || undefined,
             "name": title,
             "image": image,
             "description": description,
@@ -812,7 +813,7 @@
             document.head.appendChild(link);
         }
 
-        link.href = url;
+        link.href = cleanText(url) || stripUrlHash(window.location.href);
     }
 
     function getProductSeoBaseTitle(product) {
@@ -1060,6 +1061,10 @@
 
     async function safeFetchDesignById(designId) {
         try {
+            if (!isUuid(designId)) {
+                return await safeFetchDesignBySlug(designId);
+            }
+
             if (typeof services.fetchDesignById !== "function") {
                 return null;
             }
@@ -1802,6 +1807,10 @@
             .replace(/'/g, "&#39;");
     }
 
+    function isUuid(value) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanText(value));
+    }
+
     function cleanText(value) {
         return String(value || "").trim();
     }
@@ -1824,3 +1833,9 @@
         return `${text.slice(0, Math.max(0, limit - 3)).trim()}...`;
     }
 })();
+
+
+
+
+
+

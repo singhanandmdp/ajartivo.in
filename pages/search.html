@@ -1,10 +1,31 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results - AJartivo</title>
+    <meta name="robots" content="index,follow">
+    <script>
+        (function () {
+            var url = new URL(window.location.href);
+            var canonicalUrl = new URL(window.location.origin + "/pages/search");
+            var category = String(url.searchParams.get("category") || "").trim();
+
+            if (category) {
+                canonicalUrl.searchParams.set("category", category);
+            }
+
+            var link = document.querySelector('link[rel="canonical"]');
+            if (!link) {
+                link = document.createElement("link");
+                link.rel = "canonical";
+                document.head.appendChild(link);
+            }
+
+            link.href = canonicalUrl.toString();
+        })();
+    </script>
     <link rel="stylesheet" href="../css/search.css">
 </head>
 
@@ -103,3 +124,4 @@
 </body>
 
 </html>
+

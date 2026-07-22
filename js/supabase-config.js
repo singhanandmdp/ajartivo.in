@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const SUPABASE_URL = "https://hlmyjnslyijgdrfuktun.supabase.co";
     const SUPABASE_PUBLIC_KEY = "sb_publishable_VZYzXaf0npSI8sdhgsIFjQ_1i-SMZY6";
     const SESSION_KEY = "ajartivo_session";
@@ -12,7 +12,7 @@
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,description,price,image_url,download_link,tags,category,downloads,is_free,is_paid,is_premium,created_at";
+    const DESIGNS_SELECT_FIELDS = "id,title,slug,description,price,image_url,download_link,tags,category,downloads,views,is_free,is_paid,is_premium,created_at,updated_at";
     const DESIGNS_CACHE_TTL_MS = 5 * 60 * 1000;
     const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
     const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v2";
@@ -224,6 +224,9 @@
             return null;
         }
 
+        if (!isUuid(designId)) {
+            return fetchDesignBySlug(designId);
+        }
         const cachedDesign = getCachedDesignById(designId);
         const result = await readSingleDesign("designs", "id", designId);
 
@@ -1397,6 +1400,9 @@
             return { data: null, error: null };
         }
 
+        if (fieldName === "id" && !isUuid(value)) {
+            return { data: null, error: null };
+        }
         const { data, error } = await supabase
             .from(tableName)
             .select("*")
@@ -1489,6 +1495,10 @@
             .replace(/^-+|-+$/g, "")
             .replace(/(?:-[a-f0-9]{8})$/i, "") || "ajartivo-product";
         return base;
+    }
+
+    function isUuid(value) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanText(value));
     }
 
     function hashText(value) {
@@ -1735,3 +1745,5 @@
         return !hostname || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
     }
 })();
+
+

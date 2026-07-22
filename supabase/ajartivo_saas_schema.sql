@@ -1,4 +1,4 @@
-create extension if not exists pgcrypto;
+﻿create extension if not exists pgcrypto;
 
 create or replace function public.set_current_timestamp_updated_at()
 returns trigger
@@ -13,7 +13,7 @@ $$;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
-  name text not null default '',
+  name text not null default ',
   first_name text,
   last_name text,
   address text,
@@ -32,7 +32,7 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
-alter table public.profiles add column if not exists name text not null default '';
+alter table public.profiles add column if not exists name text not null default ';
 alter table public.profiles add column if not exists role text not null default 'user';
 alter table public.profiles add column if not exists is_banned boolean not null default false;
 alter table public.profiles add column if not exists is_premium boolean not null default false;
@@ -44,7 +44,7 @@ alter table public.profiles add column if not exists weekly_premium_download_lim
 alter table public.profiles add column if not exists weekly_reset_date timestamptz not null default timezone('utc', now());
 alter table public.profiles add column if not exists created_at timestamptz not null default timezone('utc', now());
 alter table public.profiles add column if not exists updated_at timestamptz not null default timezone('utc', now());
-alter table public.profiles alter column name set default '';
+alter table public.profiles alter column name set default ';
 alter table public.profiles alter column name set not null;
 alter table public.profiles alter column role set default 'user';
 alter table public.profiles alter column role set not null;
@@ -62,13 +62,13 @@ alter table public.profiles alter column weekly_reset_date set default timezone(
 alter table public.profiles alter column weekly_reset_date set not null;
 
 update public.profiles
-set email = lower(trim(coalesce(email, ''))),
-    first_name = nullif(trim(coalesce(first_name, '')), ''),
-    last_name = nullif(trim(coalesce(last_name, '')), ''),
-    address = nullif(trim(coalesce(address, '')), ''),
-    mobile_number = nullif(trim(coalesce(mobile_number, '')), ''),
-    avatar_url = nullif(trim(coalesce(avatar_url, '')), ''),
-    role = coalesce(nullif(lower(trim(coalesce(role, ''))), ''), 'user'),
+set email = lower(trim(coalesce(email, '))),
+    first_name = nullif(trim(coalesce(first_name, ')), '),
+    last_name = nullif(trim(coalesce(last_name, ')), '),
+    address = nullif(trim(coalesce(address, ')), '),
+    mobile_number = nullif(trim(coalesce(mobile_number, ')), '),
+    avatar_url = nullif(trim(coalesce(avatar_url, ')), '),
+    role = coalesce(nullif(lower(trim(coalesce(role, '))), '), 'user'),
     is_banned = coalesce(is_banned, false),
     is_premium = coalesce(is_premium, false),
     free_download_count = coalesce(free_download_count, 0),
@@ -78,19 +78,19 @@ set email = lower(trim(coalesce(email, ''))),
     created_at = coalesce(created_at, timezone('utc', now())),
     updated_at = coalesce(updated_at, timezone('utc', now())),
     name = coalesce(
-      nullif(trim(coalesce(name, '')), ''),
-      nullif(trim(concat_ws(' ', first_name, last_name)), ''),
-      nullif(split_part(email, '@', 1), ''),
+      nullif(trim(coalesce(name, ')), '),
+      nullif(trim(concat_ws(' ', first_name, last_name)), '),
+      nullif(split_part(email, '@', 1), '),
       'Creative Member'
     );
 
 update public.profiles
 set name = coalesce(
-  nullif(trim(concat_ws(' ', first_name, last_name)), ''),
-  nullif(split_part(email, '@', 1), ''),
+  nullif(trim(concat_ws(' ', first_name, last_name)), '),
+  nullif(split_part(email, '@', 1), '),
   'Creative Member'
 )
-where name is null or trim(name) = '';
+where name is null or trim(name) = ';
 
 insert into public.profiles (
   id,
@@ -113,22 +113,22 @@ insert into public.profiles (
 )
 select
   au.id,
-  lower(trim(coalesce(au.email, ''))),
+  lower(trim(coalesce(au.email, '))),
   coalesce(
-    nullif(trim(coalesce(meta.metadata->>'full_name', meta.metadata->>'name')), ''),
+    nullif(trim(coalesce(meta.metadata->>'full_name', meta.metadata->>'name')), '),
     nullif(trim(concat_ws(' ',
-      nullif(trim(coalesce(meta.metadata->>'first_name', meta.metadata->>'given_name', split_part(coalesce(au.email, ''), '@', 1))), ''),
-      nullif(trim(coalesce(meta.metadata->>'last_name', meta.metadata->>'family_name', meta.metadata->>'surname')), '')
-    )), ''),
-    nullif(split_part(coalesce(au.email, ''), '@', 1), ''),
+      nullif(trim(coalesce(meta.metadata->>'first_name', meta.metadata->>'given_name', split_part(coalesce(au.email, '), '@', 1))), '),
+      nullif(trim(coalesce(meta.metadata->>'last_name', meta.metadata->>'family_name', meta.metadata->>'surname')), ')
+    )), '),
+    nullif(split_part(coalesce(au.email, '), '@', 1), '),
     'Creative Member'
   ),
-  nullif(trim(coalesce(meta.metadata->>'first_name', meta.metadata->>'given_name', split_part(coalesce(au.email, ''), '@', 1))), ''),
-  nullif(trim(coalesce(meta.metadata->>'last_name', meta.metadata->>'family_name', meta.metadata->>'surname')), ''),
-  nullif(trim(coalesce(meta.metadata->>'address', meta.metadata->>'address_line', meta.metadata->>'location')), ''),
-  nullif(trim(coalesce(meta.metadata->>'mobile_number', meta.metadata->>'phone_number', meta.metadata->>'phone')), ''),
-  nullif(trim(coalesce(meta.metadata->>'avatar_url', meta.metadata->>'picture')), ''),
-  coalesce(nullif(lower(trim(coalesce(meta.metadata->>'role', 'user'))), ''), 'user'),
+  nullif(trim(coalesce(meta.metadata->>'first_name', meta.metadata->>'given_name', split_part(coalesce(au.email, '), '@', 1))), '),
+  nullif(trim(coalesce(meta.metadata->>'last_name', meta.metadata->>'family_name', meta.metadata->>'surname')), '),
+  nullif(trim(coalesce(meta.metadata->>'address', meta.metadata->>'address_line', meta.metadata->>'location')), '),
+  nullif(trim(coalesce(meta.metadata->>'mobile_number', meta.metadata->>'phone_number', meta.metadata->>'phone')), '),
+  nullif(trim(coalesce(meta.metadata->>'avatar_url', meta.metadata->>'picture')), '),
+  coalesce(nullif(lower(trim(coalesce(meta.metadata->>'role', 'user'))), '), 'user'),
   false,
   false,
   null,
@@ -148,6 +148,7 @@ where p.id is null;
 create table if not exists public.designs (
   id uuid primary key default gen_random_uuid(),
   title text not null,
+  slug text,
   description text default '',
   image_url text not null,
   price numeric(10,2) not null default 0,
@@ -160,6 +161,7 @@ create table if not exists public.designs (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.designs add column if not exists slug text;
 alter table public.designs add column if not exists image_url text;
 alter table public.designs add column if not exists tags text[] not null default '{}'::text[];
 alter table public.designs add column if not exists updated_at timestamptz not null default timezone('utc', now());
@@ -229,6 +231,85 @@ create index if not exists idx_user_subscriptions_user_status on public.user_sub
 create index if not exists idx_user_usage_user_month on public.user_usage (user_id, month_key);
 create index if not exists idx_user_usage_user_day on public.user_usage (user_id, day_key);
 create index if not exists idx_purchases_user_design on public.purchases (user_id, design_id);
+
+create or replace function public.slugify_text(value text)
+returns text
+language sql
+immutable
+as $$
+  select nullif(regexp_replace(regexp_replace(lower(coalesce(value, '')), '[^a-z0-9]+', '-', 'g'), '(^-|-$)', '', 'g'), '');
+$$;
+
+create or replace function public.generate_unique_design_slug(source_value text, source_id uuid default null)
+returns text
+language plpgsql
+as $$
+declare
+  base_slug text := coalesce(public.slugify_text(source_value), 'design');
+  next_slug text := base_slug;
+  slug_exists boolean;
+  counter integer := 2;
+begin
+  loop
+    if source_id is null then
+      select exists (
+        select 1
+        from public.designs d
+        where d.slug = next_slug
+      ) into slug_exists;
+    else
+      select exists (
+        select 1
+        from public.designs d
+        where d.slug = next_slug
+          and d.id <> source_id
+      ) into slug_exists;
+    end if;
+
+    exit when not slug_exists;
+
+    next_slug := base_slug || '-' || counter;
+    counter := counter + 1;
+  end loop;
+
+  return next_slug;
+end;
+$$;
+
+create or replace function public.set_design_slug()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.slug := public.generate_unique_design_slug(coalesce(nullif(trim(new.slug), ''), new.title), new.id);
+  return new;
+end;
+$$;
+
+with normalized_design_slugs as (
+  select
+    id,
+    coalesce(public.slugify_text(coalesce(nullif(trim(slug), ''), title)), 'design') as base_slug,
+    row_number() over (
+      partition by coalesce(public.slugify_text(coalesce(nullif(trim(slug), ''), title)), 'design')
+      order by created_at, id
+    ) as slug_rank
+  from public.designs
+)
+update public.designs d
+set slug = case
+  when n.slug_rank = 1 then n.base_slug
+  else n.base_slug || '-' || n.slug_rank
+end
+from normalized_design_slugs n
+where d.id = n.id;
+
+create unique index if not exists idx_designs_slug_unique on public.designs (slug);
+
+drop trigger if exists set_design_slug on public.designs;
+create trigger set_design_slug
+before insert or update on public.designs
+for each row execute function public.set_design_slug();
 
 insert into public.plans_master (
   plan_id,
@@ -495,20 +576,20 @@ as $$
 declare
   derived_name text;
 begin
-  new.email := lower(trim(coalesce(new.email, '')));
+  new.email := lower(trim(coalesce(new.email, ')));
 
   derived_name := trim(concat_ws(
     ' ',
-    nullif(trim(coalesce(new.first_name, '')), ''),
-    nullif(trim(coalesce(new.last_name, '')), '')
+    nullif(trim(coalesce(new.first_name, ')), '),
+    nullif(trim(coalesce(new.last_name, ')), ')
   ));
 
-  if derived_name = '' then
-    derived_name := nullif(trim(coalesce(new.name, '')), '');
+  if derived_name = ' then
+    derived_name := nullif(trim(coalesce(new.name, ')), ');
   end if;
 
   if derived_name is null then
-    derived_name := nullif(split_part(new.email, '@', 1), '');
+    derived_name := nullif(split_part(new.email, '@', 1), ');
   end if;
 
   new.name := coalesce(derived_name, 'Creative Member');
@@ -534,9 +615,9 @@ declare
   derived_name text;
 begin
   metadata := coalesce(new.raw_user_meta_data, '{}'::jsonb);
-  derived_first_name := nullif(trim(coalesce(metadata->>'first_name', metadata->>'given_name', split_part(coalesce(new.email, ''), '@', 1))), '');
-  derived_last_name := nullif(trim(coalesce(metadata->>'last_name', metadata->>'family_name', metadata->>'surname')), '');
-  derived_name := nullif(trim(coalesce(metadata->>'full_name', metadata->>'name')), '');
+  derived_first_name := nullif(trim(coalesce(metadata->>'first_name', metadata->>'given_name', split_part(coalesce(new.email, '), '@', 1))), ');
+  derived_last_name := nullif(trim(coalesce(metadata->>'last_name', metadata->>'family_name', metadata->>'surname')), ');
+  derived_name := nullif(trim(coalesce(metadata->>'full_name', metadata->>'name')), ');
 
   if derived_name is null then
     derived_name := trim(concat_ws(' ', derived_first_name, derived_last_name));
@@ -563,19 +644,19 @@ begin
   )
   values (
     new.id,
-    lower(trim(coalesce(new.email, ''))),
+    lower(trim(coalesce(new.email, '))),
     coalesce(
-      nullif(trim(derived_name), ''),
-      nullif(trim(concat_ws(' ', derived_first_name, derived_last_name)), ''),
-      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      nullif(trim(derived_name), '),
+      nullif(trim(concat_ws(' ', derived_first_name, derived_last_name)), '),
+      nullif(split_part(coalesce(new.email, '), '@', 1), '),
       'Creative Member'
     ),
     derived_first_name,
     derived_last_name,
-    nullif(trim(coalesce(metadata->>'address', metadata->>'address_line', metadata->>'location')), ''),
-    nullif(trim(coalesce(metadata->>'mobile_number', metadata->>'phone_number', metadata->>'phone')), ''),
-    nullif(trim(coalesce(metadata->>'avatar_url', metadata->>'picture')), ''),
-    coalesce(nullif(lower(trim(coalesce(metadata->>'role', 'user'))), ''), 'user'),
+    nullif(trim(coalesce(metadata->>'address', metadata->>'address_line', metadata->>'location')), '),
+    nullif(trim(coalesce(metadata->>'mobile_number', metadata->>'phone_number', metadata->>'phone')), '),
+    nullif(trim(coalesce(metadata->>'avatar_url', metadata->>'picture')), '),
+    coalesce(nullif(lower(trim(coalesce(metadata->>'role', 'user'))), '), 'user'),
     false,
     false,
     null,
@@ -718,9 +799,9 @@ select
   p.id,
   p.email,
   coalesce(
-    nullif(trim(p.name), ''),
-    nullif(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
-    nullif(split_part(p.email, '@', 1), ''),
+    nullif(trim(p.name), '),
+    nullif(trim(concat_ws(' ', p.first_name, p.last_name)), '),
+    nullif(split_part(p.email, '@', 1), '),
     'Creative Member'
   ) as name,
   p.first_name,
@@ -742,7 +823,7 @@ select
       then true
     else coalesce(p.is_premium, false)
   end as is_premium,
-  coalesce(asub.plan_id, p.current_plan_id, '') as active_plan_id,
+  coalesce(asub.plan_id, p.current_plan_id, ') as active_plan_id,
   coalesce(asub.plan_name, 'Free') as active_plan_name,
   coalesce(asub.expires_at, p.premium_expiry) as premium_expiry,
   case
@@ -845,3 +926,6 @@ from public.profiles p
 left join active_subscription asub on asub.user_id = p.id
 left join month_usage mu on mu.user_id = p.id
 left join day_usage du on du.user_id = p.id;
+
+
+

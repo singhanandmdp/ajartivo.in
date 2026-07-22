@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -21,11 +21,32 @@
             document.head.appendChild(base);
         })();
     </script>
+    <script>
+        (function () {
+            var url = new URL(window.location.href);
+            var pathname = String(url.pathname || "").replace(/\/index\.html$/i, "/").replace(/\.html$/i, "");
+            if (!pathname) {
+                pathname = "/product";
+            }
+
+            var canonicalUrl = new URL(window.location.origin + pathname.replace(/\/+$/, ""));
+            if (canonicalUrl.pathname.slice(-1) !== "/") {
+                canonicalUrl.pathname = canonicalUrl.pathname.replace(/\/+$/, "");
+            }
+
+            var canonical = document.querySelector('link[rel="canonical"]');
+            if (!canonical) {
+                canonical = document.createElement("link");
+                canonical.rel = "canonical";
+                document.head.appendChild(canonical);
+            }
+            canonical.href = canonicalUrl.toString();
+        })();
+    </script>
     <link rel="icon" href="Favicon.ico" type="image/x-icon">
     <title>Product Details - AJartivo</title>
     <meta name="description" content="View AJartivo product details, previews, access status, and download options for a design listing.">
     <meta name="robots" content="index,follow">
-    <link rel="canonical" href="/product.html">
     <meta property="og:type" content="product">
     <meta property="og:title" content="Product Details - AJartivo">
     <meta property="og:description" content="View product details, previews, and access options for an AJartivo design listing.">
@@ -177,3 +198,4 @@
 </body>
 
 </html>
+
