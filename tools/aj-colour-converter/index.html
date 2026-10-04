@@ -1,32 +1,175 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aj Colour Converter - AJartivo</title>
+    <title>Aj Colour Converter & Studio - AJartivo</title>
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../css/tools.css">
+    <style>
+        .toast-notify {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #2563eb;
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+        .toast-notify.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .contrast-card {
+            background: rgba(19, 29, 53, 0.6);
+            border: 1px solid var(--tools-border);
+            border-radius: 16px;
+            padding: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .contrast-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .contrast-val {
+            font-size: 14px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
 </head>
 <body class="tools-hub-page">
-    <main class="tool-placeholder-shell">
-        <section class="tool-placeholder-hero">
-            <span class="tool-placeholder-kicker">Tool Placeholder</span>
-            <h1>Aj Colour Converter</h1>
-            <p>This future tool page is ready for quick color value conversions. It will later support creative workflows for brand, UI, and design checks.</p>
-        </section>
-        <section class="tool-placeholder-panel">
-            <div class="tool-placeholder-meta">
-                <article><span>Status</span><strong>UI placeholder ready</strong></article>
-                <article><span>Planned focus</span><strong>HEX, RGB, and HSL conversion</strong></article>
-                <article><span>Next step</span><strong>Color utilities will be added later</strong></article>
+    <div class="tools-hub-backdrop" aria-hidden="true"></div>
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="color-studio-shell">
+        <!-- Studio Subnav -->
+        <nav class="studio-subnav" aria-label="Studio tools navigation">
+            <div class="studio-breadcrumbs">
+                <a href="/">AJartivo</a>
+                <span>/</span>
+                <a href="../dashboard/dashboard.html">Creative Studio</a>
+                <span>/</span>
+                <span class="current">Aj Colour Converter</span>
             </div>
-            <div class="tool-placeholder-actions">
-                <a class="tool-placeholder-btn" href="./dashboard">Back to Dashboard</a>
+            <div class="studio-links">
+                <a class="studio-link-btn" href="../Aj Pixel Cut/website/">Pixel Cut</a>
+                <a class="studio-link-btn" href="../aj-pixel-enhancer/">Pixel Enhancer</a>
+                <a class="studio-link-btn" href="../aj-print-layout-pro/">Print Layout Pro</a>
+                <a class="studio-link-btn" href="../image-converter/">Converter</a>
+                <a class="studio-link-btn" href="../image-resizer/">Resizer</a>
+                <a class="studio-link-btn active" href="#">Colour</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="tools-hub-hero">
+            <div class="tools-hub-hero-copy">
+                <span class="tools-hub-kicker">Color Space & Palette Studio</span>
+                <h1>Precision color conversion and WCAG contrast analyzer</h1>
+                <p>Instantly convert between HEX, RGB, HSL, and CMYK formats with live preview, palette generation, and accessibility compliance checking.</p>
+                <div class="tools-hub-pills">
+                    <span>Live 2-way sync</span>
+                    <span>WCAG contrast test</span>
+                    <span>Harmonic palettes</span>
+                    <span>1-click copy</span>
+                </div>
             </div>
         </section>
+
+        <!-- Studio Grid -->
+        <div class="color-studio-grid">
+            <!-- Left: Live Preview & Pickers -->
+            <div class="color-stage-card">
+                <div class="color-preview-box" id="colorPreviewBox">
+                    <span class="color-preview-label" id="colorPreviewHex">#2563EB</span>
+                </div>
+
+                <div class="color-picker-input-wrap">
+                    <input type="color" id="nativeColorPicker" class="native-color-picker" value="#2563eb" title="Pick custom color">
+                    <div>
+                        <strong style="display:block; color:#ffffff; font-size:14px;">Color Picker</strong>
+                        <span style="font-size:12px; color:var(--tools-muted);">Click swatch to open native color dropper</span>
+                    </div>
+                </div>
+
+                <!-- Accessibility Contrast -->
+                <div class="contrast-card">
+                    <span class="contrast-label">Contrast vs White Text</span>
+                    <span class="contrast-val" id="contrastWhite">--</span>
+                </div>
+                <div class="contrast-card">
+                    <span class="contrast-label">Contrast vs Black Text</span>
+                    <span class="contrast-val" id="contrastBlack">--</span>
+                </div>
+            </div>
+
+            <!-- Right: Format Converters & Harmony -->
+            <div class="color-inspector-panels">
+                <div class="format-inputs-grid">
+                    <!-- HEX -->
+                    <div class="format-card">
+                        <label for="hexInput">HEX (Web / CSS)</label>
+                        <div class="format-input-group">
+                            <input type="text" id="hexInput" class="format-input" value="#2563EB" spellcheck="false">
+                            <button type="button" class="copy-val-btn" data-copy-target="hexInput">Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- RGB -->
+                    <div class="format-card">
+                        <label for="rgbInput">RGB (Screen / Canvas)</label>
+                        <div class="format-input-group">
+                            <input type="text" id="rgbInput" class="format-input" value="37, 99, 235" spellcheck="false">
+                            <button type="button" class="copy-val-btn" data-copy-target="rgbInput">Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- HSL -->
+                    <div class="format-card">
+                        <label for="hslInput">HSL (Hue Saturation Lightness)</label>
+                        <div class="format-input-group">
+                            <input type="text" id="hslInput" class="format-input" value="221°, 83%, 53%" spellcheck="false">
+                            <button type="button" class="copy-val-btn" data-copy-target="hslInput">Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- CMYK -->
+                    <div class="format-card">
+                        <label for="cmykInput">CMYK (Print Production)</label>
+                        <div class="format-input-group">
+                            <input type="text" id="cmykInput" class="format-input" value="84%, 58%, 0%, 8%" readonly>
+                            <button type="button" class="copy-val-btn" data-copy-target="cmykInput">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Palette Harmonies -->
+                <div class="harmony-section">
+                    <h3>Harmonic Color Palettes & Tints (Click to Copy)</h3>
+                    <div class="harmony-swatches-grid" id="harmonySwatches"></div>
+                </div>
+            </div>
+        </div>
     </main>
+
+    <div id="copyToast" class="toast-notify" role="status" aria-live="polite"></div>
+    <div id="site-footer"></div>
+
     <script src="../js/tools.js"></script>
     <script src="../js/aj-colour-converter.js"></script>
 </body>
 </html>
-

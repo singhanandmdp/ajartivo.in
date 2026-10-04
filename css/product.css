@@ -1,0 +1,751 @@
+/* ==========================================================================
+   AJartivo - Master Product Studio Styling
+   Adaptive Product Canvas & Clean Accordion Architecture
+   ========================================================================== */
+
+:root {
+    --p-bg: #060a12;
+    --p-surface: #0c1322;
+    --p-surface-elevated: #111a2e;
+    --p-surface-subtle: rgba(255, 255, 255, 0.03);
+    --p-border: rgba(255, 255, 255, 0.08);
+    --p-border-hover: rgba(96, 165, 250, 0.35);
+    --p-text-primary: #f8fafc;
+    --p-text-secondary: #94a3b8;
+    --p-text-muted: #64748b;
+    --p-accent: #3b82f6;
+    --p-accent-glow: rgba(59, 130, 246, 0.25);
+    --p-gold: #f59e0b;
+    --p-emerald: #10b981;
+    --p-radius-sm: 8px;
+    --p-radius-md: 14px;
+    --p-radius-lg: 20px;
+    --p-radius-xl: 28px;
+}
+
+body.product-page {
+    background-color: var(--p-bg);
+    color: var(--p-text-primary);
+    overflow-x: hidden;
+}
+
+.product-studio-shell {
+    position: relative;
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+}
+
+/* --------------------------------------------------------------------------
+   1. Minimal Breadcrumb Navigation
+   -------------------------------------------------------------------------- */
+.product-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--p-text-muted);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.product-breadcrumbs a {
+    color: var(--p-text-secondary);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.product-breadcrumbs a:hover {
+    color: #ffffff;
+}
+
+.product-breadcrumbs .sep {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+}
+
+.product-breadcrumbs .current {
+    color: var(--p-text-primary);
+    font-weight: 500;
+    max-width: 380px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   2. Two-Column Layout
+   -------------------------------------------------------------------------- */
+.product-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    gap: 40px;
+    align-items: start;
+}
+
+@media (max-width: 1040px) {
+    .product-detail-layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   3. Adaptive Product Canvas (Fits Natural Image Dimensions)
+   -------------------------------------------------------------------------- */
+.product-gallery-station {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gallery-master-viewport {
+    background: var(--p-surface);
+    border: 1px solid var(--p-border);
+    border-radius: var(--p-radius-xl);
+    padding: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Canvas Header Strip */
+.gallery-control-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 4px 6px 10px;
+    border-bottom: 1px solid var(--p-border);
+    flex-wrap: wrap;
+}
+
+.gallery-specs-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--p-text-secondary);
+    font-weight: 500;
+}
+
+.gallery-specs-hint i {
+    color: var(--p-accent);
+}
+
+.gallery-view-switchers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 3px;
+    border-radius: var(--p-radius-sm);
+    border: 1px solid var(--p-border);
+}
+
+.canvas-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: none;
+    color: var(--p-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.canvas-mode-btn:hover {
+    color: var(--p-text-primary);
+}
+
+.canvas-mode-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+
+/* Preview Box: Wraps snuggly around image */
+.preview-box {
+    position: relative;
+    width: 100%;
+    border-radius: var(--p-radius-lg);
+    overflow: hidden;
+    background: #080d1a;
+    border: 1px solid var(--p-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-in;
+    padding: 0;
+    margin: 0;
+    transition: border-color 0.2s ease;
+}
+
+.preview-box:hover {
+    border-color: var(--p-border-hover);
+}
+
+/* Adaptive Preview Stage: Auto-conforms to image aspect ratio */
+.preview-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    min-height: unset;
+    max-height: 80vh;
+    overflow: hidden;
+    transition: background-color 0.25s ease;
+}
+
+/* Canvas Backdrops */
+.preview-stage.backdrop-dark {
+    background-color: #070b14;
+    background-image:
+        radial-gradient(circle at center, rgba(30, 41, 59, 0.35) 0%, rgba(7, 11, 20, 0.95) 100%);
+}
+
+.preview-stage.backdrop-light {
+    background-color: #f1f5f9;
+    background-image:
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.95) 0%, rgba(226, 232, 240, 0.85) 100%);
+}
+
+.preview-stage.backdrop-checker {
+    background-color: #0b1120;
+    background-image:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+/* Main Image: Exact proportions with no extra margins */
+.preview-stage img {
+    width: 100%;
+    height: auto;
+    max-height: 75vh;
+    object-fit: contain;
+    display: block;
+    border-radius: calc(var(--p-radius-lg) - 2px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    user-select: none;
+    pointer-events: auto;
+}
+
+/* Zoom overlay indicator */
+.preview-zoom-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(11, 17, 32, 0.88);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--p-radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
+}
+
+.preview-zoom-btn:hover {
+    background: #1e293b;
+    border-color: rgba(96, 165, 250, 0.4);
+    color: #60a5fa;
+}
+
+.preview-skeleton {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.02) 75%);
+    background-size: 200% 100%;
+    animation: shimmerSkeleton 1.5s infinite;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.preview-box.is-loading .preview-skeleton {
+    opacity: 1;
+}
+
+@keyframes shimmerSkeleton {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Thumbnails Strip */
+.thumbnail-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.thumbnail-btn {
+    width: 76px;
+    height: 54px;
+    border-radius: var(--p-radius-sm);
+    overflow: hidden;
+    border: 2px solid var(--p-border);
+    background: #0b1120;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.thumbnail-btn:hover {
+    opacity: 1;
+    border-color: rgba(96, 165, 250, 0.5);
+    transform: translateY(-2px);
+}
+
+.thumbnail-btn.active {
+    opacity: 1;
+    border-color: var(--p-accent);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.thumbnail-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* --------------------------------------------------------------------------
+   4. Right Column: Clean Essentials (Title, Description & Download)
+   -------------------------------------------------------------------------- */
+.product-info-station {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.product-essential-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.product-main-heading {
+    font-size: clamp(28px, 3.2vw, 42px);
+    font-weight: 700;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+    color: #ffffff;
+    margin: 0;
+}
+
+.product-lead-copy {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* Download Action Row */
+.product-download-action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.master-download-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 14px 28px;
+    border-radius: var(--p-radius-md);
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.master-download-btn:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.6);
+}
+
+.master-download-btn:active {
+    transform: translateY(0);
+}
+
+.master-download-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.product-icon-action-btn {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--p-radius-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--p-border);
+    color: #cbd5e1;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.product-icon-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Action Status Banner */
+.product-action-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--p-radius-md);
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid var(--p-border);
+}
+
+.product-action-status[hidden] {
+    display: none !important;
+}
+
+.product-action-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(96, 165, 250, 0.2);
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spinAction 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spinAction {
+    to { transform: rotate(360deg); }
+}
+
+.product-action-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.product-action-copy strong {
+    color: #ffffff;
+}
+
+.product-action-copy span {
+    color: var(--p-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   5. Dropdown Accordion Section (Everything else tucked neatly)
+   -------------------------------------------------------------------------- */
+.product-dropdown-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.product-dropdown-item {
+    background: var(--p-surface);
+    border: 1px solid var(--p-border);
+    border-radius: var(--p-radius-md);
+    overflow: hidden;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.product-dropdown-item[open] {
+    border-color: rgba(96, 165, 250, 0.3);
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.product-dropdown-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--p-text-primary);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.product-dropdown-summary::-webkit-details-marker {
+    display: none;
+}
+
+.product-dropdown-summary:hover {
+    color: #60a5fa;
+}
+
+.product-dropdown-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.product-dropdown-title i {
+    color: #60a5fa;
+    font-size: 14px;
+}
+
+.product-dropdown-chevron {
+    font-size: 12px;
+    color: var(--p-text-muted);
+    transition: transform 0.25s ease;
+}
+
+.product-dropdown-item[open] .product-dropdown-chevron {
+    transform: rotate(180deg);
+    color: #60a5fa;
+}
+
+.product-dropdown-content {
+    padding: 0 18px 18px;
+    font-size: 13px;
+    color: var(--p-text-secondary);
+    line-height: 1.6;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 4px;
+    padding-top: 14px;
+}
+
+/* Inner Specs Grid inside Dropdown */
+.dropdown-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 500px) {
+    .dropdown-specs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dropdown-spec-row {
+    background: rgba(11, 17, 32, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--p-radius-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dropdown-spec-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--p-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dropdown-spec-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+/* Features List inside Dropdown */
+.product-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.product-features li {
+    font-size: 13px;
+    color: var(--p-text-secondary);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+}
+
+.product-features li::before {
+    content: "✓";
+    color: var(--p-accent);
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.product-gallery-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.product-gallery-tag {
+    font-size: 12px;
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.product-gallery-note {
+    font-size: 13px;
+    color: var(--p-text-secondary);
+    line-height: 1.6;
+    margin: 8px 0 0;
+}
+
+.custom-design-btn {
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    color: var(--p-gold);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: var(--p-radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.custom-design-btn:hover {
+    background: var(--p-gold);
+    color: #070b14;
+}
+
+/* --------------------------------------------------------------------------
+   6. Related Designs Section
+   -------------------------------------------------------------------------- */
+.related-showcase-section {
+    max-width: 1360px;
+    margin: 64px auto 0;
+    padding: 0 32px;
+}
+
+.related-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--p-border);
+}
+
+.related-section-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+}
+
+.related-section-header a {
+    color: var(--p-accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.related-section-header a:hover {
+    color: #93c5fd;
+}
+
+.trending-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   7. Fullscreen Lightbox
+   -------------------------------------------------------------------------- */
+.product-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(3, 7, 18, 0.94);
+    backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.product-lightbox[hidden] {
+    display: none !important;
+}
+
+.product-lightbox-close {
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.product-lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
+}
+
+.product-lightbox img {
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: var(--p-radius-md);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+}

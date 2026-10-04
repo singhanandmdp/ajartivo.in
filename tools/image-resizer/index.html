@@ -1,32 +1,301 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Resizer - AJartivo</title>
+    <title>Image Resizer Studio - AJartivo</title>
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/tools-hub.css">
     <link rel="stylesheet" href="../css/tools.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="tools-hub-page">
-    <main class="tool-placeholder-shell">
-        <section class="tool-placeholder-hero">
-            <span class="tool-placeholder-kicker">Tool Placeholder</span>
-            <h1>Image Resizer</h1>
-            <p>This placeholder page marks the future resizer workspace. The dashboard now routes correctly and the actual resize logic can be introduced in a later upgrade.</p>
-        </section>
-        <section class="tool-placeholder-panel">
-            <div class="tool-placeholder-meta">
-                <article><span>Status</span><strong>UI placeholder ready</strong></article>
-                <article><span>Planned focus</span><strong>Fast export sizing presets</strong></article>
-                <article><span>Next step</span><strong>Resize controls can be added later</strong></article>
+    <div class="tools-hub-backdrop" aria-hidden="true"></div>
+    <div id="site-header"></div>
+    <aside class="sidebar" id="sidebarMenu"></aside>
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <main class="color-studio-shell">
+        <!-- Studio Subnav -->
+        <nav class="studio-subnav" aria-label="Studio tools navigation">
+            <div class="studio-breadcrumbs">
+                <a href="/">AJartivo</a>
+                <span>/</span>
+                <a href="../dashboard/dashboard.html">Creative Studio</a>
+                <span>/</span>
+                <span class="current">Image Resizer</span>
             </div>
-            <div class="tool-placeholder-actions">
-                <a class="tool-placeholder-btn" href="./dashboard">Back to Dashboard</a>
+            <div class="studio-links">
+                <a class="studio-link-btn" href="../Aj Pixel Cut/website/">Pixel Cut</a>
+                <a class="studio-link-btn" href="../aj-pixel-enhancer/">Pixel Enhancer</a>
+                <a class="studio-link-btn" href="../aj-print-layout-pro/">Print Layout Pro</a>
+                <a class="studio-link-btn" href="../image-converter/">Converter</a>
+                <a class="studio-link-btn active" href="#">Resizer</a>
+                <a class="studio-link-btn" href="../aj-colour-converter/">Colour</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="tools-hub-hero">
+            <div class="tools-hub-hero-copy">
+                <span class="tools-hub-kicker">Aspect & Scale Studio</span>
+                <h1>Precision image resizing with platform presets and aspect lock</h1>
+                <p>Resize banners, thumbnails, social graphics, and print assets with instant bicubic canvas downsampling, custom pixel dimensions, and quality controls.</p>
+                <div class="tools-hub-pills">
+                    <span>Aspect ratio lock</span>
+                    <span>Social presets</span>
+                    <span>Lossless preview</span>
+                    <span>1-click export</span>
+                </div>
             </div>
         </section>
+
+        <!-- Resizer Grid -->
+        <div class="resizer-studio-grid">
+            <!-- Left: Viewport & Canvas -->
+            <div class="resizer-stage-card">
+                <!-- Crop Mode Header Bar -->
+                <div class="crop-studio-bar">
+                    <div class="crop-bar-left">
+                        <button type="button" class="crop-mode-toggle-btn" id="toggleCropBtn" title="Toggle interactive drag-and-drop crop interface">
+                            <i class="fa-solid fa-crop-simple"></i>
+                            <span id="toggleCropBtnText">Crop Area</span>
+                        </button>
+                        <span class="crop-status-pill" id="cropStatusPill">Ready</span>
+                    </div>
+                    <div class="crop-bar-actions" id="cropActiveActions" style="display: none;">
+                        <button type="button" class="crop-action-btn apply" id="applyCropBtn" title="Crop image to selected bounds">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Apply Crop</span>
+                        </button>
+                        <button type="button" class="crop-action-btn reset" id="resetCropBtn" title="Reset crop box to fit image">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Reset Box</span>
+                        </button>
+                        <button type="button" class="crop-action-btn revert" id="revertOriginalBtn" style="display: none;" title="Restore original uncropped photo">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Revert Original</span>
+                        </button>
+                        <button type="button" class="crop-action-btn cancel" id="cancelCropBtn" title="Exit crop mode">
+                            <i class="fa-solid fa-xmark"></i>
+                            <span>Close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Aspect Ratio & Custom Ratio Controls -->
+                <div class="crop-ratio-toolbar" id="cropRatioToolbar" style="display: none;">
+                    <div class="crop-ratio-heading">
+                        <i class="fa-solid fa-shapes"></i>
+                        <span>Aspect Ratio:</span>
+                    </div>
+                    <div class="crop-ratio-chips" id="cropRatioChips" role="tablist" aria-label="Crop aspect ratios">
+                        <button type="button" class="crop-ratio-chip active" data-ratio="free" role="tab" aria-selected="true">Free-form</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="1:1" role="tab" aria-selected="false">1:1 Square</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="16:9" role="tab" aria-selected="false">16:9 Landscape</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="9:16" role="tab" aria-selected="false">9:16 Story / Reel</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="4:3" role="tab" aria-selected="false">4:3 Photo</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="3:2" role="tab" aria-selected="false">3:2 Classic</button>
+                        <button type="button" class="crop-ratio-chip" data-ratio="custom" role="tab" aria-selected="false">Custom Ratio</button>
+                    </div>
+                    <!-- Custom Aspect Ratio Inputs -->
+                    <div class="crop-custom-ratio-row" id="cropCustomRatioRow" style="display: none;">
+                        <span class="custom-ratio-label">Custom Ratio:</span>
+                        <div class="custom-ratio-inputs">
+                            <input type="number" id="customRatioW" min="1" max="100" value="5" step="1" title="Width ratio factor" aria-label="Width ratio factor">
+                            <span class="custom-ratio-sep">:</span>
+                            <input type="number" id="customRatioH" min="1" max="100" value="4" step="1" title="Height ratio factor" aria-label="Height ratio factor">
+                            <button type="button" class="custom-ratio-apply-btn" id="applyCustomRatioBtn">Set</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resizer-canvas-wrap" id="resizerCanvasWrap">
+                    <canvas id="resizerPreviewCanvas" class="resizer-preview-canvas"></canvas>
+
+                    <!-- Interactive Drag-and-Drop Crop Overlay -->
+                    <div id="resizerCropOverlay" class="resizer-crop-overlay" style="display: none;">
+                        <!-- Scrim Overlays outside the crop box -->
+                        <div id="cropScrimTop" class="crop-scrim scrim-top"></div>
+                        <div id="cropScrimBottom" class="crop-scrim scrim-bottom"></div>
+                        <div id="cropScrimLeft" class="crop-scrim scrim-left"></div>
+                        <div id="cropScrimRight" class="crop-scrim scrim-right"></div>
+
+                        <!-- Draggable & Resizable Crop Box -->
+                        <div id="resizerCropBox" class="resizer-crop-box" tabindex="0" role="region" aria-label="Draggable crop boundary">
+                            <!-- Rule-of-Thirds Grid -->
+                            <div class="crop-grid-lines" aria-hidden="true">
+                                <div class="crop-line-h h-1"></div>
+                                <div class="crop-line-h h-2"></div>
+                                <div class="crop-line-v v-1"></div>
+                                <div class="crop-line-v v-2"></div>
+                            </div>
+
+                            <!-- Live Crop Dimension Badge -->
+                            <div id="cropDimBadge" class="crop-dim-badge">0 × 0 px</div>
+
+                            <!-- 8 Resizing Handles -->
+                            <div class="crop-handle handle-nw" data-handle="nw" title="Drag to resize top-left"></div>
+                            <div class="crop-handle handle-ne" data-handle="ne" title="Drag to resize top-right"></div>
+                            <div class="crop-handle handle-se" data-handle="se" title="Drag to resize bottom-right"></div>
+                            <div class="crop-handle handle-sw" data-handle="sw" title="Drag to resize bottom-left"></div>
+                            <div class="crop-handle handle-n" data-handle="n" title="Drag to resize top edge"></div>
+                            <div class="crop-handle handle-e" data-handle="e" title="Drag to resize right edge"></div>
+                            <div class="crop-handle handle-s" data-handle="s" title="Drag to resize bottom edge"></div>
+                            <div class="crop-handle handle-w" data-handle="w" title="Drag to resize left edge"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dropzone upload trigger -->
+                <div class="converter-dropzone" id="resizerDropZone" style="min-height: 120px; padding: 18px;" tabindex="0" role="button" aria-label="Choose image to resize">
+                    <input type="file" id="resizerFileInput" accept="image/*" style="display:none;">
+                    <span style="font-size: 14px; font-weight: 600; color: #ffffff;"><i class="fa-solid fa-cloud-arrow-up" style="margin-right: 8px; color: #60a5fa;"></i> Click or drop a new image to replace</span>
+                    <span style="font-size: 12px; color: var(--tools-muted); margin-top: 4px;">PNG, JPG, WEBP, AVIF supported</span>
+                </div>
+
+                <!-- Dimension Info Bar -->
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--tools-muted); background:rgba(15,23,42,0.6); padding:10px 16px; border-radius:12px; border:1px solid var(--tools-border); font-variant-numeric:tabular-nums;">
+                    <span>Original: <strong id="metaOriginalDim" style="color:#ffffff;">--</strong></span>
+                    <span>Target: <strong id="metaNewDim" style="color:#60a5fa;">--</strong></span>
+                    <span>Est. Size: <strong id="metaFileSize" style="color:#10b981;">--</strong></span>
+                </div>
+            </div>
+
+            <!-- Right: Presets & Controls -->
+            <div class="resizer-controls-panel">
+                <!-- Presets Section -->
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="resizer-section-title" style="margin-bottom:0;">Popular Presets</span>
+                        <span style="font-size:11px; color:var(--tools-muted);">Categorized Studio Library</span>
+                    </div>
+
+                    <!-- Search presets in real-time -->
+                    <div class="preset-search-box">
+                        <i class="fa-solid fa-magnifying-glass preset-search-icon"></i>
+                        <input type="text" id="presetSearchInput" class="preset-search-input" placeholder="Search presets (e.g., 'Instagram', 'A4', 'Story')..." autocomplete="off" spellcheck="false" aria-label="Search presets by keyword">
+                        <button type="button" id="presetSearchClear" class="preset-search-clear" aria-label="Clear preset search" hidden>
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Category Segmented Control -->
+                    <div class="preset-category-toggle" role="tablist" aria-label="Preset categories">
+                        <button type="button" class="preset-category-btn active" data-category="all" role="tab" aria-selected="true">All</button>
+                        <button type="button" class="preset-category-btn" data-category="social" role="tab" aria-selected="false">Social Media</button>
+                        <button type="button" class="preset-category-btn" data-category="print" role="tab" aria-selected="false">Print Production</button>
+                        <button type="button" class="preset-category-btn" data-category="video" role="tab" aria-selected="false">Video Assets</button>
+                    </div>
+
+                    <!-- Grouped Dropdown for Direct Selection -->
+                    <select id="presetGroupSelect" class="preset-group-select" aria-label="Select preset by category">
+                        <option value="">Quick Pick from Library...</option>
+                        <optgroup label="Social Media">
+                            <option value="1080x1080" data-category="social">Instagram Post (1080 × 1080 · 1:1)</option>
+                            <option value="1080x1920" data-category="social">Story / Reel / Shorts (1080 × 1920 · 9:16)</option>
+                            <option value="1500x500" data-category="social">Twitter / X Header (1500 × 500)</option>
+                            <option value="820x312" data-category="social">Facebook Cover (820 × 312)</option>
+                            <option value="1584x396" data-category="social">LinkedIn Banner (1584 × 396)</option>
+                            <option value="1000x1500" data-category="social">Pinterest Pin (1000 × 1500 · 2:3)</option>
+                        </optgroup>
+                        <optgroup label="Print Production">
+                            <option value="1050x600" data-category="print">Visiting Card (3.5 × 2 in · 1050 × 600)</option>
+                            <option value="2480x3508" data-category="print">A4 Document (2480 × 3508 · 300DPI)</option>
+                            <option value="1748x2480" data-category="print">A5 Flyer / Leaflet (1748 × 2480)</option>
+                            <option value="3300x2550" data-category="print">Certificate (11 × 8.5 in · 3300 × 2550)</option>
+                            <option value="3600x5400" data-category="print">Poster Sheet (12 × 18 in · 3600 × 5400)</option>
+                        </optgroup>
+                        <optgroup label="Video Assets">
+                            <option value="1280x720" data-category="video">YouTube Thumbnail (1280 × 720 · 16:9)</option>
+                            <option value="1920x1080" data-category="video">Full HD 1080p (1920 × 1080 · 16:9)</option>
+                            <option value="3840x2160" data-category="video">4K Ultra HD (3840 × 2160 · 16:9)</option>
+                            <option value="1080x1080" data-category="video">Square Video (1080 × 1080 · 1:1)</option>
+                        </optgroup>
+                    </select>
+
+                    <!-- Filterable Preset Chips -->
+                    <div class="resizer-presets-grid" id="resizerPresetsGrid">
+                        <!-- Social Media -->
+                        <button type="button" class="preset-chip" data-category="social" data-w="1080" data-h="1080">Instagram Post (1:1)</button>
+                        <button type="button" class="preset-chip" data-category="social" data-w="1080" data-h="1920">Story / Reel (9:16)</button>
+                        <button type="button" class="preset-chip" data-category="social" data-w="1500" data-h="500">Twitter Banner</button>
+                        <button type="button" class="preset-chip" data-category="social" data-w="820" data-h="312">FB Cover</button>
+                        <button type="button" class="preset-chip" data-category="social" data-w="1584" data-h="396">LinkedIn Banner</button>
+                        <button type="button" class="preset-chip" data-category="social" data-w="1000" data-h="1500">Pinterest Pin</button>
+
+                        <!-- Print Production -->
+                        <button type="button" class="preset-chip" data-category="print" data-w="1050" data-h="600">Visiting Card (3.5x2)</button>
+                        <button type="button" class="preset-chip" data-category="print" data-w="2480" data-h="3508">A4 Sheet (300DPI)</button>
+                        <button type="button" class="preset-chip" data-category="print" data-w="1748" data-h="2480">A5 Flyer</button>
+                        <button type="button" class="preset-chip" data-category="print" data-w="3300" data-h="2550">Certificate</button>
+                        <button type="button" class="preset-chip" data-category="print" data-w="3600" data-h="5400">12x18 Poster</button>
+
+                        <!-- Video Assets -->
+                        <button type="button" class="preset-chip" data-category="video" data-w="1280" data-h="720">YouTube Thumb (16:9)</button>
+                        <button type="button" class="preset-chip" data-category="video" data-w="1920" data-h="1080">Full HD 1080p</button>
+                        <button type="button" class="preset-chip" data-category="video" data-w="3840" data-h="2160">4K UHD Video</button>
+                    </div>
+
+                    <!-- No matching presets placeholder -->
+                    <div id="presetSearchEmpty" class="preset-search-empty" hidden>
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                        <span>No presets matching "<strong id="presetSearchKeyword"></strong>"</span>
+                    </div>
+                </div>
+
+                <!-- Custom Dimensions -->
+                <div>
+                    <span class="resizer-section-title">Custom Dimensions (px)</span>
+                    <div class="dimension-inputs-row">
+                        <div class="dimension-field">
+                            <label for="resizerWidth">Width</label>
+                            <input type="number" id="resizerWidth" min="1" max="10000" value="1080">
+                        </div>
+                        <button type="button" class="ratio-lock-btn locked" id="aspectLockBtn" title="Aspect Ratio Locked">
+                            <i class="fa-solid fa-link"></i>
+                        </button>
+                        <div class="dimension-field">
+                            <label for="resizerHeight">Height</label>
+                            <input type="number" id="resizerHeight" min="1" max="10000" value="1080">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div>
+                    <span class="resizer-section-title">Export Settings</span>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+                        <div class="dimension-field">
+                            <label for="resizerFormat">Format</label>
+                            <select id="resizerFormat" style="background:rgba(11,17,32,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px; padding:10px 12px; color:#ffffff; font-size:13px; outline:none;">
+                                <option value="image/png">PNG (Lossless)</option>
+                                <option value="image/jpeg">JPG (Standard)</option>
+                                <option value="image/webp">WEBP (Compact)</option>
+                            </select>
+                        </div>
+                        <div class="dimension-field">
+                            <div style="display:flex; justify-content:space-between;">
+                                <label for="resizerQuality">Quality</label>
+                                <span id="qualityVal" style="font-size:11px; color:#60a5fa; font-variant-numeric:tabular-nums;">90%</span>
+                            </div>
+                            <input type="range" id="resizerQuality" min="10" max="100" value="90" style="margin-top:12px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button type="button" class="resizer-download-btn" id="resizerDownloadBtn" disabled>
+                    <i class="fa-solid fa-download"></i>
+                    <span>Download Resized Asset</span>
+                </button>
+            </div>
+        </div>
     </main>
+
+    <div id="site-footer"></div>
+
     <script src="../js/tools.js"></script>
     <script src="../js/image-resizer.js"></script>
 </body>
 </html>
-

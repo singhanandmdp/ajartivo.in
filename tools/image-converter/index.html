@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Batch convert JPG, PNG, WEBP, AVIF, and TIFF files with a polished, high-speed image conversion studio.">
-    <title>Image Converter - AJartivo</title>
+    <meta name="description" content="Batch convert JPG, PNG, WEBP, AVIF, TIFF, BMP, and SVG files with a polished, high-speed image conversion studio.">
+    <title>Image Converter Studio - AJartivo</title>
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../css/tools.css">
 </head>
@@ -15,22 +15,42 @@
     <div class="menu-overlay" id="menuOverlay"></div>
 
     <main class="converter-shell">
+        <!-- Studio Subnav -->
+        <nav class="studio-subnav" aria-label="Studio tools navigation">
+            <div class="studio-breadcrumbs">
+                <a href="/">AJartivo</a>
+                <span>/</span>
+                <a href="../dashboard/dashboard.html">Creative Studio</a>
+                <span>/</span>
+                <span class="current">Image Converter</span>
+            </div>
+            <div class="studio-links">
+                <a class="studio-link-btn" href="../Aj Pixel Cut/website/">Pixel Cut</a>
+                <a class="studio-link-btn" href="../aj-pixel-enhancer/">Pixel Enhancer</a>
+                <a class="studio-link-btn" href="../aj-print-layout-pro/">Print Layout Pro</a>
+                <a class="studio-link-btn active" href="#">Converter</a>
+                <a class="studio-link-btn" href="../image-resizer/">Resizer</a>
+                <a class="studio-link-btn" href="../aj-colour-converter/">Colour</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
         <section class="converter-hero">
             <div class="converter-hero-copy">
-                <span class="converter-kicker">Image Converter Studio</span>
-                <h1>Upload karo, format choose karo, aur download le lo</h1>
-                <p>Bas 3 step: photo add karo, output format select karo, phir convert karke download kar lo. Yeh page beginners ke liye simple rakha gaya hai, so even a 15-year-old can use it easily.</p>
-                <div class="converter-steps" aria-label="Simple conversion steps">
-                    <span>1. Files add karo</span>
-                    <span>2. Format choose karo</span>
-                    <span>3. Download lo</span>
+                <span class="converter-kicker">Multi-Format Batch Engine</span>
+                <h1>Batch convert images across modern web and print formats</h1>
+                <p>Convert raster and vector assets between JPG, PNG, WEBP, AVIF, TIFF, BMP, and SVG with zero quality loss and instant batch downloads.</p>
+                <div class="converter-steps" aria-label="Conversion steps">
+                    <span>1. Upload Files</span>
+                    <span>2. Select Target Format</span>
+                    <span>3. Batch Export</span>
                 </div>
-                <p class="converter-backend-line" id="converterBackendState">Checking tools...</p>
+                <p class="converter-backend-line" id="converterBackendState">Checking tools engine...</p>
                 <div class="converter-pills">
-                    <span>Easy start</span>
-                    <span>Phone friendly</span>
-                    <span>Batch support</span>
-                    <span>Fast download</span>
+                    <span>High-speed worker</span>
+                    <span>Batch processing</span>
+                    <span>Lossless mode</span>
+                    <span>Direct download</span>
                 </div>
             </div>
 
@@ -43,6 +63,7 @@
             </div>
         </section>
 
+        <!-- Workbench Workspace -->
         <section class="converter-workbench" aria-label="Image conversion workspace">
             <div class="converter-dropzone" id="converterDropZone" tabindex="0" role="button" aria-label="Upload image files">
                 <input id="converterFileInput" class="converter-file-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.avif,.tif,.tiff,.bmp,.gif,.ico,.svg,.heic,.heif,image/*">
@@ -50,77 +71,78 @@
                     <img class="converter-dropzone-icon" src="../icons/upload_img.svg" alt="">
                 </div>
                 <div class="converter-dropzone-copy">
-                    <span class="converter-dropzone-badge">Drag and drop</span>
-                    <h2>Drop photos here or pick files</h2>
-                    <p>JPG, PNG, WEBP, AVIF, TIFF aur baaki common image types support hote hain. File add karte hi agla step easy ho jata hai.</p>
+                    <h2>Drag & drop images or pick from device</h2>
+                    <p>JPG, PNG, WEBP, AVIF, TIFF, BMP, GIF, ICO, SVG, HEIC are fully supported. Add multiple files to batch process.</p>
                 </div>
                 <div class="converter-dropzone-actions">
-                    <button type="button" class="converter-secondary-btn" id="converterPickBtn">Pick photos</button>
+                    <button type="button" class="converter-secondary-btn" id="converterPickBtn">Browse Files</button>
                 </div>
             </div>
 
             <aside class="converter-controls" aria-label="Conversion settings">
                 <div class="converter-control-card">
-                    <span class="converter-section-label">Step 2</span>
+                    <span class="converter-section-label">Configuration</span>
                     <label class="converter-control">
-                        <span>Output format</span>
+                        <span>Target Format</span>
                         <select id="converterFormat">
-                            <option value="jpg" selected>JPG</option>
-                            <option value="png">PNG</option>
-                            <option value="webp">WEBP</option>
-                            <option value="avif">AVIF</option>
-                            <option value="tiff">TIFF</option>
-                            <option value="gif">GIF</option>
-                            <option value="heic">HEIC</option>
-                            <option value="heif">HEIF</option>
-                            <option value="bmp">BMP</option>
-                            <option value="ico">ICO</option>
-                            <option value="svg">SVG</option>
+                            <option value="jpg" selected>JPG (Standard Web / Photo)</option>
+                            <option value="png">PNG (Lossless / Transparency)</option>
+                            <option value="webp">WEBP (Modern Compressed Web)</option>
+                            <option value="avif">AVIF (Next-Gen High Efficiency)</option>
+                            <option value="tiff">TIFF (Print & Pre-Press)</option>
+                            <option value="gif">GIF (Animation / Graphic)</option>
+                            <option value="heic">HEIC (Apple High Efficiency)</option>
+                            <option value="heif">HEIF (High Efficiency Image)</option>
+                            <option value="bmp">BMP (Uncompressed Bitmap)</option>
+                            <option value="ico">ICO (Favicon / App Icon)</option>
+                            <option value="svg">SVG (Vector XML)</option>
                         </select>
                     </label>
                     <p class="converter-hint" id="converterHint">JPG selected.</p>
                 </div>
 
                 <div class="converter-actions-row">
-                    <button type="button" class="converter-primary-btn" id="converterConvertBtn">Start conversion</button>
-                    <button type="button" class="converter-secondary-btn" id="converterClearBtn">Clear all</button>
+                    <button type="button" class="converter-primary-btn" id="converterConvertBtn">Start Conversion</button>
+                    <button type="button" class="converter-secondary-btn" id="converterClearBtn">Clear All</button>
                 </div>
 
                 <div class="converter-status-card">
-                    <span class="converter-section-label">Step 3</span>
+                    <span class="converter-section-label">Conversion Status</span>
                     <p id="converterStatus">Ready. Add files to begin.</p>
                     <div class="converter-progress" aria-hidden="true">
                         <span id="converterProgressBar"></span>
                     </div>
                     <div class="converter-status-meta">
-                        <span id="converterStatusMeta">No files yet</span>
-                        <span id="converterStatusCount">0 done</span>
+                        <span id="converterStatusMeta">No files queued</span>
+                        <span id="converterStatusCount">0 completed</span>
                     </div>
                 </div>
             </aside>
         </section>
 
+        <!-- Queue Panel -->
         <section class="converter-panel is-hidden" id="converterQueuePanel" aria-labelledby="converterQueueTitle">
             <div class="converter-panel-head">
                 <div>
-                    <span class="converter-section-label">Queue</span>
-                    <h2 id="converterQueueTitle">Your files</h2>
+                    <span class="converter-section-label">Processing Queue</span>
+                    <h2 id="converterQueueTitle">Queued Files</h2>
                 </div>
                 <div class="converter-panel-meta">
-                    <span id="converterQueueMeta">Add a photo to start.</span>
+                    <span id="converterQueueMeta">Ready for batch processing.</span>
                 </div>
             </div>
             <div class="converter-queue" id="converterQueue" aria-live="polite"></div>
         </section>
 
+        <!-- Results Panel -->
         <section class="converter-panel is-hidden" id="converterResultsPanel" aria-labelledby="converterResultsTitle">
             <div class="converter-panel-head">
                 <div>
-                    <span class="converter-section-label">Results</span>
-                    <h2 id="converterResultsTitle">Downloads</h2>
+                    <span class="converter-section-label">Completed Exports</span>
+                    <h2 id="converterResultsTitle">Ready for Download</h2>
                 </div>
                 <div class="converter-panel-meta">
-                    <span>Finished files show up here. Download one by one.</span>
+                    <span>Click any file to trigger direct download.</span>
                 </div>
             </div>
             <div class="converter-results" id="converterResults" aria-live="polite"></div>
@@ -134,4 +156,3 @@
     <script src="../js/image-converter.js"></script>
 </body>
 </html>
-

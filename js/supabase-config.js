@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     const SUPABASE_URL = "https://hlmyjnslyijgdrfuktun.supabase.co";
     const SUPABASE_PUBLIC_KEY = "sb_publishable_VZYzXaf0npSI8sdhgsIFjQ_1i-SMZY6";
     const SESSION_KEY = "ajartivo_session";
@@ -8,11 +8,11 @@
     const TEMPORARY_USER_DATA_RESET_VERSION = "20260403-new-user-experience";
     const USER_DATA_RESET_MARKER_KEY = "ajartivo_user_data_reset_version";
     const TEMPORARY_USER_DATA_KEYS = [SESSION_KEY, WISHLIST_KEY, DOWNLOAD_HISTORY_KEY];
-    const LOCAL_BACKEND_BASE_URL = "http://localhost:5000";
+    const LOCAL_BACKEND_BASE_URL = typeof window !== "undefined" && window.location && window.location.origin ? window.location.origin : "http://localhost:3000";
     const LIVE_BACKEND_BASE_URL = "https://ajartivo-backend.onrender.com";
     const ACCOUNT_SUMMARY_TIMEOUT_MS = 6000;
     const BASE_URL = resolveBackendBaseUrl();
-    const DESIGNS_SELECT_FIELDS = "id,title,slug,description,price,image_url,download_link,tags,category,downloads,views,is_free,is_paid,is_premium,created_at,updated_at";
+    const DESIGNS_SELECT_FIELDS = "*";
     const DESIGNS_CACHE_TTL_MS = 5 * 60 * 1000;
     const DESIGN_REFRESH_KEY = "ajartivo_designs_refresh";
     const DESIGNS_CACHE_MARKER_KEY = "ajartivo_designs_cache_marker_v2";
@@ -299,28 +299,50 @@
     async function fetchDesignsFromBackend(options) {
         const requestedLimit = Number(options && options.limit);
         const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 1000;
-        const backendUrl = new URL(resolveBackendUrl(`/designs?limit=${encodeURIComponent(String(limit))}`), window.location.href).href;
+        const candidateUrls = [];
+        
+        try {
+            const configuredBackendUrl = resolveBackendUrl(`/designs?limit=${encodeURIComponent(String(limit))}`);
+            if (configuredBackendUrl) {
+                candidateUrls.push(new URL(configuredBackendUrl, window.location.href).href);
+            }
+        } catch (err) {}
 
         try {
-            logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-start", limit);
-            const response = await fetch(backendUrl, {
-                method: "GET",
-                credentials: "omit",
-                cache: "no-store"
-            });
-
-            if (!response.ok) {
-                return [];
+            const originBase = window.location.origin || `${window.location.protocol}//${window.location.host}`;
+            const sameOriginUrl = new URL(`/designs?limit=${encodeURIComponent(String(limit))}`, originBase).href;
+            if (!candidateUrls.includes(sameOriginUrl)) {
+                candidateUrls.push(sameOriginUrl);
             }
+            const jsonFallbackUrl = new URL("/designs.json", originBase).href;
+            if (!candidateUrls.includes(jsonFallbackUrl)) {
+                candidateUrls.push(jsonFallbackUrl);
+            }
+        } catch (err) {}
 
-            const payload = await response.json();
-            const items = readDesignListPayload(payload);
-            logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-success", items.length);
-            return items.map(normalizeDesign);
-        } catch (error) {
-            console.error("Backend designs fetch failed:", error);
-            return [];
+        logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-start", limit);
+        for (const candidateUrl of candidateUrls) {
+            try {
+                const response = await fetch(candidateUrl, {
+                    method: "GET",
+                    credentials: "omit",
+                    cache: "no-store"
+                });
+
+                if (response.ok) {
+                    const payload = await response.json();
+                    const items = readDesignListPayload(payload);
+                    if (items.length) {
+                        logPerf(DESIGN_FETCH_LOG_PREFIX, "backend-fetch-success", items.length, candidateUrl);
+                        return items.map(normalizeDesign);
+                    }
+                }
+            } catch (err) {
+                // Try next candidate fallback
+            }
         }
+
+        return [];
     }
 
     async function fetchBackendDesignById(id) {
@@ -1720,7 +1742,9 @@
         }
 
         if (isLocalRuntime()) {
-            return LOCAL_BACKEND_BASE_URL;
+            return typeof window !== "undefined" && window.location && window.location.origin
+                ? window.location.origin
+                : LOCAL_BACKEND_BASE_URL;
         }
 
         return LIVE_BACKEND_BASE_URL;

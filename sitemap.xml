@@ -1,16 +1,339 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.ajartivo.in/</loc>
-    <lastmod>2026-06-07</lastmod>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.ajartivo.in/product</loc>
-    <lastmod>2026-06-07</lastmod>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.ajartivo.in/product.html</loc>
-    <lastmod>2026-06-07</lastmod>
+    <loc>https://www.ajartivo.in/premium</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/about</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/image-resizer</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/image-converter</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/aj-colour-converter</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/aj-pixel-cut</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/aj-pixel-enhancer</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/tools/aj-print-layout-pro</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/terms</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/privacy</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/refund</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/wedding-barat-card</loc>
+    <lastmod>2026-06-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/06/wedding-barat-card-merged-preview.png</image:loc>
+      <image:title>Wedding Barat Card</image:title>
+      <image:caption>Product Description
+&quot;Elevate your special occasion with our premium collection of wedding and barat invitation cards. We combine elegant aesthetics with high-quality digital printing to create invitations that leave a lasting impression.
+
+Premium Quality: Printed on high-grade cardstock with a professional finish.
+
+Fully Customizable: Tailored to your specific theme, font preferences, and color palette.
+
+Diverse Styles: Ranging from traditional, intricate designs to modern, minimalist layouts.
+
+Precision Printing: State-of-the-art digital printing for sharp, vibrant, and clear details.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/churi-ghar-latest-design</loc>
+    <lastmod>2026-06-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/06/churi-ghar-corel-12-merged-preview.png</image:loc>
+      <image:title>Churi Ghar Latest Design</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/shri-ganesh-jee-png</loc>
+    <lastmod>2026-06-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/06/ganesh-ji-preview-merged-preview.png</image:loc>
+      <image:title>Shri Ganesh Jee PNG</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/bnmu-madhepura-logo</loc>
+    <lastmod>2026-05-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778327554580-a77e9ce4-ab91-4af0-afaa-8b6b0459f2a6.png</image:loc>
+      <image:title>BNMU MADHEPURA LOGO</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/1st-birthday-with-cake-png</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778211321106-18b7c061-0b83-47b7-b017-e396488614ee.png</image:loc>
+      <image:title>1st Birthday with Cake PNG</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/4th-birthday-celebration-png</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778210660954-7db1e2a6-b35e-496a-b6e8-606dddb447f9.png</image:loc>
+      <image:title>4th Birthday Celebration PNG</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/3rd-birthday-celebration-clipart-png</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778210198892-38de3705-d2db-4dc7-9a41-7319185400c3.png</image:loc>
+      <image:title>3rd Birthday Celebration Clipart PNG</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/2nd-birthday-clipart-png</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778210842290-96acfeaf-69b3-4896-aab3-202a514321bc.png</image:loc>
+      <image:title>2nd Birthday Clipart PNG</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/1st-birthday-celebration</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778209838228-40214baf-18f6-4e50-88ac-1acabe56b704.png</image:loc>
+      <image:title>1st Birthday Celebration</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/black-premium-background-hd</loc>
+    <lastmod>2026-05-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1778054455774-5f615c22-50c2-47ac-923a-489632ee5323.png</image:loc>
+      <image:title>Black Premium Background HD</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/india</loc>
+    <lastmod>2026-05-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/05/1777810153168-e09b8dc4-2386-4ea7-a309-0c62a3e65ea0.png</image:loc>
+      <image:title>India</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/latest-annaprashan-clipart-animated</loc>
+    <lastmod>2026-04-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/04/1776920914064-7fe06d0d-a27f-4aa3-93d1-fcefddde89ca.png</image:loc>
+      <image:title>Latest Annaprashan Clipart Animated</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/test-2</loc>
+    <lastmod>2026-04-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/04/1775424891011-af4db359-eaeb-45ee-937c-62c630ea70d1.png</image:loc>
+      <image:title>test 2</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/test-payment</loc>
+    <lastmod>2026-04-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/04/1775421821879-a6efef68-e024-43d0-a01b-3f5d8161b632.png</image:loc>
+      <image:title>test payment</image:title>
+      <image:caption>High-quality design file with clean and professional layout.
+Easy to use and suitable for personal, business, and print purposes.
+
+Instant download available after login.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/lord-shiva-transparent-png</loc>
+    <lastmod>2026-04-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/04/1775390287521-f5aa6698-caa4-4b4a-97a3-2d041437527e.png</image:loc>
+      <image:title>Lord Shiva Transparent PNG</image:title>
+      <image:caption>High-quality Lord Shiva PNG clipart with transparent background. Perfect for graphic design, posters, banners, social media, and devotional projects. Easy to use and fully customizable in any design software.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/lord-krishna-transparent-png</loc>
+    <lastmod>2026-04-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://pub-adf5ed7eca4a4193aa47cb78141a201c.r2.dev/preview/2026/04/1777439799861-ce88ef17-a22f-4eb6-aa73-36e105ff2d15.png</image:loc>
+      <image:title>Lord Krishna Transparent PNG</image:title>
+      <image:caption>High-quality Lord Krishna PNG clipart with transparent background. Perfect for graphic design, posters, banners, social media, and devotional projects. Easy to use and fully customizable in any design software.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/birthday-banner</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://www.ajartivo.in/images/trending1.jpg</image:loc>
+      <image:title>Birthday Banner</image:title>
+      <image:caption>Birthday Banner - High Quality Vector &amp; Graphic Design File on AJartivo</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/shop-banner</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://www.ajartivo.in/images/trending5.jpg</image:loc>
+      <image:title>Shop Banner</image:title>
+      <image:caption>Shop Banner - High Quality Vector &amp; Graphic Design File on AJartivo</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.ajartivo.in/product/election-banner</loc>
+    <lastmod>2026-10-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://www.ajartivo.in/images/trending4.jpg</image:loc>
+      <image:title>Election Banner</image:title>
+      <image:caption>Election Banner - High Quality Vector &amp; Graphic Design File on AJartivo</image:caption>
+    </image:image>
   </url>
 </urlset>
-

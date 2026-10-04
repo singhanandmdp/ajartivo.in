@@ -1,12 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="../../Favicon.ico" type="image/x-icon">
-    <title>Designer's Tool - AJartivo</title>
-    <meta name="description" content="Open AJartivo's designer tools in a clean, premium light dashboard built for quick creative workflows.">
+    <title>Designer's Tool Suite - AJartivo</title>
+    <meta name="description" content="Open AJartivo's designer tools in a clean, dark obsidian studio dashboard built for precision creative workflows.">
     <link rel="canonical" href="dashboard.html">
     <link rel="stylesheet" href="../css/tools.css">
 </head>
@@ -18,15 +18,33 @@
     <div class="menu-overlay" id="menuOverlay"></div>
 
     <main class="tools-hub-shell">
+        <!-- Studio Ribbon Navigation -->
+        <nav class="studio-subnav" aria-label="Studio tools navigation">
+            <div class="studio-breadcrumbs">
+                <a href="/">AJartivo</a>
+                <span>/</span>
+                <span class="current">Creative Studio</span>
+            </div>
+            <div class="studio-links">
+                <a class="studio-link-btn" href="../Aj Pixel Cut/website/">Pixel Cut</a>
+                <a class="studio-link-btn" href="../aj-pixel-enhancer/">Pixel Enhancer</a>
+                <a class="studio-link-btn" href="../aj-print-layout-pro/">Print Layout Pro</a>
+                <a class="studio-link-btn" href="../image-converter/">Converter</a>
+                <a class="studio-link-btn" href="../image-resizer/">Resizer</a>
+                <a class="studio-link-btn" href="../aj-colour-converter/">Colour</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
         <section class="tools-hub-hero">
             <div class="tools-hub-hero-copy">
-                <span class="tools-hub-kicker">Designer's Tool</span>
-                <h1>Premium creative tools, arranged like a calm studio dashboard</h1>
-                <p>The interface now leans on quiet surfaces, tighter hierarchy, and more deliberate spacing so the workspace feels refined without becoming flashy.</p>
+                <span class="tools-hub-kicker">Creative Studio Suite</span>
+                <h1>Precision tools crafted for modern designers and print houses</h1>
+                <p>Cut distractions, upscale assets, calculate print impositions, convert formats, and harmonize palettes in a unified high-performance workspace.</p>
                 <div class="tools-hub-pills">
-                    <span>Editorial layout</span>
-                    <span>Minimal motion</span>
-                    <span>Quiet premium UI</span>
+                    <span>Zero compression loss</span>
+                    <span>Client-side speed</span>
+                    <span>Instant export</span>
                 </div>
             </div>
 
@@ -37,117 +55,110 @@
             </div>
         </section>
 
+        <!-- Tools Collection Grid -->
         <section class="tools-hub-grid" id="toolsCollection" aria-label="Designer tool cards">
+            <!-- 01: Pixel Cut -->
             <article class="tool-hub-card tool-hub-card-primary">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">01</span>
-                        <span class="tool-hub-card-kicker">Precision cut</span>
+                        <span class="tool-hub-card-kicker">AI Background Isolator</span>
                     </div>
                     <h2>Aj Pixel Cut</h2>
-                    <p>Remove distractions and isolate subjects for ads, product shots, and quick social-ready exports.</p>
+                    <p>Cleanly isolate subjects, soften edge halos, overlay typography, and generate high-impact product cutouts for social or print.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Background remover</span>
-                    <a class="tool-hub-btn" href="../Aj Pixel Cut/website/">Launch</a>
+                    <span class="tool-hub-badge">Background Remover</span>
+                    <a class="tool-hub-btn" href="../Aj Pixel Cut/website/">Open Studio</a>
                 </div>
             </article>
 
+            <!-- 02: Pixel Enhancer -->
             <article class="tool-hub-card">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">02</span>
-                        <span class="tool-hub-card-kicker">Enhance & refine</span>
+                        <span class="tool-hub-card-kicker">Super-Resolution Engine</span>
                     </div>
                     <h2>Aj Pixel Enhancer</h2>
-                    <p>Improve clarity and presentation for previews, print mockups, and polished visual delivery.</p>
+                    <p>Restore soft assets, boost pixel density, and clean up compression artifacts for sharp, client-ready previews and large formats.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Quality boost</span>
-                    <a class="tool-hub-btn" href="../aj-pixel-enhancer/">Launch</a>
+                    <span class="tool-hub-badge">Quality Upscale</span>
+                    <a class="tool-hub-btn" href="../aj-pixel-enhancer/">Open Studio</a>
                 </div>
             </article>
 
-            <article class="tool-hub-card">
+            <!-- 03: Print Layout Pro -->
+            <article class="tool-hub-card tool-hub-card-primary">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">03</span>
-                        <span class="tool-hub-card-kicker">Resize studio</span>
+                        <span class="tool-hub-card-kicker">Print Imposition Studio</span>
                     </div>
-                    <h2>Image Resizer</h2>
-                    <p>Resize creatives for banners, reels, thumbnails, and marketplace previews without rethinking the layout.</p>
+                    <h2>AJ Print Layout Pro</h2>
+                    <p>Visiting cards, ID cards, certificates, stickers, labels, and flyers with 25-up sheet repeats, automatic crop marks, and bleed margins.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Resize quickly</span>
-                    <a class="tool-hub-btn" href="../image-resizer/">Launch</a>
+                    <span class="tool-hub-badge">Layout Generator</span>
+                    <a class="tool-hub-btn" href="../aj-print-layout-pro/">Open Studio</a>
                 </div>
             </article>
 
+            <!-- 04: Image Converter -->
             <article class="tool-hub-card">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">04</span>
-                        <span class="tool-hub-card-kicker">Format switch</span>
+                        <span class="tool-hub-card-kicker">Multi-Format Batch Engine</span>
                     </div>
                     <h2>Image Converter</h2>
-                    <p>Switch between formats for delivery, upload, and lightweight sharing across different workflows.</p>
+                    <p>Batch convert image files across modern web and print formats including JPG, PNG, WEBP, AVIF, TIFF, BMP, and SVG.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Format swap</span>
-                    <a class="tool-hub-btn" href="../image-converter/">Launch</a>
+                    <span class="tool-hub-badge">Batch Converter</span>
+                    <a class="tool-hub-btn" href="../image-converter/">Open Studio</a>
                 </div>
             </article>
 
+            <!-- 05: Image Resizer -->
             <article class="tool-hub-card">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">05</span>
-                        <span class="tool-hub-card-kicker">Color utility</span>
+                        <span class="tool-hub-card-kicker">Aspect & Scale Studio</span>
                     </div>
-                    <h2>Aj Colour Converter</h2>
-                    <p>Transform color values between formats for brand work, UI design, and quick creative checks.</p>
+                    <h2>Image Resizer</h2>
+                    <p>Scale creatives instantly for Instagram, YouTube, visiting cards, or custom pixel dimensions with aspect ratio lock and live preview.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Color swap</span>
-                    <a class="tool-hub-btn" href="../aj-colour-converter/">Launch</a>
+                    <span class="tool-hub-badge">Dimension Scaling</span>
+                    <a class="tool-hub-btn" href="../image-resizer/">Open Studio</a>
                 </div>
             </article>
 
-            <article class="tool-hub-card tool-hub-card-primary">
+            <!-- 06: Colour Converter -->
+            <article class="tool-hub-card">
                 <div class="tool-hub-copy">
                     <div class="tool-hub-card-topline">
                         <span class="tool-hub-card-index">06</span>
-                        <span class="tool-hub-card-kicker">Print studio</span>
+                        <span class="tool-hub-card-kicker">Color & Palette Utility</span>
                     </div>
-                    <h2>AJ Print Layout Pro</h2>
-                    <p>Build business cards, certificates, invitations, stickers, labels, flyers, and custom print sheets with the full studio setup.</p>
+                    <h2>Aj Colour Converter</h2>
+                    <p>Translate color codes between HEX, RGB, HSL, and CMYK, check WCAG accessibility contrast, and generate harmonic palettes.</p>
                 </div>
                 <div class="tool-hub-card-footer">
-                    <span class="tool-hub-badge">Main print tool</span>
-                    <a class="tool-hub-btn" href="../aj-print-layout-pro/">Open Hub</a>
+                    <span class="tool-hub-badge">Color Space Tool</span>
+                    <a class="tool-hub-btn" href="../aj-colour-converter/">Open Studio</a>
                 </div>
             </article>
         </section>
 
-        <section class="tools-hub-feature" aria-label="Featured tool">
-            <div class="tools-hub-feature-copy">
-                <span class="tools-hub-feature-label">Featured launchpad</span>
-                <h2>Choose a tool, launch fast, and keep the flow quietly premium</h2>
-                <p>Every card now uses softer contrast, cleaner copy, and a single focused action so the dashboard feels curated instead of crowded.</p>
-            </div>
-            <div class="tools-hub-feature-chipset">
-                <span>Cleaner hierarchy</span>
-                <span>Less clutter</span>
-                <span>Calm motion</span>
-                <span>Premium cards</span>
-            </div>
-        </section>
-
+        <!-- Slider Section -->
         <section class="tools-hub-slider-section" aria-label="Tool preview slider">
             <div class="tools-hub-section-head">
-                <span class="tools-hub-feature-label">Tool preview</span>
-                <h2>Preview the toolkit with subtle motion</h2>
-                <p>Motion stays restrained and intentional, so the page feels more like a premium product shelf than a busy grid.</p>
+                <span class="tools-hub-kicker">Studio Showcase</span>
+                <h2>Preview the creative toolkit</h2>
             </div>
 
             <div class="tools-hub-slider" id="toolsDashboardSlider">
@@ -163,24 +174,6 @@
                 </div>
             </div>
         </section>
-
-        <section class="tools-hub-stat-row" aria-label="Dashboard highlights">
-            <article class="tools-hub-stat">
-                <span>6 tools</span>
-                <strong>Live</strong>
-                <p>Fast entry into every studio tool.</p>
-            </article>
-            <article class="tools-hub-stat">
-                <span>Style</span>
-                <strong>Refined</strong>
-                <p>Soft surfaces, tighter spacing, calmer rhythm.</p>
-            </article>
-            <article class="tools-hub-stat">
-                <span>Workflow</span>
-                <strong>Curated</strong>
-                <p>Each card reads clearly in one quick scan.</p>
-            </article>
-        </section>
     </main>
 
     <div id="site-footer"></div>
@@ -188,4 +181,5 @@
     <script src="../js/tools.js"></script>
     <script src="../js/dashboard.js"></script>
 </body>
+
 </html>

@@ -1,0 +1,8 @@
+{
+  "name": "AJartivo - The Designer's Haven",
+  "description": "Creative marketplace for modern print and digital assets: high-quality PSD, PNG, CDR, and AI templates.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
